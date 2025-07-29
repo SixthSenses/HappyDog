@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.ini
+desktop.ini
+# Environments
+.env
+.venv/
+venv/
+ENV/
+/secrets
+happydog-11498-firebase-adminsdk-fbsvc-a3eeecb74e.json
+# VSCode
+.vscode/
+
+# Jupyter / Colab
+.ipynb_checkpoints/
+
+# Mac / Linux
+.DS_Store
+
+# Alembic
+alembic.ini
+migrations/versions/*.py
+
+# Pytest
+.cache/
+
+# Logs
+*.log
+
+
+
+# MyPy
+.mypy_cache/
+
+
+#model
+*.pth
+

@@ -1,0 +1,38 @@
+/pet_project_backend/
+|
+|-- /app/                        # Flask 애플리케이션 코어
+|   |-- /api/                    # API 블루프린트 (기능별 라우팅)
+|   |   |-- /auth/               #  인증 (소셜로그인, JWT)
+|   |   |-- /pets/               #  반려동물 프로필 (CRUD)
+|   |   |-- /survey/             #  건강 설문지
+|   |   |-- /guidebook/          #  강아지 가이드북
+|   |   |-- /mungstagram/        #  멍스타그램 (SNS)
+|   |   |-- /translator/         #  강아지 번역기 (AI 모델 연동)
+|   |   |-- /map/                #  지도 서비스 (주변 병원 안내)
+|   |   |-- /eye_analysis/       #  안구 질환 분석
+|   |   |   |-- routes.py
+|   |   |   `-- services.py
+|   |   |
+|   |   `-- /nose_analysis/      #  비문 분석
+|   |       |-- routes.py
+|   |       `-- services.py
+|   |
+|   |-- /core/                   # 핵심 공통 모듈 (설정, 보안)
+|   |-- /models/                 # 데이터 구조 정의 (Firestore 문서)
+|   |-- /schemas/                # 데이터 유효성 검증
+|   |-- /services/               # 공통 비즈니스 로직 (Firebase 등)
+|   `-- __init__.py              # 앱 팩토리
+|
+|-- /ml_models/                  # 머신러닝 모델 및 관련 코드
+|   |-- /inference/
+|   |-- /saved_models/
+|   `-- /scripts/
+|       `-- register_admin_noses.py # 관리자용 비문 사전등록 스크립트
+|
+|-- /uploads/                    # 사용자 업로드 파일 임시 저장
+|-- /secrets/                    # Firebase 키 등 비밀 파일
+|
+|-- run.py                       # 앱 실행 스크립트
+|-- .env                         # 환경변수
+|-- .gitignore                   # Git 추적 제외 목록
+|-- environment.yml              # Conda 환경 설정 파일
