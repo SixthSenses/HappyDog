@@ -1,49 +1,57 @@
+#app/api/auth/services.py
+import uuid
+from datetime import datetime
+from typing import Dict, Any, Tuple
+from dataclasses import asdict
 from firebase_admin import firestore
 from app.models.user import User
 
-db = firestore.client()
+class AuthService:
+    def __init__(self):
+        # __init__에서는 아무것도 하지 않고 비워둡니다.
+        self.db = None
+        self.users_ref = None
 
-def get_or_create_user_from_google(id_info: dict) -> tuple[User, bool]:
-    """
-    Google 사용자 정보로 Firestore에서 사용자를 찾거나 생성합니다.
+    def init_app(self):
+        """
+        app 초기화가 끝난 후 호출되어 실제 DB 연결을 수행합니다.
+        """
+        self.db = firestore.client()
+        self.users_ref = self.db.collection('users')
 
-    Args:
-        id_info: Google id_token.verify_oauth2_token()을 통해 받은 사용자 정보.
-
-    Returns:
-        A tuple containing:
-        - User: The created or retrieved User dataclass instance.
-        - bool: True if the user was newly created, False otherwise.
-    """
-    users_ref = db.collection('users')
-    google_id = id_info.get('sub') # Google의 고유 사용자 ID
-    user_email = id_info.get('email')
-
-    # google_id로 기존 사용자 조회
-    query = users_ref.where('google_id', '==', google_id).limit(1)
-    results = query.stream()
-    existing_user_doc = next(results, None)
-
-    if existing_user_doc:
-        # 사용자가 존재하면 User 객체로 변환하여 반환
-        user_data = existing_user_doc.to_dict()
-        user = User(id=existing_user_doc.id, **user_data)
-        return user, False # (기존 유저, is_new_user=False)
-    else:
-        # 사용자가 없으면 새로 생성
-        new_user_data = {
-            'google_id': google_id,
-            'email': user_email,
-            'name': id_info.get('name'),
-            'picture': id_info.get('picture'),
-            'created_at': firestore.SERVER_TIMESTAMP,
-        }
+    def get_or_create_user_by_google(self, google_user_info: dict):
         
-        # Firestore에 새 사용자 문서 추가
-        update_time, new_user_ref = users_ref.add(new_user_data)
-        
-        # 생성된 사용자 정보를 User 객체로 변환하여 반환
-        created_user_data = new_user_ref.get().to_dict()
-        created_user = User(id=new_user_ref.id, **created_user_data)
+        google_id = google_user_info.get('sub')
+        if not google_id:
+            raise ValueError("Google user info must contain 'sub' (google_id).")
 
-        return created_user, True # (신규 유저, is_new_user=True)
+        # Firestore에서 google_id가 일치하는 사용자를 찾습니다.
+        query = self.users_ref.where('google_id', '==', google_id).limit(1).stream()
+        # user_doc: 쿼리 결과로 찾은 Firestore 문서 스냅샷입니다. 없으면 None입니다.
+        user_doc = next(query, None)
+
+        if user_doc:
+            # 기존 사용자인 경우
+            # is_new_user: 신규 사용자 여부를 나타내는 플래그입니다.
+            is_new_user = False
+            # user_data: Firestore 문서에서 가져온 사용자 데이터 딕셔너리입니다.
+            user_data = user_doc.to_dict()
+            # user: user_data를 기반으로 생성된 User 데이터클래스 객체입니다.
+            user = User(**user_data)
+            return user, is_new_user
+        else:
+            # 신규 사용자인 경우
+            is_new_user = True
+            # user_id: 우리 서비스에서 사용할 새로운 고유 ID를 UUID로 생성합니다.
+            user_id = str(uuid.uuid4())
+            # new_user: 새로 생성할 User 데이터클래스 객체입니다.
+            new_user = User(
+                user_id=user_id,
+                google_id=google_id,
+                email=google_user_info.get('email'),
+                nickname=google_user_info.get('name'),
+                join_date=datetime.now()
+            )
+            # Firestore에 user_id를 문서 ID로 하여 새로운 사용자 정보를 저장합니다.
+            self.users_ref.document(user_id).set(asdict(new_user))
+            return new_user, is_new_user

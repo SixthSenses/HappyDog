@@ -3,7 +3,12 @@
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
+from enum import Enum
 
+class PetGender(Enum):
+    """반려동물 성별을 나타내는 Enum 클래스"""
+    MALE = "MALE"
+    FEMALE = "FEMALE"
 @dataclass
 class Pet:
     """반려동물 데이터 구조를 정의하는 데이터클래스"""
@@ -17,7 +22,7 @@ class Pet:
     name: str
     
     # gender: 반려동물의 성별 ('MALE' 또는 'FEMALE').
-    gender: str
+    gender: PetGender
     
     # breed: 반려동물의 견종입니다.
     breed: str
