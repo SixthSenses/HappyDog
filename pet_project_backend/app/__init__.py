@@ -1,12 +1,18 @@
+import os
 from flask import Flask
+from dotenv import load_dotenv
 from app.core.config import config_by_name
 import firebase_admin
 from firebase_admin import credentials
 
-def create_app(config_name: str = 'development'):
+load_dotenv()
+
+def create_app():
     """
     환경에 맞는 설정을 적용하여 Flask 앱을 생성하는 팩토리 함수입니다.
     """
+    config_name = os.getenv('FLASK_ENV', 'development')
+    
     app = Flask(__name__)
     
     app.config.from_object(config_by_name[config_name])
