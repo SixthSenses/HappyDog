@@ -1,23 +1,38 @@
-#예시코드입니다
+#app/models/pet.py
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field
 from datetime import date
+from typing import Optional
 
 @dataclass
 class Pet:
-    """
-    Firestore의 'pets' 컬렉션 문서 구조를 정의하는 데이터 클래스.
-    """
-    id: str
-    owner_id: str
-    name: str
-    breed: str
-    birth_date: date
+    """반려동물 데이터 구조를 정의하는 데이터클래스"""
+    # pet_id: 반려동물의 고유 ID. Firestore 문서 ID와 동일하게 사용됩니다.
+    pet_id: str
     
-    def to_dict(self):
-        """데이터 클래스 인스턴스를 Firestore 저장용 딕셔너리로 변환"""
-        # asdict는 dataclass를 dict로 변환해주는 헬퍼 함수
-        # 날짜 객체는 문자열로 변환해야 함
-        data = asdict(self)
-        data['birth_date'] = self.birth_date.isoformat()
-        return data
+    # user_id: 이 반려동물의 소유자를 가리키는 User의 ID (FK 역할).
+    user_id: str
+    
+    # name: 반려동물의 이름입니다.
+    name: str
+    
+    # gender: 반려동물의 성별 ('MALE' 또는 'FEMALE').
+    gender: str
+    
+    # breed: 반려동물의 견종입니다.
+    breed: str
+    
+    # birthdate: 반려동물의 생년월일입니다.
+    birthdate: date
+    
+    # is_neutered: 중성화 수술 여부입니다.
+    #is_neutered: bool
+    
+    # is_verified: 비문 인증 완료 여부. 최초 등록 시 항상 False로 설정됩니다.
+    is_verified: bool = False
+    
+    # vaccination_status: 예방접종 관련 정보 (선택 사항).
+    vaccination_status: Optional[str] = None
+    
+    # weight: 체중. 기획이 미확정되어 모델에만 포함하고 API 요청으로는 받지 않습니다.
+    weight: Optional[float] = None
