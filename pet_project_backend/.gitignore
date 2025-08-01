@@ -8,12 +8,11 @@ __pycache__/
 *.ini
 desktop.ini
 # Environments
-.env
+
 .venv/
 venv/
 ENV/
-/secrets
-happydog-11498-firebase-adminsdk-fbsvc-a3eeecb74e.json
+
 # VSCode
 .vscode/
 
@@ -34,7 +33,7 @@ migrations/versions/*.py
 *.log
 
 
-
+/secrets
 # MyPy
 .mypy_cache/
 

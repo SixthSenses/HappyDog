@@ -7,6 +7,7 @@ channels:
   - https://repo.anaconda.com/pkgs/msys2
 dependencies:
   - blas=1.0
+  - blinker=1.9.0
   - brotli-python=1.0.9
   - brotlicffi=1.0.9.2
   - bzip2=1.0.8
@@ -14,11 +15,14 @@ dependencies:
   - certifi=2025.7.14
   - cffi=1.17.1
   - charset-normalizer=3.3.2
+  - colorama=0.4.6
   - contourpy=1.3.1
   - cpuonly=2.0
+  - cryptography=45.0.5
   - cycler=0.11.0
   - expat=2.7.1
   - filelock=3.17.0
+  - flask-jwt-extended=4.7.1
   - fonttools=4.55.3
   - freetype=2.13.3
   - giflib=5.2.2
@@ -27,6 +31,7 @@ dependencies:
   - icu=73.1
   - idna=3.7
   - intel-openmp=2023.1.0
+  - itsdangerous=2.2.0
   - jinja2=3.1.6
   - jpeg=9e
   - kiwisolver=1.4.8
@@ -57,11 +62,12 @@ dependencies:
   - numpy=2.0.1
   - numpy-base=2.0.1
   - openjpeg=2.5.2
-  - openssl=3.0.16
+  - openssl=3.0.17
   - packaging=24.2
   - pillow=11.1.0
   - pip=25.1
   - pycparser=2.21
+  - pyjwt=2.10.1
   - pyparsing=3.2.0
   - pyqt=6.7.1
   - pyqt6-sip=13.9.1
@@ -97,6 +103,7 @@ dependencies:
   - vc=14.3
   - vc14_runtime=14.44.35208
   - vs2015_runtime=14.44.35208
+  - werkzeug=3.1.3
   - wheel=0.45.1
   - win_inet_pton=1.1.0
   - xz=5.6.4
@@ -106,12 +113,9 @@ dependencies:
   - pip:
       - annotated-types==0.7.0
       - backports-datetime-fromisoformat==2.0.3
-      - blinker==1.9.0
       - cachecontrol==0.14.3
       - cachetools==5.5.2
       - click==8.2.1
-      - colorama==0.4.6
-      - cryptography==45.0.5
       - dotenv==0.9.9
       - firebase-admin==7.0.0
       - flask==3.1.1
@@ -129,7 +133,6 @@ dependencies:
       - h2==4.2.0
       - hpack==4.1.0
       - hyperframe==6.1.0
-      - itsdangerous==2.2.0
       - marshmallow==4.0.0
       - msgpack==1.1.1
       - oauthlib==3.3.1
@@ -139,10 +142,8 @@ dependencies:
       - pyasn1-modules==0.4.2
       - pydantic==2.11.7
       - pydantic-core==2.33.2
-      - pyjwt==2.10.1
       - python-dotenv==1.1.1
       - requests-oauthlib==2.0.0
       - rsa==4.9.1
       - typing-inspection==0.4.1
-      - werkzeug==3.1.3
 prefix: C:\Users\jeongho\AppData\Local\anaconda3\envs\pet-backend
