@@ -15,7 +15,7 @@ def test_detector(base_dir: str):
     weights_path = os.path.join(base_dir, 'saved_models', 'nose_segment', 'best.pt')
     # 이미지 경로는 initial_dataset이 아닌 scripts 폴더 바로 아래에 있다고 가정합니다.
     # 만약 initial_dataset에 있다면 경로를 수정해주세요.
-    image_path = os.path.join(base_dir, 'scripts', 'golden-retriever-puppy-3783517_640.jpg')
+    image_path = os.path.join(base_dir, 'scripts', 'test_img1.jpg')
     output_dir = os.path.join(base_dir, 'scripts', 'test_outputs')
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'cropped_nose.jpg')
@@ -28,11 +28,11 @@ def test_detector(base_dir: str):
     image_np = np.array(Image.open(image_path).convert('RGB'))
     
     # [수정됨] NumPy 배열을 직접 처리하는 detect_from_array 메서드를 호출합니다.
-    cropped_image_array = detector.detect_from_array(image_np)
+    processed_image_array, detection_succeeded = detector.detect_from_array(image_np)
 
-    if cropped_image_array is not None and cropped_image_array.size > 0:
-        print(" 코 탐지 성공!")
-        result_image = Image.fromarray(cropped_image_array)
+    if detection_succeeded:
+        print("코 탐지 성공!")
+        result_image = Image.fromarray(processed_image_array)
         result_image.save(output_path)
         print(f"-> 잘라낸 이미지를 '{output_path}' 에 저장했습니다.")
     else:
@@ -63,7 +63,7 @@ def test_extractor(base_dir: str):
 def test_pipeline(base_dir: str):
     """NosePrintPipeline 클래스를 테스트합니다."""
     print("\n--- 3. NosePrintPipeline 테스트 시작 ---")
-    image_path = os.path.join(base_dir, 'scripts', 'golden-retriever-puppy-3783517_640.jpg')
+    image_path = os.path.join(base_dir, 'scripts', 'test_img1.jpg')
 
     if not os.path.exists(image_path):
         print(f"경고: 테스트 이미지를 찾을 수 없어 Pipeline 테스트를 건너뜁니다: {image_path}")

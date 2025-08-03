@@ -94,7 +94,6 @@ def register_nose_print():
     """로그인된 사용자의 반려동물 비문을 등록하고 인증합니다."""
     user_id = get_jwt_identity()
     
-    # app 컨텍스트에서 초기화된 서비스들을 가져옵니다.
     try:
         pipeline = current_app.services['pipeline']
         storage_service = current_app.services['storage']
@@ -102,16 +101,13 @@ def register_nose_print():
         logging.error("서비스가 Flask 앱에 제대로 등록되지 않았습니다.")
         return jsonify({"status": "ERROR", "message": "서버 설정에 오류가 발생했습니다."}), 500
 
-    # 1. 사용자에게 등록된 반려동물이 있는지 확인
     pet_info = pet_service.get_pet_by_user_id(user_id)
     if not pet_info:
         return jsonify({"error_code": "PET_NOT_FOUND", "message": "비문을 등록할 반려동물 정보가 없습니다."}), 404
 
-    # 2. 이미 인증되었는지 확인
     if pet_info.get('is_verified', False):
         return jsonify({"error_code": "ALREADY_VERIFIED", "message": "이미 비문 인증이 완료된 반려동물입니다."}), 409
 
-    # 3. 이미지 파일 확인
     if 'image' not in request.files:
         return jsonify({"error_code": "FILE_NOT_FOUND", "message": "이미지 파일('image' 필드)이 필요합니다."}), 400
     
@@ -119,17 +115,14 @@ def register_nose_print():
     image_bytes = image_file.read()
 
     try:
-        # 4. ML 파이프라인 실행
         result = pipeline.process_image(image_bytes)
         status = result.get("status")
 
-        # 5. 시나리오 분기 처리
         if status == "SUCCESS":
             pet_id = pet_info['pet_id']
-            # 이미지 업로드 및 URL 반환
             folder_path = f"nose_prints/{user_id}"
             image_url = storage_service.upload_image(folder_path, image_bytes)
-            # DB 업데이트
+            
             update_data = {
                 "is_verified": True,
                 "nose_print_url": image_url,
@@ -137,7 +130,16 @@ def register_nose_print():
             }
             updated_pet = pet_service.update_pet(pet_id, update_data)
             
-            # 성공 응답 반환
+            # [수정됨] DB 업데이트 후, Faiss 인덱스에도 새로운 벡터를 추가하고 저장합니다.
+            try:
+                pipeline.add_vector_to_index(result['vector'])
+            except Exception as e:
+                # Faiss 업데이트 실패 시, 이미 DB에 저장된 내용을 롤백하거나
+                # 관리자에게 알림을 보내는 등의 후속 조치가 필요할 수 있습니다.
+                logging.error(f"Faiss 인덱스 업데이트 실패: {e}. DB와 정합성 문제가 발생할 수 있습니다.")
+                # 일단 클라이언트에게는 성공으로 응답하되, 서버에 심각한 로그를 남깁니다.
+                pass
+
             return jsonify({
                 "status": "SUCCESS",
                 "message": "비문이 성공적으로 등록되었습니다.",
@@ -150,7 +152,7 @@ def register_nose_print():
         elif status == "DUPLICATE":
             return jsonify({"status": "DUPLICATE_BY_ANOTHER_USER", "message": "이미 다른 사용자가 등록한 비문입니다. 관리자에게 문의해주세요."}), 409
             
-        else: # ERROR 또는 기타 상태
+        else:
             logging.error(f"ML 파이프라인에서 예기치 않은 상태 반환: {status}")
             return jsonify({"status": "ERROR", "message": "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}), 500
 

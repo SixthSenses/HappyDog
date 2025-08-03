@@ -33,8 +33,8 @@ class NoseDetector:
             raise RuntimeError("YOLOv5 모델이 초기화되지 않았습니다.")
         
         # YOLOv5는 BGR 순서를 선호하므로 변환합니다.
-        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-        results = self.model(image_bgr)
+        #image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        results = self.model(image_np)
         detections = results.xyxy[0]
 
         if len(detections) > 0:
