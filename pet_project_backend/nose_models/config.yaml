@@ -1,0 +1,32 @@
+dataset:
+  image_root: data
+  image_size: 224
+  train_csv: data/mini/train.csv
+  val_csv: data/mini/val.csv
+  use_clahe_sharpen: true
+experiment:
+  device: cuda
+  name: seresnext50_ibn_custom
+  seed: 42
+log:
+  print_every: 10
+  use_wandb: false
+model:
+  name: seresnext50_ibn_custom
+  in_features: 2048
+  feature_dim: 512
+  pretrained: false
+save:
+  save_dir: /
+  save_name: seresnext50_ibn_custom_best_model.pth
+train:
+  batch_size: 16
+  epochs: 30
+  learning_rate: 0.0002
+  margin: 0.6
+  num_workers: 0
+  weight_decay: 0.0001
+visualization:
+  prefix: norm_
+  cosine_threshold: 0.7
+  save_embeddings: true

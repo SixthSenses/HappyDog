@@ -40,4 +40,4 @@ migrations/versions/*.py
 
 #model
 *.pth
-
+*.pt

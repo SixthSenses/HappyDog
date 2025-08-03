@@ -2,12 +2,12 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, create_refresh_token
 from marshmallow import ValidationError
-from app.api.auth.services import AuthService
+
 from app.api.auth.schemas import SocialLoginSchema
 from app.services.google_auth_service import GoogleAuthService
-
+from .services import auth_service
 auth_bp = Blueprint('auth_bp', __name__)
-auth_service = AuthService()
+
 
 @auth_bp.route('/social', methods=['POST'])
 def social_login():

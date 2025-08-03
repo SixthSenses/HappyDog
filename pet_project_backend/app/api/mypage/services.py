@@ -59,3 +59,5 @@ class PetService:
         if updated_doc.exists:
             return updated_doc.to_dict()
         return None
+    
+pet_service=PetService()

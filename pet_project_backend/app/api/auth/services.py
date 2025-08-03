@@ -55,3 +55,4 @@ class AuthService:
             # Firestore에 user_id를 문서 ID로 하여 새로운 사용자 정보를 저장합니다.
             self.users_ref.document(user_id).set(asdict(new_user))
             return new_user, is_new_user
+auth_service = AuthService()

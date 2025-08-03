@@ -35,7 +35,8 @@ class Pet:
     
     # is_verified: 비문 인증 완료 여부. 최초 등록 시 항상 False로 설정됩니다.
     is_verified: bool = False
-    
+    nose_print_url: Optional[str] = None
+    faiss_id: Optional[int] = None
     # vaccination_status: 예방접종 관련 정보 (선택 사항).
     vaccination_status: Optional[str] = None
     
