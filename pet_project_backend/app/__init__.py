@@ -12,10 +12,14 @@ from firebase_admin import credentials
 # 애플리케이션의 다른 모듈들이 로드되기 전에 환경 변수를 로드합니다.
 load_dotenv()
 
-# 프로젝트의 핵심 컴포넌트들을 임포트합니다.
+# --- 프로젝트의 핵심 컴포넌트들을 임포트합니다. ---
 from app.core.config import config_by_name
+
+# [수정] 새로 만든 uploads 블루프린트를 임포트합니다.
 from app.api.auth.routes import auth_bp
 from app.api.mypage.routes import mypage_bp
+from app.api.uploads.routes import uploads_bp 
+
 from app.api.auth.services import auth_service
 from app.api.mypage.services import pet_service
 from app.services.storage_service import StorageService
@@ -46,6 +50,7 @@ def create_app():
     JWTManager(app)
 
     # --- Firebase Admin SDK 초기화 ---
+    # 앱 인스턴스가 여러 개 생성되는 것을 방지하기 위해 `if not firebase_admin._apps:` 체크를 합니다.
     if not firebase_admin._apps:
         cred_path = app.config['FIREBASE_CREDENTIALS_PATH']
         if not os.path.exists(cred_path):
@@ -56,7 +61,8 @@ def create_app():
         })
 
     # --- 서비스 인스턴스 생성 및 등록 ---
-    # API 요청 처리 시 재사용할 서비스 객체들을 앱 시작 시점에 한 번만 생성합니다.
+    # API 요청 처리 시 재사용할 서비스 객체들을 앱 컨텍스트(app.services)에 저장합니다.
+    # 이렇게 하면 앱 시작 시점에 한 번만 생성되어 메모리 효율성이 높아집니다.
     app.services = {}
 
     # ML 파이프라인 초기화: 무거운 모델을 메모리에 미리 로드하여 API 응답 속도를 향상시킵니다.
@@ -89,11 +95,15 @@ def create_app():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
 
     # --- Blueprint 등록 ---
-    # [수정됨] 각 기능별 API 엔드포인트에 url_prefix를 명확하게 지정합니다.
+    # 각 기능별 API 엔드포인트에 url_prefix를 명확하게 지정하여 API 주소를 구조화합니다.
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(mypage_bp, url_prefix='/api/mypage')
+    
+    # [수정] 새로 만든 uploads 블루프린트를 '/api/uploads' 경로에 등록합니다.
+    app.register_blueprint(uploads_bp, url_prefix='/api/uploads')
 
     # --- 공통 에러 핸들러 등록 ---
+    # Marshmallow 스키마 유효성 검사 실패 시 일관된 형식의 400 에러를 반환합니다.
     @app.errorhandler(ValidationError)
     def handle_marshmallow_validation(err):
         response = {
@@ -103,5 +113,5 @@ def create_app():
         }
         return jsonify(response), 400
 
-    print("Flask 앱 생성 및 초기화 완료.")
+    logging.info("Flask 앱 생성 및 모든 컴포넌트 초기화 완료.")
     return app

@@ -91,9 +91,18 @@ def get_pet():
 @mypage_bp.route('/pet/nose-print', methods=['POST'])
 @jwt_required()
 def register_nose_print():
-    """로그인된 사용자의 반려동물 비문을 등록하고 인증합니다."""
+    """
+    [수정] 업로드된 비문 이미지의 경로를 받아 ML 분석 후 등록/인증합니다.
+    """
     user_id = get_jwt_identity()
     
+    # [수정] request.files 대신 request.get_json()으로 file_path를 받습니다.
+    data = request.get_json()
+    if not data or 'file_path' not in data:
+        return jsonify({"error_code": "PAYLOAD_INVALID", "message": "요청 본문에 'file_path' 필드가 필요합니다."}), 400
+    
+    file_path = data['file_path']
+
     try:
         pipeline = current_app.services['pipeline']
         storage_service = current_app.services['storage']
@@ -101,6 +110,7 @@ def register_nose_print():
         logging.error("서비스가 Flask 앱에 제대로 등록되지 않았습니다.")
         return jsonify({"status": "ERROR", "message": "서버 설정에 오류가 발생했습니다."}), 500
 
+    # 반려동물 정보 조회 및 이미 인증되었는지 확인하는 로직은 동일합니다.
     pet_info = pet_service.get_pet_by_user_id(user_id)
     if not pet_info:
         return jsonify({"error_code": "PET_NOT_FOUND", "message": "비문을 등록할 반려동물 정보가 없습니다."}), 404
@@ -108,20 +118,23 @@ def register_nose_print():
     if pet_info.get('is_verified', False):
         return jsonify({"error_code": "ALREADY_VERIFIED", "message": "이미 비문 인증이 완료된 반려동물입니다."}), 409
 
-    if 'image' not in request.files:
-        return jsonify({"error_code": "FILE_NOT_FOUND", "message": "이미지 파일('image' 필드)이 필요합니다."}), 400
-    
-    image_file = request.files['image']
-    image_bytes = image_file.read()
+    # [삭제] request.files에서 직접 이미지를 읽는 부분을 삭제합니다.
+    # if 'image' not in request.files: ...
+    # image_file = request.files['image']
+    # image_bytes = image_file.read()
 
     try:
-        result = pipeline.process_image(image_bytes)
+        # [수정] 파이프라인 호출 시 storage_service와 file_path를 전달합니다.
+        result = pipeline.process_image(storage_service=storage_service, file_path=file_path)
         status = result.get("status")
 
         if status == "SUCCESS":
             pet_id = pet_info['pet_id']
-            folder_path = f"nose_prints/{user_id}"
-            image_url = storage_service.upload_image(folder_path, image_bytes)
+            
+            # [수정] 이미지가 Storage에 있으므로, 해당 blob을 public으로 만들고 URL을 가져옵니다.
+            blob = storage_service.bucket.blob(file_path)
+            blob.make_public()
+            image_url = blob.public_url
             
             update_data = {
                 "is_verified": True,
@@ -130,32 +143,38 @@ def register_nose_print():
             }
             updated_pet = pet_service.update_pet(pet_id, update_data)
             
-            # [수정됨] DB 업데이트 후, Faiss 인덱스에도 새로운 벡터를 추가하고 저장합니다.
+            # DB 업데이트 후 Faiss 인덱스를 업데이트하는 로직은 동일합니다.
             try:
                 pipeline.add_vector_to_index(result['vector'])
             except Exception as e:
-                # Faiss 업데이트 실패 시, 이미 DB에 저장된 내용을 롤백하거나
-                # 관리자에게 알림을 보내는 등의 후속 조치가 필요할 수 있습니다.
                 logging.error(f"Faiss 인덱스 업데이트 실패: {e}. DB와 정합성 문제가 발생할 수 있습니다.")
-                # 일단 클라이언트에게는 성공으로 응답하되, 서버에 심각한 로그를 남깁니다.
                 pass
 
             return jsonify({
                 "status": "SUCCESS",
-                "message": "비문이 성공적으로 등록되었습니다.",
+                "message": "비문이 성공적으로 등록 및 인증되었습니다.",
                 "pet": PetSchema().dump(updated_pet)
             }), 200
 
+        # [수정] DUPLICATE 발생 시 응답 포맷을 API 명세서와 일치시킵니다.
+        elif status == "DUPLICATE":
+            # 필요하다면, conflicting_pet 정보를 여기서 조회하여 추가할 수 있습니다.
+            return jsonify({
+                "error_code": "DUPLICATE_NOSE_PRINT",
+                "message": "이미 다른 반려동물의 비문으로 등록된 사진입니다."
+                # "conflicting_pet": {"pet_id": "...", "pet_name": "..."}
+            }), 409
+
+        # INVALID_IMAGE 등 나머지 상태 처리 로직은 거의 동일합니다.
         elif status == "INVALID_IMAGE":
             return jsonify({"status": "INVALID_IMAGE", "message": "코를 명확하게 식별할 수 없습니다. 더 선명하거나 가까이에서 찍은 사진을 등록해주세요."}), 400
-        
-        elif status == "DUPLICATE":
-            return jsonify({"status": "DUPLICATE_BY_ANOTHER_USER", "message": "이미 다른 사용자가 등록한 비문입니다. 관리자에게 문의해주세요."}), 409
             
         else:
-            logging.error(f"ML 파이프라인에서 예기치 않은 상태 반환: {status}")
-            return jsonify({"status": "ERROR", "message": "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}), 500
+            # ML 파이프라인 내부에서 발생한 에러 또는 예기치 않은 상태
+            error_message = result.get("message", "알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+            logging.error(f"ML 파이프라인에서 예기치 않은 상태 반환: {status}, 메시지: {error_message}")
+            return jsonify({"status": "ERROR", "message": error_message}), 500
 
     except Exception as e:
         logging.error(f"비문 등록 중 예외 발생: {e}", exc_info=True)
-        return jsonify({"status": "ERROR", "message": "알 수 없는 오류가 발생했습니다."}), 500
+        return jsonify({"status": "ERROR", "message": "알 수 없는 서버 오류가 발생했습니다."}), 500

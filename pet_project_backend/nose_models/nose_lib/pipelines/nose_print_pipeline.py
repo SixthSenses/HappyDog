@@ -5,6 +5,8 @@ import numpy as np
 import faiss
 from PIL import Image
 from typing import Dict, Any
+
+from pet_project_backend.app.services.storage_service import StorageService
 from nose_lib.detectors.nose_detector import NoseDetector
 from nose_lib.extractors.extractor import NosePrintExtractor
 
@@ -29,9 +31,17 @@ class NosePrintPipeline:
             print(f"NosePrintPipeline: 초기화 중 심각한 오류 발생: {e}")
             raise
 
-    def process_image(self, image_bytes: bytes) -> Dict[str, Any]:
-        """이미지 바이트를 받아 분석 결과를 반환합니다."""
+    def process_image(self, storage_service: StorageService, file_path: str) -> Dict[str, Any]:
+        """파일 경로를 받아 Storage에서 이미지를 다운로드한 후 분석 결과를 반환합니다."""
         try:
+            # [신규] Storage에서 file_path를 이용해 이미지 바이트를 가져옵니다.
+            blob = storage_service.bucket.blob(file_path)
+            if not blob.exists():
+                print(f"NosePrintPipeline: Storage에서 파일을 찾을 수 없음 - {file_path}")
+                return {"status": "ERROR", "message": "스토리지에서 파일을 찾을 수 없습니다."}
+            image_bytes = blob.download_as_bytes()
+            
+            # --- 여기부터는 기존 로직과 완전히 동일합니다 ---
             image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
             image_np = np.array(image)
             resized_image_np = cv2.resize(image_np, (640, 640), interpolation=cv2.INTER_AREA)
