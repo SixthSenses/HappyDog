@@ -6,7 +6,7 @@ import faiss
 from PIL import Image
 from typing import Dict, Any
 
-from pet_project_backend.app.services.storage_service import StorageService
+from app.services.storage_service import StorageService
 from nose_lib.detectors.nose_detector import NoseDetector
 from nose_lib.extractors.extractor import NosePrintExtractor
 
