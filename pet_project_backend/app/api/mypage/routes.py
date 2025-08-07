@@ -1,15 +1,69 @@
 # pet_project_backend/app/api/mypage/routes.py
 import uuid
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 from app.models.pet import Pet, PetGender
 from app.api.mypage.schemas import PetSchema, PetUpdateSchema
 from app.api.mypage.services import pet_service
+from app.api.auth.services import auth_service
+
 
 mypage_bp = Blueprint('mypage_bp', __name__)
 
+@mypage_bp.route('/profile-image', methods=['PATCH'])
+@jwt_required()
+def update_profile_image():
+    """사용자의 프로필 이미지를 설정(업데이트)합니다."""
+    user_id = get_jwt_identity()
+    
+    data = request.get_json()
+    if not data or 'file_path' not in data:
+        return jsonify({"error_code": "INVALID_PAYLOAD", "message": "'file_path' 필드가 필요합니다."}), 400
+    
+    file_path = data['file_path']
+    storage_service = current_app.services['storage']
+
+    try:
+        # 1. Storage 파일 경로를 공개 URL로 변환
+        blob = storage_service.bucket.blob(file_path)
+        if not blob.exists():
+            return jsonify({"error_code": "FILE_NOT_FOUND", "message": "스토리지에서 해당 파일을 찾을 수 없습니다."}), 404
+        
+        blob.make_public()
+        public_url = blob.public_url
+
+        # 2. AuthService를 통해 사용자 DB 업데이트
+        updated_user = auth_service.update_profile_image(user_id, public_url)
+        if not updated_user:
+             return jsonify({"error_code": "USER_NOT_FOUND", "message": "사용자를 찾을 수 없습니다."}), 404
+
+        return jsonify({
+            "user_id": updated_user['user_id'],
+            "email": updated_user['email'],
+            "nickname": updated_user['nickname'],
+            "profile_image_url": updated_user['profile_image_url']
+        }), 200
+
+    except Exception as e:
+        logging.error(f"프로필 이미지 설정 중 오류 발생: {e}", exc_info=True)
+        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "프로필 이미지 설정 중 서버 오류가 발생했습니다."}), 500
+
+
+# --- [4단계] 회원 탈퇴 엔드포인트 ---
+@mypage_bp.route('/me', methods=['DELETE'])
+@jwt_required()
+def delete_account():
+    """로그인된 사용자 본인의 계정을 영구적으로 삭제합니다."""
+    user_id = get_jwt_identity()
+    try:
+        auth_service.delete_user_account(user_id)
+        # 성공 시에는 본문(body) 없이 204 상태 코드만 반환하는 것이 RESTful API 표준
+        return Response(status=204)
+    except Exception as e:
+        logging.error(f"회원 탈퇴 처리 중 심각한 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
+        return jsonify({"error_code": "ACCOUNT_DELETION_FAILED", "message": "회원 탈퇴 처리 중 서버 오류가 발생했습니다."}), 500
 
 @mypage_bp.route('/pet', methods=['POST'])
 @jwt_required()
