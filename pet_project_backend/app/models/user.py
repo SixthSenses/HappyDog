@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-
+from typing import Optional
 @dataclass
 class User:
     """사용자 데이터 구조를 정의하는 데이터클래스."""
@@ -20,3 +20,5 @@ class User:
     
     # join_date: 사용자가 서비스에 처음 가입한 시각입니다.
     join_date: datetime = field(default_factory=datetime.now)
+    # 프로필 이미지 URL 필드 추가 
+    profile_image_url: Optional[str] = None

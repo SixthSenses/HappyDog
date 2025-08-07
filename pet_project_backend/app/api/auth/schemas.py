@@ -1,5 +1,5 @@
 #app/api/auth/schemas.py
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 class SocialLoginSchema(Schema):
     """소셜 로그인 요청의 유효성을 검사하는 스키마"""
@@ -12,3 +12,8 @@ class SocialLoginSchema(Schema):
         required=True, 
         metadata={"description": "Google OAuth 2.0 인증 코드"}
     )
+    
+class LogoutRequestSchema(Schema):
+    """로그아웃 요청의 유효성을 검사하는 스키마"""
+    access_token = fields.Str(required=True)
+    refresh_token = fields.Str(required=True)

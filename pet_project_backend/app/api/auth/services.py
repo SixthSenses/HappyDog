@@ -1,58 +1,108 @@
-#app/api/auth/services.py
+# app/api/auth/services.py
 import uuid
+import logging
 from datetime import datetime
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from dataclasses import asdict
-from firebase_admin import firestore
+from firebase_admin import firestore, auth as firebase_auth
+from flask import Flask
 from app.models.user import User
 
 class AuthService:
     def __init__(self):
-        # __init__에서는 아무것도 하지 않고 비워둡니다.
         self.db = None
         self.users_ref = None
+        self.revoked_tokens_ref = None
+        self.app: Optional[Flask] = None
 
-    def init_app(self):
-        """
-        app 초기화가 끝난 후 호출되어 실제 DB 연결을 수행합니다.
-        """
+    def init_app(self, app: Flask):
+        """앱 초기화 과정에서 호출되어 DB 연결 및 앱 컨텍스트를 설정합니다."""
         self.db = firestore.client()
         self.users_ref = self.db.collection('users')
+        self.revoked_tokens_ref = self.db.collection('revoked_tokens')
+        self.app = app
 
-    def get_or_create_user_by_google(self, google_user_info: dict):
-        
+    def get_or_create_user_by_google(self, google_user_info: dict) -> Tuple[User, bool]:
         google_id = google_user_info.get('sub')
         if not google_id:
             raise ValueError("Google user info must contain 'sub' (google_id).")
 
-        # Firestore에서 google_id가 일치하는 사용자를 찾습니다.
         query = self.users_ref.where('google_id', '==', google_id).limit(1).stream()
-        # user_doc: 쿼리 결과로 찾은 Firestore 문서 스냅샷입니다. 없으면 None입니다.
         user_doc = next(query, None)
 
         if user_doc:
-            # 기존 사용자인 경우
-            # is_new_user: 신규 사용자 여부를 나타내는 플래그입니다.
             is_new_user = False
-            # user_data: Firestore 문서에서 가져온 사용자 데이터 딕셔너리입니다.
             user_data = user_doc.to_dict()
-            # user: user_data를 기반으로 생성된 User 데이터클래스 객체입니다.
             user = User(**user_data)
             return user, is_new_user
         else:
-            # 신규 사용자인 경우
             is_new_user = True
-            # user_id: 우리 서비스에서 사용할 새로운 고유 ID를 UUID로 생성합니다.
             user_id = str(uuid.uuid4())
-            # new_user: 새로 생성할 User 데이터클래스 객체입니다.
             new_user = User(
                 user_id=user_id,
                 google_id=google_id,
                 email=google_user_info.get('email'),
                 nickname=google_user_info.get('name'),
-                join_date=datetime.now()
+                join_date=datetime.now(),
+                profile_image_url=None # 최초 가입 시 프로필 이미지는 없음
             )
-            # Firestore에 user_id를 문서 ID로 하여 새로운 사용자 정보를 저장합니다.
             self.users_ref.document(user_id).set(asdict(new_user))
             return new_user, is_new_user
+
+    # --- Blocklist 관련 로직 ---
+    def add_token_to_blocklist(self, jti: str, expires: datetime):
+        """전달받은 토큰의 jti를 만료 시간과 함께 Firestore에 저장합니다."""
+        try:
+            self.revoked_tokens_ref.document(jti).set({
+                'revoked_at': datetime.now(),
+                'expires_at': expires
+            })
+        except Exception as e:
+            logging.error(f"Blocklist 토큰 추가 실패 (jti: {jti}): {e}")
+
+
+    def is_token_revoked(self, jwt_payload: dict) -> bool:
+        """jti를 이용해 해당 토큰이 무효화 목록에 있는지 확인합니다."""
+        jti = jwt_payload['jti']
+        doc = self.revoked_tokens_ref.document(jti).get()
+        return doc.exists
+
+    def logout_user(self, access_jti: str, access_exp: int, refresh_jti: str, refresh_exp: int):
+        """Access 토큰과 Refresh 토큰을 모두 Blocklist에 추가합니다."""
+        access_expires = datetime.fromtimestamp(access_exp)
+        refresh_expires = datetime.fromtimestamp(refresh_exp)
+        self.add_token_to_blocklist(access_jti, access_expires)
+        self.add_token_to_blocklist(refresh_jti, refresh_expires)
+        logging.info(f"사용자 로그아웃 처리 완료. JTI: {access_jti[:8]}..., {refresh_jti[:8]}...")
+
+
+    # --- 프로필 이미지 업데이트 로직 ---
+    def update_profile_image(self, user_id: str, image_url: str) -> Optional[Dict[str, Any]]:
+        """사용자의 프로필 이미지 URL을 업데이트합니다."""
+        try:
+            user_ref = self.users_ref.document(user_id)
+            user_ref.update({'profile_image_url': image_url})
+            updated_doc = user_ref.get()
+            if updated_doc.exists:
+                return updated_doc.to_dict()
+            return None
+        except Exception as e:
+            logging.error(f"프로필 이미지 업데이트 실패 (user_id: {user_id}): {e}")
+            raise
+
+    # --- 회원 탈퇴 로직 ---
+    def delete_user_account(self, user_id: str):
+        """Firebase Auth에서 사용자를 삭제합니다. (나머지는 Extension이 처리)"""
+        try:
+            firebase_auth.delete_user(user_id)
+            logging.info(f"Firebase Auth 사용자 삭제 성공 (user_id: {user_id}). Firestore/Storage 데이터는 Extension에 의해 삭제됩니다.")
+        except firebase_auth.UserNotFoundError:
+            logging.warning(f"Firebase Auth에서 이미 삭제된 사용자입니다 (user_id: {user_id}).")
+            # 이미 없는 사용자이므로 성공으로 간주할 수 있습니다.
+            pass
+        except Exception as e:
+            logging.error(f"회원 탈퇴 처리 중 Firebase Auth 사용자 삭제 실패 (user_id: {user_id}): {e}")
+            # 이 경우, DB나 Storage의 데이터가 남을 수 있으므로 심각한 오류입니다.
+            raise
+
 auth_service = AuthService()

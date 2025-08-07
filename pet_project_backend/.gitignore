@@ -33,7 +33,7 @@ migrations/versions/*.py
 *.log
 
 
-/secrets
+
 # MyPy
 .mypy_cache/
 
@@ -43,3 +43,8 @@ migrations/versions/*.py
 *.pt
 #img
 *.jpg
+
+#secrets
+/secrets
+*.json
+.json
