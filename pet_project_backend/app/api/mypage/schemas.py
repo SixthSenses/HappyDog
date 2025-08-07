@@ -42,3 +42,7 @@ class PetUpdateSchema(Schema):
     birthdate = fields.Date(required=False, format="%Y-%m-%d")
     vaccination_status = fields.Str(required=False, allow_none=True)
     # is_neutered = fields.Bool(required=False)
+
+class NotificationSettingsSchema(Schema):
+    likes = fields.Bool(required=True)
+    comments = fields.Bool(required=True)

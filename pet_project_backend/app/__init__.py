@@ -19,9 +19,11 @@ from app.core.config import config_by_name
 from app.api.auth.routes import auth_bp
 from app.api.mypage.routes import mypage_bp
 from app.api.uploads.routes import uploads_bp 
+from app.api.mungstagram.routes import mungstagram_bp
 
 from app.api.auth.services import auth_service
 from app.api.mypage.services import pet_service
+from app.api.mungstagram.services import mungstagram_service
 from app.services.storage_service import StorageService
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
 
@@ -90,6 +92,7 @@ def create_app():
     # 기존 서비스(DB 연결 등) 초기화
     auth_service.init_app()
     pet_service.init_app()
+    mungstagram_service.init_app()
     
     # --- 로깅 설정 ---
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
@@ -101,7 +104,7 @@ def create_app():
     
     # [수정] 새로 만든 uploads 블루프린트를 '/api/uploads' 경로에 등록합니다.
     app.register_blueprint(uploads_bp, url_prefix='/api/uploads')
-
+    app.register_blueprint(mungstagram_bp, url_prefix='/api/mungstagram')
     # --- 공통 에러 핸들러 등록 ---
     # Marshmallow 스키마 유효성 검사 실패 시 일관된 형식의 400 에러를 반환합니다.
     @app.errorhandler(ValidationError)
