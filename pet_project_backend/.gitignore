@@ -46,3 +46,4 @@ migrations/versions/*.py
 
 #secrets
 /secrets
+*.json
