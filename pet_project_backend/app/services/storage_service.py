@@ -52,8 +52,8 @@ class StorageService:
         # 'upload_type'에 따라 파일이 저장될 폴더 경로를 매핑합니다.
         # 새로운 파일 업로드 기능이 추가될 때마다 이 딕셔너리에 항목을 추가하면 됩니다.
         path_map = {
-            # 반려동물 프로필 이미지는 pet_profiles/{user_id}/ 경로에 저장됩니다.
-            "pet_profile": f"pet_profiles/{user_id}",
+            # 사용자 프로필 이미지는 pet_profiles/{user_id}/ 경로에 저장됩니다.
+            "user_profile": f"user_profiles/{user_id}",
             
             # 비문 이미지는 ML 분석 전 임시로 nose_prints_staging/{user_id}/ 경로에 저장됩니다.
             "pet_nose_print": f"nose_prints_staging/{user_id}",
