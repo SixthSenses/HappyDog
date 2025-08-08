@@ -60,6 +60,9 @@ class StorageService:
             
             # '멍스타그램' 게시물 이미지는 posts/{user_id}/ 경로에 저장됩니다.
             "post_image": f"posts/{user_id}",
+
+            # 안구 이미지
+            "eye_analysis": f"eye_analysis_images/{user_id}",
         }
 
         folder_path = path_map.get(upload_type)
