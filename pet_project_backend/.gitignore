@@ -7,14 +7,17 @@ __pycache__/
 *.db
 *.ini
 desktop.ini
+*.pyc
 # Environments
 
 .venv/
 venv/
 ENV/
+.env
 
 # VSCode
 .vscode/
+.idea/
 
 # Jupyter / Colab
 .ipynb_checkpoints/
@@ -43,3 +46,19 @@ migrations/versions/*.py
 *.pt
 #img
 *.jpg
+
+# Secrets / Credentials - [매우 중요!]
+secrets/
+
+# Editable Install Metadata
+*.egg-info/
+
+# User Uploads (임시 파일)
+uploads/
+
+# Conda Environment Cache
+.conda/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
