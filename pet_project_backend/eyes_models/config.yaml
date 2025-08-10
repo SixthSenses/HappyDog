@@ -1,0 +1,10 @@
+image_settings:
+  target_size: [224, 224]
+
+class_names:
+  - '결막염'
+  - '궤양성각막질환'
+  - '백내장'
+  - '안검내반증'
+
+threshold: 0.5 # 이 값을 조정하여 민감도를 제어할 수 있습니다.
