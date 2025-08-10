@@ -19,11 +19,15 @@ from app.core.config import config_by_name
 from app.api.auth.routes import auth_bp
 from app.api.mypage.routes import mypage_bp
 from app.api.uploads.routes import uploads_bp 
+# 안구분류 블루프린트 임포트
+from .api.eyes_analysis.routes import eyes_analysis_bp
 
 from app.api.auth.services import auth_service
 from app.api.mypage.services import pet_service
 from app.services.storage_service import StorageService
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
+# 안구 질환 분석 서비스 임포트
+from eyes_lib.inference import EyeAnalyzer
 
 def create_app():
     """
@@ -88,9 +92,13 @@ def create_app():
     app.services['storage'] = storage_instance
     
     # 기존 서비스(DB 연결 등) 초기화
-    auth_service.init_app()
+    auth_service.init_app(app)
     pet_service.init_app()
     
+    # 안구 질환 분석 서비스 초기화 및 등록
+    eye_analyzer_instance = EyeAnalyzer()
+    app.services['eye_analyzer'] = eye_analyzer_instance
+
     # --- 로깅 설정 ---
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
 
@@ -101,6 +109,9 @@ def create_app():
     
     # [수정] 새로 만든 uploads 블루프린트를 '/api/uploads' 경로에 등록합니다.
     app.register_blueprint(uploads_bp, url_prefix='/api/uploads')
+
+    # 안구분류 블루프린트 등록
+    app.register_blueprint(eyes_analysis_bp, url_prefix='/api/eyes-analysis')
 
     # --- 공통 에러 핸들러 등록 ---
     # Marshmallow 스키마 유효성 검사 실패 시 일관된 형식의 400 에러를 반환합니다.
