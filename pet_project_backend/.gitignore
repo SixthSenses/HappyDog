@@ -7,13 +7,13 @@ __pycache__/
 *.db
 *.ini
 desktop.ini
+*.pyc
 # Environments
-.env
+
 .venv/
 venv/
 ENV/
-/secrets
-happydog-11498-firebase-adminsdk-fbsvc-a3eeecb74e.json
+
 # VSCode
 .vscode/
 
@@ -22,6 +22,7 @@ happydog-11498-firebase-adminsdk-fbsvc-a3eeecb74e.json
 
 # Mac / Linux
 .DS_Store
+Thumbs.db
 
 # Alembic
 alembic.ini
@@ -38,7 +39,25 @@ migrations/versions/*.py
 # MyPy
 .mypy_cache/
 
-
 #model
 *.pth
+*.pt
+#img
+*.jpg
 
+#secrets
+secrets/
+/secrets
+*.json
+.json
+
+# Editable Install Metadata
+*.egg-info/
+
+# Conda Environment Cache
+.conda/
+
+# User Uploads (임시 파일)
+uploads/
+/secrets
+*.json

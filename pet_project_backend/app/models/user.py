@@ -1,18 +1,17 @@
-#예시 코드입니다.
-#회원가입시 어떤값을 받을건지에따라 수정될예정입니다. 
-# 수정시 pet_project_backend\app\api\auth\services.py의 get_or_create_user_from_google함수와
-#pet_project_backend\app\schemas\user_schema.py 의 UserSchema도 수정되어야합니다.
-from dataclasses import dataclass
+# app/models/user.py
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Optional
 
 @dataclass
 class User:
     """
-    Firestore의 'users' 컬렉션 문서 구조를 정의하는 데이터 클래스.
+    Firestore 'users' 컬렉션의 문서 구조를 정의하는 데이터클래스.
     """
-    id: str         # Firestore 문서 ID
-    google_id: str  # Google에서 제공하는 고유 ID
+    user_id: str
+    google_id: str
     email: str
-    name: str
-    picture: str | None = None # 프로필 사진 URL (선택적)
-    created_at: datetime | None = None # 생성 시간
+    nickname: str
+    join_date: datetime = field(default_factory=datetime.utcnow)
+    profile_image_url: Optional[str] = None
+    fcm_token: Optional[str] = None # Phase 3: 푸시 알림을 위한 FCM 토큰 필드

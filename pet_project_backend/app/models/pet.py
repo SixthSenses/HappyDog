@@ -1,23 +1,26 @@
-#예시코드입니다
-
-from dataclasses import dataclass, asdict
+# app/models/pet.py
+from dataclasses import dataclass
 from datetime import date
+from typing import Optional
+from enum import Enum
+
+class PetGender(Enum):
+    """반려동물 성별을 나타내는 Enum 클래스"""
+    MALE = "MALE"
+    FEMALE = "FEMALE"
 
 @dataclass
 class Pet:
     """
-    Firestore의 'pets' 컬렉션 문서 구조를 정의하는 데이터 클래스.
+    Firestore 'pets' 컬렉션의 문서 구조를 정의하는 데이터클래스.
     """
-    id: str
-    owner_id: str
+    pet_id: str
+    user_id: str
     name: str
+    gender: PetGender
     breed: str
-    birth_date: date
-    
-    def to_dict(self):
-        """데이터 클래스 인스턴스를 Firestore 저장용 딕셔너리로 변환"""
-        # asdict는 dataclass를 dict로 변환해주는 헬퍼 함수
-        # 날짜 객체는 문자열로 변환해야 함
-        data = asdict(self)
-        data['birth_date'] = self.birth_date.isoformat()
-        return data
+    birthdate: date
+    is_verified: bool = False
+    nose_print_url: Optional[str] = None
+    faiss_id: Optional[int] = None
+    vaccination_status: Optional[str] = None

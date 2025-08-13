@@ -1,0 +1,2 @@
+nose_lib
+scripts
