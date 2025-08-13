@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 인터넷 및 네트워크 권한 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 카메라 권한 (안구 질환 검사, 프로필 사진 촬영) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 저장소 권한 (사진 선택) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- 위치 권한 (지도 기능) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- 알림 권한 (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 카메라 기능 선언 (선택사항) -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <application
+        android:name=".PetCareApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Pet_project_frontend"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
+
+        <!-- 메인 액티비티 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+<!--
+        # 카카오 로그인 설정 (사용하는 경우)
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                카카오 앱 키 설정 필요
+                <data android:host="oauth"
+                    android:scheme="kakao${KAKAO_APP_KEY}" />
+            </intent-filter>
+        </activity>
+-->
+        <!-- 네이버 지도 API 키 (사용하는 경우)
+        <meta-data
+            android:name="com.naver.maps.map.CLIENT_ID"
+            android:value="${NAVER_MAP_CLIENT_ID}" />
+-->
+        <!-- 파일 프로바이더 (카메라 촬영 시 필요) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- 네트워크 보안 설정 (개발 중 HTTP 허용) -->
+        <uses-library
+            android:name="org.apache.http.legacy"
+            android:required="false" />
+
+    </application>
+
+    <!-- 쿼리 권한 (Android 11+) - 다른 앱 실행 확인용 -->
+    <queries>
+        <!-- 카카오톡 -->
+        <package android:name="com.kakao.talk" />
+        <!-- 카메라 -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <!-- 갤러리 -->
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="image/*" />
+        </intent>
+    </queries>
+
+</manifest>
