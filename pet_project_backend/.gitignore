@@ -7,6 +7,7 @@ __pycache__/
 *.db
 *.ini
 desktop.ini
+*.pyc
 # Environments
 
 .venv/
@@ -21,6 +22,7 @@ ENV/
 
 # Mac / Linux
 .DS_Store
+Thumbs.db
 
 # Alembic
 alembic.ini
@@ -37,7 +39,6 @@ migrations/versions/*.py
 # MyPy
 .mypy_cache/
 
-
 #model
 *.pth
 *.pt
@@ -45,5 +46,18 @@ migrations/versions/*.py
 *.jpg
 
 #secrets
+secrets/
+/secrets
+*.json
+.json
+
+# Editable Install Metadata
+*.egg-info/
+
+# Conda Environment Cache
+.conda/
+
+# User Uploads (임시 파일)
+uploads/
 /secrets
 *.json
