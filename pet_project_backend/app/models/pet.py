@@ -1,7 +1,7 @@
 # app/models/pet.py
-from dataclasses import dataclass
+from dataclasses import dataclass ,field
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 class PetGender(Enum):
@@ -20,7 +20,8 @@ class Pet:
     gender: PetGender
     breed: str
     birthdate: date
-    is_verified: bool = False
+    fur_color: str
+    health_concerns: List[str] = field(default_factory=list)
     nose_print_url: Optional[str] = None
     faiss_id: Optional[int] = None
-    vaccination_status: Optional[str] = None
+    

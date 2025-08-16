@@ -34,9 +34,10 @@ def register_pet():
             user_id=user_id,
             name=pet_data['name'],
             gender=PetGender(pet_data['gender']),
-            breed=pet_data['breed'],
             birthdate=pet_data['birthdate'],
-            vaccination_status=pet_data.get('vaccination_status')
+            breed=pet_data['breed'],
+            fur_color=pet_data['fur_color'],
+            health_concerns=pet_data.get('health_concerns', [])
         )
         # 서비스 로직을 통해 반려동물 생성
         created_pet = pet_service.create_pet(new_pet)
@@ -46,6 +47,24 @@ def register_pet():
         logging.error(f"반려동물 등록 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
         return jsonify({"error_code": "PET_CREATION_FAILED", "message": "반려동물 등록 중 오류가 발생했습니다."}), 500
 
+@pets_bp.route('/', methods=['GET'])
+@jwt_required()
+def get_my_pet():
+    """
+    현재 로그인된 사용자의 반려동물 정보를 조회합니다.
+    """
+    pet_service = current_app.services['pets']
+    user_id = get_jwt_identity()
+    
+    try:
+        pet_info = pet_service.get_pet_by_user_id(user_id)
+        if not pet_info:
+            return jsonify({"error_code": "PET_NOT_FOUND", "message": "등록된 반려동물이 없습니다."}), 404
+        
+        return jsonify(PetSchema().dump(pet_info)), 200
+    except Exception as e:
+        logging.error(f"반려동물 정보 조회 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
+        return jsonify({"error_code": "PET_FETCH_FAILED", "message": "반려동물 정보를 가져오는 중 오류가 발생했습니다."}), 500
 
 @pets_bp.route('/<string:pet_id>', methods=['PATCH'])
 @jwt_required()
