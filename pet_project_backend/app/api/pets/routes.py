@@ -47,7 +47,7 @@ def register_pet():
         logging.error(f"반려동물 등록 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
         return jsonify({"error_code": "PET_CREATION_FAILED", "message": "반려동물 등록 중 오류가 발생했습니다."}), 500
 
-@pets_bp.route('/', methods=['GET'])
+@pets_bp.route('/<string:pet_id>', methods=['GET'])
 @jwt_required()
 def get_my_pet():
     """

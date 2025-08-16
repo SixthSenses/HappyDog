@@ -96,9 +96,10 @@ def delete_post(post_id: str):
     특정 게시글을 삭제합니다. (작성자 본인만 가능)
     """
     post_service = current_app.services['posts']
+    storage_service = current_app.services['storage']
     user_id = get_jwt_identity()
     try:
-        post_service.delete_post(post_id, user_id)
+        post_service.delete_post(post_id, user_id,storage_service)
         return Response(status=204) # 성공 시 내용 없이 204 No Content 반환
     except PermissionError as e:
         return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403

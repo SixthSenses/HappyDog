@@ -1,6 +1,7 @@
 # app/api/auth/routes.py
 
 import logging
+import jwt
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
     create_access_token,
@@ -78,16 +79,18 @@ def refresh_token():
 def logout():
     """로그아웃. 전달받은 Access/Refresh 토큰을 무효화 목록에 추가합니다."""
     try:
-        # verify_type=False는 토큰의 유형(access/refresh)을 검사하지 않겠다는 의미
-        # 대신 우리가 직접 토큰을 디코딩하여 jti와 exp를 추출해야 합니다.
         data = LogoutRequestSchema().load(request.get_json())
         access_token_str = data['access_token']
         refresh_token_str = data['refresh_token']
         
-        # 시크릿 키를 사용하여 토큰을 직접 디코딩
+        # 표준 JWT 라이브러리를 사용하여 토큰을 직접 해독합니다.
+        # 이 방식은 CSRF 검사를 수행하지 않습니다.
         secret_key = current_app.config['JWT_SECRET_KEY']
-        decoded_access = decode_token(access_token_str, secret_key, allow_expired=True)
-        decoded_refresh = decode_token(refresh_token_str, secret_key, allow_expired=True)
+        algorithm = current_app.config.get('JWT_ALGORITHM', 'HS256') # 설정이 없으면 기본값 HS256 사용
+
+        # 만료된 토큰도 해독할 수 있도록 'verify_exp=False' 옵션을 추가합니다.
+        decoded_access = jwt.decode(access_token_str, secret_key, algorithms=[algorithm], options={"verify_exp": False})
+        decoded_refresh = jwt.decode(refresh_token_str, secret_key, algorithms=[algorithm], options={"verify_exp": False})
 
         access_jti = decoded_access['jti']
         access_exp = decoded_access['exp']
@@ -100,6 +103,10 @@ def logout():
 
     except ValidationError as e:
          return jsonify({"error_code": "VALIDATION_ERROR", "details": e.messages}), 400
+    except jwt.PyJWTError as e:
+        # JWT 해독 자체에서 오류가 발생한 경우 (예: 토큰 형식이 잘못됨)
+        logging.error(f"JWT 해독 오류 발생: {e}", exc_info=True)
+        return jsonify({"error_code": "INVALID_TOKEN", "message": "유효하지 않은 토큰입니다."}), 422
     except Exception as e:
         logging.error(f"로그아웃 처리 중 오류 발생: {e}", exc_info=True)
         return jsonify({"error_code": "LOGOUT_FAILED", "message": "로그아웃 처리 중 오류가 발생했습니다."}), 500
