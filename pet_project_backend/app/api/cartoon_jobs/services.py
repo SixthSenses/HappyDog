@@ -1,39 +1,47 @@
 # app/api/cartoon_jobs/services.py
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from firebase_admin import firestore
 from dataclasses import asdict
 from typing import Optional, Dict, Any
 
 from app.models.cartoon_job import CartoonJob, CartoonJobStatus
+from app.models.notification import NotificationType
 
 class CartoonJobService:
     """
     비동기 만화 생성 작업 관련 비즈니스 로직을 담당하는 서비스 클래스.
     """
-    def __init__(self):
+    def __init__(self, post_service=None, notification_service=None):
         self.db = firestore.client()
         self.jobs_ref = self.db.collection('cartoon_jobs')
+        self.post_service = post_service
+        self.notification_service = notification_service
 
-    def create_cartoon_job(self, user_id: str, image_url: str) -> Dict[str, Any]:
+    def create_cartoon_job(self, user_id: str, file_paths: list, user_text: str = "") -> Dict[str, Any]:
         """
         만화 변환 작업을 Firestore에 등록하고 즉시 job 정보를 반환합니다.
-        실제 이미지 변환은 이 문서 생성을 트리거로 하는 Cloud Function이 처리합니다.
+        실제 이미지 변환은 백그라운드 Thread에서 처리됩니다.
         
         :param user_id: 작업을 요청한 사용자 ID
-        :param image_url: 변환할 원본 이미지의 URL
+        :param file_paths: 변환할 이미지 URL 리스트 (만화 생성은 1장만 지원)
+        :param user_text: 사용자가 입력한 텍스트 (선택사항)
         :return: 생성된 작업 정보 딕셔너리
         """
         try:
             job_id = str(uuid.uuid4())
+            # file_paths에서 첫 번째(유일한) 이미지 URL 추출
+            image_url = file_paths[0] if file_paths else ""
+            
             new_job = CartoonJob(
                 job_id=job_id,
                 user_id=user_id,
                 status=CartoonJobStatus.PROCESSING,
                 original_image_url=image_url,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                user_text=user_text,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             job_dict = asdict(new_job)
             # Enum 멤버를 문자열 값으로 변환하여 저장
@@ -83,7 +91,7 @@ class CartoonJobService:
             # 상태를 'canceling'으로 업데이트. Cloud Function이 이 상태를 감지하고 작업을 중단합니다.
             update_data = {
                 "status": CartoonJobStatus.CANCELING.value,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
             job_ref.update(update_data)
             
@@ -92,6 +100,125 @@ class CartoonJobService:
             return updated_job
         except Exception as e:
             logging.error(f"작업 취소 상태 업데이트 실패 (job_id: {job_id}): {e}", exc_info=True)
+            raise
+
+    def complete_cartoon_job_with_post(self, job_id: str, result_image_url: str) -> Dict[str, Any]:
+        """
+        만화 생성이 성공적으로 완료되면 자동으로 게시물을 생성하고 사용자에게 알림을 보냅니다.
+        Cloud Function에서 호출하는 메서드입니다.
+        
+        :param job_id: 완료된 작업의 ID
+        :param result_image_url: 생성된 만화 이미지 URL
+        :return: 처리 결과 정보
+        """
+        try:
+            # 1. 작업 정보 조회
+            job_ref = self.jobs_ref.document(job_id)
+            job_doc = job_ref.get()
+            
+            if not job_doc.exists:
+                raise FileNotFoundError(f"작업을 찾을 수 없습니다: {job_id}")
+                
+            job_data = job_doc.to_dict()
+            user_id = job_data.get('user_id')
+            
+            # 2. 작업 상태를 COMPLETED로 업데이트
+            update_data = {
+                "status": CartoonJobStatus.COMPLETED.value,
+                "result_image_url": result_image_url,
+                "updated_at": datetime.now(timezone.utc)
+            }
+            job_ref.update(update_data)
+            
+            # 3. 게시물 자동 생성 (텍스트는 제외)
+            post_result = None
+            if self.post_service:
+                try:
+                    # 만화 이미지만으로 게시물 생성 (텍스트는 빈 문자열)
+                    post_result = self.post_service.create_post(
+                        user_id=user_id,
+                        text="",  # 텍스트는 제외
+                        file_paths=[result_image_url]
+                    )
+                    logging.info(f"만화 게시물 자동 생성 완료: {job_id}")
+                except Exception as e:
+                    logging.error(f"게시물 자동 생성 실패 (job_id: {job_id}): {e}", exc_info=True)
+            
+            # 4. 성공 알림 발송
+            if self.notification_service:
+                try:
+                    self.notification_service.create_notification(
+                        recipient_id=user_id,
+                        sender_id="system",  # 시스템 알림
+                        n_type=NotificationType.CARTOON_SUCCESS,
+                        target_id=job_id,
+                        target_summary="만화 생성이 완료되어 게시물로 자동 업로드되었습니다."
+                    )
+                    logging.info(f"만화 생성 성공 알림 발송 완료: {job_id}")
+                except Exception as e:
+                    logging.error(f"성공 알림 발송 실패 (job_id: {job_id}): {e}", exc_info=True)
+            
+            return {
+                "success": True,
+                "job_id": job_id,
+                "post_created": post_result is not None,
+                "post_id": post_result.get('post_id') if post_result else None
+            }
+            
+        except Exception as e:
+            logging.error(f"만화 작업 완료 처리 실패 (job_id: {job_id}): {e}", exc_info=True)
+            raise
+
+    def fail_cartoon_job_with_notification(self, job_id: str, error_message: str) -> Dict[str, Any]:
+        """
+        만화 생성이 실패했을 때 작업 상태를 업데이트하고 사용자에게 실패 알림을 보냅니다.
+        Cloud Function에서 호출하는 메서드입니다.
+        
+        :param job_id: 실패한 작업의 ID
+        :param error_message: 실패 사유
+        :return: 처리 결과 정보
+        """
+        try:
+            # 1. 작업 정보 조회
+            job_ref = self.jobs_ref.document(job_id)
+            job_doc = job_ref.get()
+            
+            if not job_doc.exists:
+                raise FileNotFoundError(f"작업을 찾을 수 없습니다: {job_id}")
+                
+            job_data = job_doc.to_dict()
+            user_id = job_data.get('user_id')
+            
+            # 2. 작업 상태를 FAILED로 업데이트
+            update_data = {
+                "status": CartoonJobStatus.FAILED.value,
+                "error_message": error_message,
+                "updated_at": datetime.now(timezone.utc)
+            }
+            job_ref.update(update_data)
+            
+            # 3. 실패 알림 발송
+            if self.notification_service:
+                try:
+                    self.notification_service.create_notification(
+                        recipient_id=user_id,
+                        sender_id="system",  # 시스템 알림
+                        n_type=NotificationType.CARTOON_FAILED,
+                        target_id=job_id,
+                        target_summary="만화 생성에 실패했습니다. 다시 시도해주세요."
+                    )
+                    logging.info(f"만화 생성 실패 알림 발송 완료: {job_id}")
+                except Exception as e:
+                    logging.error(f"실패 알림 발송 실패 (job_id: {job_id}): {e}", exc_info=True)
+            
+            return {
+                "success": True,
+                "job_id": job_id,
+                "notification_sent": True
+            }
+            
+        except Exception as e:
+            logging.error(f"만화 작업 실패 처리 실패 (job_id: {job_id}): {e}", exc_info=True)
             raise
 
 # 서비스 인스턴스는 app/__init__.py에서 생성 및 주입됩니다.

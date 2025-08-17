@@ -1,6 +1,6 @@
 # app/models/cartoon_job.py
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -19,8 +19,9 @@ class CartoonJob:
     job_id: str
     user_id: str
     status: CartoonJobStatus
-    original_image_url: str
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    original_image_url: str  # file_paths[0]에서 추출된 단일 이미지 URL
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    user_text: Optional[str] = None
     result_image_url: Optional[str] = None
     error_message: Optional[str] = None

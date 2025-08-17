@@ -30,6 +30,7 @@ from app.api.cartoon_jobs.routes import cartoon_jobs_bp
 # - 서비스 모듈
 from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
+from app.services import openai_service as openai_service_module
 from app.api.auth import services as auth_service_module
 from app.api.users import services as user_service_module
 from app.api.pets import services as pet_service_module
@@ -78,6 +79,11 @@ def create_app():
     app.services['storage'] = storage_instance
     
     app.services['notifications'] = notification_service_module.NotificationService()
+    
+    # OpenAI 서비스 초기화
+    openai_instance = openai_service_module.OpenAIService()
+    openai_instance.init_app(app)
+    app.services['openai'] = openai_instance
 
     app.services['nose_pipeline'] = NosePrintPipeline(
         yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
@@ -106,7 +112,10 @@ def create_app():
     )
     
     app.services['comments'] = comment_service_module.CommentService()
-    app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService()
+    app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService(
+        post_service=app.services['posts'],
+        notification_service=app.services['notifications']
+    )
 
 
     # =====================================================================================
@@ -119,6 +128,18 @@ def create_app():
     app.register_blueprint(posts_bp, url_prefix='/api/posts')
     app.register_blueprint(comments_bp, url_prefix='/api/comments')
     app.register_blueprint(cartoon_jobs_bp, url_prefix='/api/cartoon-jobs')
+
+    # 디버그용 라우트 목록 확인 엔드포인트
+    @app.route('/debug/routes')
+    def list_routes():
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append({
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods),
+                'rule': str(rule)
+            })
+        return {'routes': routes}
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정

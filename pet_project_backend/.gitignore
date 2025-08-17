@@ -9,11 +9,11 @@ __pycache__/
 desktop.ini
 *.pyc
 # Environments
-
+/cloud_functions_sample
 .venv/
 venv/
 ENV/
-
+*.log
 # VSCode
 .vscode/
 
@@ -61,3 +61,4 @@ secrets/
 uploads/
 /secrets
 *.json
+.env

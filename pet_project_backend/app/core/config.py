@@ -11,6 +11,9 @@ class Config:
     GOOGLE_CLIENT_SECRETS_PATH = os.getenv('GOOGLE_CLIENT_SECRETS_PATH')
 
     FIREBASE_STORAGE_BUCKET = os.getenv('FIREBASE_STORAGE_BUCKET')
+    
+    # OpenAI API 설정
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 class DevelopmentConfig(Config):
     """개발 환경을 위한 설정 클래스입니다. Config 클래스를 상속받아 공통 설정을 그대로 사용합니다."""
     # DEBUG = True: Flask의 디버그 모드를 활성화합니다. 코드가 변경될 때마다 서버가 자동으로 재시작되고, 에러 발생 시 웹 브라우저에 상세한 디버그 정보가 표시됩니다.
