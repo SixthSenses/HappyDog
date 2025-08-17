@@ -31,18 +31,26 @@ class NotificationService:
             return  # 자기 자신에게는 알림을 생성하지 않음
 
         try:
-            # 발신자 정보 조회 (알림에 표시될 닉네임, 프로필 이미지 등)
-            sender_doc = self.users_ref.document(sender_id).get()
-            if not sender_doc.exists:
-                logging.warning(f"알림 생성 실패: 발신자(sender)를 찾을 수 없음 (ID: {sender_id})")
-                return
+            sender_data = {}
+            if sender_id == "system":
+                sender_data = {
+                    "user_id": "system",
+                    "nickname": "HappyDog",
+                    "profile_image_url": None  # 또는 기본 시스템 이미지 URL
+                }
+            else:
+                # 발신자 정보 조회 (알림에 표시될 닉네임, 프로필 이미지 등)
+                sender_doc = self.users_ref.document(sender_id).get()
+                if not sender_doc.exists:
+                    logging.warning(f"알림 생성 실패: 발신자(sender)를 찾을 수 없음 (ID: {sender_id})")
+                    return
 
-            sender_info = sender_doc.to_dict()
-            sender_data = {
-                "user_id": sender_info.get('user_id'),
-                "nickname": sender_info.get('nickname'),
-                "profile_image_url": sender_info.get('profile_image_url')
-            }
+                sender_info = sender_doc.to_dict()
+                sender_data = {
+                    "user_id": sender_info.get('user_id'),
+                    "nickname": sender_info.get('nickname'),
+                    "profile_image_url": sender_info.get('profile_image_url')
+                }
 
             notification = Notification(
                 notification_id=str(uuid.uuid4()),

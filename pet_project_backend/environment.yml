@@ -237,3 +237,4 @@ dependencies:
       - ultralytics==8.3.172
       - ultralytics-thop==2.0.14
       - yolov5==7.0.14
+      - openai==1.8.0
