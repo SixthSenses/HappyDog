@@ -3,11 +3,16 @@
 import logging
 from flask import request, jsonify, Blueprint, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from marshmallow import ValidationError
+from marshmallow import Schema, fields, validate, ValidationError
 
 # 'uploads' 기능을 위한 새로운 블루프린트를 생성합니다.
 # 이 블루프린트에 속한 모든 API는 '/api/uploads' 라는 접두사 URL을 갖게 됩니다.
 uploads_bp = Blueprint('uploads', __name__)
+
+class FilePathSchema(Schema):
+    """파일 경로 유효성 검사를 위한 스키마"""
+    file_path = fields.Str(required=True, error_messages={"required": "파일 경로는 필수입니다."})
+
 
 @uploads_bp.route('/url', methods=['POST'])
 @jwt_required()
@@ -58,3 +63,29 @@ def get_upload_url():
         # 그 외 예측하지 못한 서버 내부 오류 발생 시 500 에러를 반환합니다.
         logging.error(f"Pre-signed URL 생성 중 서버 오류 발생: {e}", exc_info=True)
         return jsonify({"error_code": "URL_GENERATION_FAILED", "message": "URL 생성 중 서버 오류가 발생했습니다."}), 500
+
+
+@uploads_bp.route('/finalize-cartoon', methods=['POST'])
+@jwt_required()
+def finalize_cartoon_upload():
+    """
+    업로드된 만화 원본 이미지를 공개로 전환하고 URL을 반환합니다.
+    """
+    storage_service = current_app.services['storage']
+    
+    try:
+        data = FilePathSchema().load(request.get_json())
+        file_path = data['file_path']
+        
+        # 파일을 공개로 전환하고 URL 가져오기
+        public_url = storage_service.make_public_and_get_url(file_path)
+        
+        return jsonify({"public_url": public_url}), 200
+        
+    except ValidationError as err:
+        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+    except FileNotFoundError as e:
+        return jsonify({"error_code": "FILE_NOT_FOUND", "message": str(e)}), 404
+    except Exception as e:
+        logging.error(f"파일 공개 전환 중 오류 발생: {e}", exc_info=True)
+        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "파일 처리 중 오류가 발생했습니다."}), 500

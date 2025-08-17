@@ -62,3 +62,4 @@ uploads/
 /secrets
 *.json
 .env
+pet_project_backend/.env
