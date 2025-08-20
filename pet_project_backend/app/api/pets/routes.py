@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 from app.api.pets.schemas import PetSchema, PetUpdateSchema, EyeAnalysisResponseSchema
-from app.models.pet import Pet, PetGender
+from app.models.pet import Pet, PetGender, ActivityLevel, DietType
 
 pets_bp = Blueprint('pets_bp', __name__)
 
@@ -37,7 +37,13 @@ def register_pet():
             birthdate=pet_data['birthdate'],
             breed=pet_data['breed'],
             fur_color=pet_data['fur_color'],
-            health_concerns=pet_data.get('health_concerns', [])
+            health_concerns=pet_data.get('health_concerns', []),
+            # 새로운 펫케어 필드들
+            activity_level=ActivityLevel(pet_data['activity_level']) if pet_data.get('activity_level') else None,
+            diet_type=DietType(pet_data['diet_type']) if pet_data.get('diet_type') else None,
+            is_neutered=pet_data.get('is_neutered'),
+            current_weight=pet_data.get('current_weight'),
+            care_settings=pet_data.get('care_settings')
         )
         # 서비스 로직을 통해 반려동물 생성
         created_pet = pet_service.create_pet(new_pet)
@@ -166,3 +172,66 @@ def request_eye_analysis(pet_id: str):
     except Exception as e:
         logging.error(f"안구 분석 중 예외 발생 (pet_id: {pet_id}): {e}", exc_info=True)
         return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "알 수 없는 서버 오류가 발생했습니다."}), 500
+
+@pets_bp.route('/<string:pet_id>/care-settings', methods=['PATCH'])
+@jwt_required()
+def update_care_settings(pet_id: str):
+    """
+    반려동물의 펫케어 설정을 업데이트합니다.
+    
+    Path Parameters:
+        - pet_id (str): 반려동물 ID
+        
+    Request Body:
+        - care_settings (dict): 설정 정보
+          예: {"food_increment": 10, "water_increment": 50, "activity_increment": 15}
+    """
+    try:
+        pet_service = current_app.services['pets']
+        user_id = get_jwt_identity()
+        
+        # 펫 소유권 확인
+        pet_info = pet_service.get_pet_by_id_and_owner(pet_id, user_id)
+        if not pet_info:
+            return jsonify({
+                "error_code": "PET_NOT_FOUND",
+                "message": "반려동물을 찾을 수 없거나 접근 권한이 없습니다."
+            }), 404
+        
+        # 요청 데이터 검증
+        request_data = request.get_json()
+        if not request_data or 'care_settings' not in request_data:
+            return jsonify({
+                "error_code": "MISSING_CARE_SETTINGS",
+                "message": "care_settings 필드가 필요합니다."
+            }), 400
+        
+        care_settings = request_data['care_settings']
+        if not isinstance(care_settings, dict):
+            return jsonify({
+                "error_code": "INVALID_CARE_SETTINGS",
+                "message": "care_settings는 객체 형태여야 합니다."
+            }), 400
+        
+        # 설정 업데이트
+        update_data = {'care_settings': care_settings}
+        updated_pet = pet_service.update_pet(pet_id, update_data)
+        
+        if not updated_pet:
+            return jsonify({
+                "error_code": "UPDATE_FAILED",
+                "message": "펫케어 설정 업데이트에 실패했습니다."
+            }), 500
+        
+        logging.info(f"펫케어 설정 업데이트 완료 (pet_id: {pet_id})")
+        return jsonify({
+            "message": "펫케어 설정이 성공적으로 업데이트되었습니다.",
+            "care_settings": updated_pet.get('care_settings')
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"펫케어 설정 업데이트 중 오류 발생 (pet_id: {pet_id}): {e}", exc_info=True)
+        return jsonify({
+            "error_code": "CARE_SETTINGS_UPDATE_FAILED",
+            "message": "펫케어 설정 업데이트 중 오류가 발생했습니다."
+        }), 500

@@ -34,7 +34,8 @@ migrations/versions/*.py
 # Logs
 *.log
 
-
+# scriptts
+scripts/
 
 # MyPy
 .mypy_cache/

@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from dataclasses import asdict
 from datetime import date, datetime
 
-from app.models.pet import Pet
+from app.models.pet import Pet, ActivityLevel, DietType
 from app.services.storage_service import StorageService
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
 from eyes_models.eyes_lib.inference import EyeAnalyzer
@@ -15,7 +15,7 @@ class PetService:
     """
     반려동물 관련 비즈니스 로직을 담당하는 서비스 클래스.
     """
-    def __init__(self, storage_service: StorageService, nose_pipeline: NosePrintPipeline, eye_analyzer: EyeAnalyzer):
+    def __init__(self, storage_service: StorageService, nose_pipeline: NosePrintPipeline, eye_analyzer: EyeAnalyzer, breed_service=None):
         """
         서비스 초기화 시 의존성 주입을 통해 필요한 서비스를 받습니다.
         """
@@ -24,6 +24,7 @@ class PetService:
         self.storage_service = storage_service
         self.nose_pipeline = nose_pipeline
         self.eye_analyzer = eye_analyzer
+        self.breed_service = breed_service
 
     def get_pet_by_user_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """user_id로 반려동물 문서를 찾아 딕셔너리로 반환합니다."""
@@ -50,8 +51,18 @@ class PetService:
 
     def create_pet(self, new_pet: Pet) -> Dict[str, Any]:
         """새로운 반려동물 정보를 Firestore에 저장합니다."""
+        # 품종 유효성 검사
+        if self.breed_service and not self.breed_service.breed_exists(new_pet.breed):
+            raise ValueError(f"존재하지 않는 품종입니다: {new_pet.breed}")
+        
         pet_data_dict = asdict(new_pet)
         pet_data_dict['gender'] = new_pet.gender.value
+        
+        # Enum 값들을 문자열로 변환
+        if new_pet.activity_level:
+            pet_data_dict['activity_level'] = new_pet.activity_level.value
+        if new_pet.diet_type:
+            pet_data_dict['diet_type'] = new_pet.diet_type.value
         
         # --- 수정된 부분: datetime.date 객체를 datetime.datetime으로 변환 ---
         if 'birthdate' in pet_data_dict and isinstance(pet_data_dict['birthdate'], date):
@@ -60,6 +71,7 @@ class PetService:
         # ----------------------------------------------------------------
 
         self.pets_ref.document(new_pet.pet_id).set(pet_data_dict)
+        logging.info(f"새 반려동물 등록 완료: {new_pet.pet_id}, 품종: {new_pet.breed}")
         return pet_data_dict
 
     def update_pet(self, pet_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:

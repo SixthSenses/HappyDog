@@ -1,6 +1,7 @@
 # app/api/pets/schemas.py
-from marshmallow import Schema, fields, validate, post_load
-from app.models.pet import PetGender
+from marshmallow import Schema, fields, validate, post_load, validates
+from marshmallow.exceptions import ValidationError
+from app.models.pet import PetGender, ActivityLevel, DietType
 
 class PetSchema(Schema):
     """
@@ -16,9 +17,40 @@ class PetSchema(Schema):
     fur_color = fields.Str(required=True)
     health_concerns = fields.List(fields.Str(), required=False)
     
+    # 펫케어 기능을 위한 추가 필드들
+    activity_level = fields.Str(required=False, allow_none=True, 
+                               validate=validate.OneOf([e.value for e in ActivityLevel]))
+    diet_type = fields.Str(required=False, allow_none=True,
+                          validate=validate.OneOf([e.value for e in DietType]))
+    is_neutered = fields.Bool(required=False, allow_none=True)
+    current_weight = fields.Float(required=False, allow_none=True, 
+                                 validate=validate.Range(min=0.1, max=200.0))
+    care_settings = fields.Dict(required=False, allow_none=True)
+    
     #is_verified = fields.Bool(dump_only=True)
     nose_print_url = fields.Str(dump_only=True, allow_none=True)
     faiss_id = fields.Int(dump_only=True, allow_none=True)
+    
+    @validates('breed')
+    def validate_breed(self, value):
+        """품종 유효성 검사 - Firestore에서 품종 존재 여부 확인"""
+        from app.api.breeds.services import BreedService
+        
+        if not value or not value.strip():
+            raise ValidationError("품종명은 필수입니다.")
+        
+        # Firestore에서 품종 존재 여부 확인
+        try:
+            breed_service = BreedService()
+            if not breed_service.breed_exists(value.strip()):
+                raise ValidationError(f"존재하지 않는 품종입니다: {value}")
+        except Exception as e:
+            # 품종 서비스 오류 시 경고 로그만 남기고 통과
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"품종 유효성 검사 중 오류 발생: {e}")
+        
+        return value
 
 class PetUpdateSchema(Schema):
     """

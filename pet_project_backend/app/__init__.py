@@ -27,6 +27,9 @@ from app.api.pets.routes import pets_bp
 from app.api.posts.routes import posts_bp
 from app.api.comments.routes import comments_bp
 from app.api.cartoon_jobs.routes import cartoon_jobs_bp
+from app.api.breeds.routes import breeds_bp
+from app.api.pet_care.routes import pet_care_bp
+from app.api.pet_care.routes_individual import individual_pet_care_bp
 # - 서비스 모듈
 from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
@@ -97,6 +100,11 @@ def create_app():
     # 5-2. 기능별 서비스 생성 (의존성 주입)
     auth_service_module.auth_service.init_app(app) # 인증 서비스는 기존 방식 유지
     
+    # 브리드 서비스 생성 (독립적)
+    from app.api.breeds.services import BreedService
+    breed_service_instance = BreedService()
+    app.services['breeds'] = breed_service_instance
+    
     post_service_instance = post_service_module.PostService()
     app.services['posts'] = post_service_instance
     
@@ -108,8 +116,20 @@ def create_app():
     app.services['pets'] = pet_service_module.PetService(
         storage_service=app.services['storage'],
         nose_pipeline=app.services['nose_pipeline'],
-        eye_analyzer=app.services['eye_analyzer']
+        eye_analyzer=app.services['eye_analyzer'],
+        breed_service=breed_service_instance
     )
+    
+    # 펫케어 서비스 생성 (브리드 서비스 의존성 주입)
+    from app.api.pet_care.services import PetCareService
+    from app.api.pet_care.services_individual import IndividualPetCareService
+    
+    pet_care_service_instance = PetCareService(breed_service=breed_service_instance)
+    app.services['pet_care'] = pet_care_service_instance
+    
+    # 개별 리소스 기반 펫케어 서비스 생성
+    individual_pet_care_service_instance = IndividualPetCareService(breed_service=breed_service_instance)
+    app.services['individual_pet_care'] = individual_pet_care_service_instance
     
     app.services['comments'] = comment_service_module.CommentService()
     app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService(
@@ -128,6 +148,10 @@ def create_app():
     app.register_blueprint(posts_bp, url_prefix='/api/posts')
     app.register_blueprint(comments_bp, url_prefix='/api/comments')
     app.register_blueprint(cartoon_jobs_bp, url_prefix='/api/cartoon-jobs')
+    # 새로 추가된 블루프린트들
+    app.register_blueprint(breeds_bp, url_prefix='/api/breeds')
+    app.register_blueprint(pet_care_bp, url_prefix='/api')  # 기존 방식 (하위 호환성)
+    app.register_blueprint(individual_pet_care_bp, url_prefix='/api')  # 새로운 개별 리소스 방식
 
     # 디버그용 라우트 목록 확인 엔드포인트
     @app.route('/debug/routes')
