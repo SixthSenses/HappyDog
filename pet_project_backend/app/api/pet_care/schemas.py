@@ -56,6 +56,7 @@ class WeightLogSchema(Schema):
     """체중 로그 스키마"""
     weight_kg = fields.Float(required=True, validate=validate.Range(min=0.1, max=200))
     timestamp = fields.DateTime(required=True)
+    bcs_level = fields.Int(required=False, allow_none=True, validate=validate.Range(min=1, max=9))
     measurement_method = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
     notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
 

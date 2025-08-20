@@ -117,6 +117,7 @@ class WeightLog:
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     weight_kg: float                    # 체중 (킬로그램)
     timestamp: datetime                 # 측정 시간
+    bcs_level: Optional[int] = None     # BCS(Body Condition Score) 1-9 범위
     measurement_method: Optional[str] = None  # 측정 방법
     notes: Optional[str] = None         # 특이사항
 

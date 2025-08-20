@@ -70,6 +70,10 @@ class PetService:
             pet_data_dict['birthdate'] = datetime(bdate.year, bdate.month, bdate.day)
         # ----------------------------------------------------------------
 
+        # 펫케어 설정 자동 생성 (온보딩 연동)
+        care_settings = self._generate_care_settings(new_pet)
+        pet_data_dict['care_settings'] = care_settings
+
         self.pets_ref.document(new_pet.pet_id).set(pet_data_dict)
         logging.info(f"새 반려동물 등록 완료: {new_pet.pet_id}, 품종: {new_pet.breed}")
         return pet_data_dict
@@ -192,6 +196,126 @@ class PetService:
             'disease_name': final_disease_name,
             'probability': probability
         }
+
+    def _generate_care_settings(self, pet: Pet) -> Dict[str, Any]:
+        """
+        펫 정보를 바탕으로 펫케어 기본 설정을 생성합니다.
+        
+        Args:
+            pet: Pet 객체
+            
+        Returns:
+            펫케어 설정 딕셔너리
+        """
+        try:
+            # 나이 계산 (월 단위)
+            if pet.birthdate:
+                if isinstance(pet.birthdate, date):
+                    birthdate = pet.birthdate
+                else:
+                    # datetime 객체인 경우 date로 변환
+                    birthdate = pet.birthdate.date()
+                
+                today = date.today()
+                age_months = (today.year - birthdate.year) * 12 + (today.month - birthdate.month)
+                age_months = max(0, age_months)
+            else:
+                age_months = 12  # 기본값: 1세
+            
+            # 품종별 이상 체중 조회
+            ideal_weight = 15.0  # 기본값
+            if self.breed_service and pet.breed:
+                breed_weight = self.breed_service.get_breed_ideal_weight(pet.breed, pet.gender.value)
+                if breed_weight:
+                    ideal_weight = breed_weight
+            
+            # 현재 체중이 있으면 사용, 없으면 이상 체중 사용
+            current_weight = pet.current_weight or ideal_weight
+            
+            # RER 계산 (휴식대사율)
+            rer_calories = 70 * (ideal_weight ** 0.75)
+            
+            # MER 승수 계산
+            multiplier = self._calculate_mer_multiplier(pet, age_months)
+            mer_calories = rer_calories * multiplier
+            
+            # 권장 음수량 계산
+            recommended_water_ml = self._calculate_water_intake(mer_calories, pet.diet_type)
+            
+            # 빠른 증감을 위한 기본 증분 설정
+            food_increment = max(25, round(mer_calories * 0.05))  # MER의 5% 또는 최소 25kcal
+            water_increment = max(50, round(recommended_water_ml * 0.1))  # 권장량의 10% 또는 최소 50ml
+            activity_increment = 15 if age_months < 12 else 30  # 자견은 15분, 성견은 30분
+            
+            care_settings = {
+                'food_increment': food_increment,
+                'water_increment': water_increment,
+                'activity_increment': activity_increment,
+                'recommended_calories': round(mer_calories, 1),
+                'recommended_water_ml': round(recommended_water_ml, 1),
+                'ideal_weight_kg': ideal_weight,
+                'age_months': age_months,
+                'mer_multiplier': multiplier,
+                'generated_at': datetime.utcnow()
+            }
+            
+            logging.info(f"펫케어 설정 생성 완료: {pet.pet_id} - 칼로리: {mer_calories}, 물: {recommended_water_ml}ml")
+            return care_settings
+            
+        except Exception as e:
+            logging.error(f"펫케어 설정 생성 실패 ({pet.pet_id}): {e}")
+            # 기본값 반환
+            return {
+                'food_increment': 50,
+                'water_increment': 100,
+                'activity_increment': 30,
+                'recommended_calories': 400.0,
+                'recommended_water_ml': 400.0,
+                'ideal_weight_kg': 15.0,
+                'age_months': 12,
+                'mer_multiplier': 1.6,
+                'generated_at': datetime.utcnow()
+            }
+    
+    def _calculate_mer_multiplier(self, pet: Pet, age_months: int) -> float:
+        """MER 승수를 계산합니다."""
+        # 생애 주기 확인
+        if age_months < 4:
+            return 3.0  # 자견 (4개월 미만)
+        elif age_months < 12:
+            return 2.0  # 자견 (4개월 이상)
+        
+        # 성견의 경우
+        # 활동 수준에 따른 승수 (우선순위 높음)
+        if pet.activity_level:
+            if pet.activity_level == ActivityLevel.INACTIVE:
+                return 1.4  # 비활동적 / 비만 경향
+            elif pet.activity_level == ActivityLevel.LIGHT:
+                return 2.0  # 가벼운 활동
+            elif pet.activity_level == ActivityLevel.MODERATE:
+                return 3.0  # 중간 수준 활동
+            elif pet.activity_level in [ActivityLevel.ACTIVE, ActivityLevel.VERY_ACTIVE]:
+                return 6.0  # 격렬한 활동 (워킹독)
+        
+        # 중성화 상태에 따른 기본 승수
+        if pet.is_neutered is True:
+            return 1.6  # 중성화한 성견
+        elif pet.is_neutered is False:
+            return 1.8  # 중성화하지 않은 성견
+        else:
+            return 1.6  # 기본값
+    
+    def _calculate_water_intake(self, mer_calories: float, diet_type: Optional[DietType]) -> float:
+        """권장 음수량을 계산합니다."""
+        base_water_ml = mer_calories
+        
+        # 식단 타입에 따른 조정
+        if diet_type == DietType.WET_FOOD:
+            return base_water_ml * 0.4  # 습식사료는 수분 함량이 높음
+        elif diet_type == DietType.MIXED:
+            return base_water_ml * 0.7  # 혼합식
+        else:
+            return base_water_ml  # 건사료 또는 기타
 
 # 서비스 인스턴스는 app/__init__.py에서 생성 및 주입됩니다.
 pet_service: Optional[PetService] = None
