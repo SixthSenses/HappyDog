@@ -28,8 +28,7 @@ from app.api.posts.routes import posts_bp
 from app.api.comments.routes import comments_bp
 from app.api.cartoon_jobs.routes import cartoon_jobs_bp
 from app.api.breeds.routes import breeds_bp
-from app.api.pet_care.routes import pet_care_bp
-from app.api.pet_care.routes_individual import individual_pet_care_bp
+# v1 pet_care_bp는 제거됨 - v2 전용으로 전환
 # - 서비스 모듈
 from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
@@ -122,14 +121,9 @@ def create_app():
     
     # 펫케어 서비스 생성 (브리드 서비스 의존성 주입)
     from app.api.pet_care.services import PetCareService
-    from app.api.pet_care.services_individual import IndividualPetCareService
     
     pet_care_service_instance = PetCareService(breed_service=breed_service_instance)
     app.services['pet_care'] = pet_care_service_instance
-    
-    # 개별 리소스 기반 펫케어 서비스 생성
-    individual_pet_care_service_instance = IndividualPetCareService(breed_service=breed_service_instance)
-    app.services['individual_pet_care'] = individual_pet_care_service_instance
     
     app.services['comments'] = comment_service_module.CommentService()
     app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService(
@@ -150,20 +144,39 @@ def create_app():
     app.register_blueprint(cartoon_jobs_bp, url_prefix='/api/cartoon-jobs')
     # 새로 추가된 블루프린트들
     app.register_blueprint(breeds_bp, url_prefix='/api/breeds')
-    app.register_blueprint(pet_care_bp, url_prefix='/api')  # 기존 방식 (하위 호환성)
-    app.register_blueprint(individual_pet_care_bp, url_prefix='/api')  # 새로운 개별 리소스 방식
+    
+    # 펫케어 API - v2 전용 RESTful 설계
+    from app.api.pet_care import pet_care_v2_bp
+    app.register_blueprint(pet_care_v2_bp)  # URL 프리픽스는 블루프린트에서 정의됨
 
     # 디버그용 라우트 목록 확인 엔드포인트
     @app.route('/debug/routes')
     def list_routes():
         routes = []
+        pet_care_routes = []
+        
         for rule in app.url_map.iter_rules():
-            routes.append({
+            route_info = {
                 'endpoint': rule.endpoint,
                 'methods': list(rule.methods),
                 'rule': str(rule)
-            })
-        return {'routes': routes}
+            }
+            routes.append(route_info)
+            
+            # 펫케어 API 분류
+            if '/care/' in str(rule):
+                pet_care_routes.append(route_info)
+        
+        return {
+            'total_routes': len(routes),
+            'all_routes': routes,
+            'pet_care_routes': pet_care_routes,
+            'api_status': {
+                'version': 'v2_only',
+                'pet_care_endpoints': len(pet_care_routes),
+                'status': 'active'
+            }
+        }
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정

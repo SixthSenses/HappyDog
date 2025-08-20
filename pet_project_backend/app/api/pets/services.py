@@ -5,7 +5,8 @@ from typing import Optional, Dict, Any
 from dataclasses import asdict
 from datetime import date, datetime
 
-from app.models.pet import Pet, ActivityLevel, DietType
+from app.models.pet import Pet, PetGender, ActivityLevel, DietType
+from app.utils.datetime_utils import DateTimeUtils, for_firestore, from_firestore
 from app.services.storage_service import StorageService
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
 from eyes_models.eyes_lib.inference import EyeAnalyzer
@@ -64,11 +65,8 @@ class PetService:
         if new_pet.diet_type:
             pet_data_dict['diet_type'] = new_pet.diet_type.value
         
-        # --- 수정된 부분: datetime.date 객체를 datetime.datetime으로 변환 ---
-        if 'birthdate' in pet_data_dict and isinstance(pet_data_dict['birthdate'], date):
-            bdate = pet_data_dict['birthdate']
-            pet_data_dict['birthdate'] = datetime(bdate.year, bdate.month, bdate.day)
-        # ----------------------------------------------------------------
+        # Firestore 호환 변환 (통합 유틸리티 사용)
+        pet_data_dict = DateTimeUtils.for_firestore(pet_data_dict)
 
         # 펫케어 설정 자동 생성 (온보딩 연동)
         care_settings = self._generate_care_settings(new_pet)
@@ -79,19 +77,80 @@ class PetService:
         return pet_data_dict
 
     def update_pet(self, pet_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
-        """기존 반려동물 정보를 업데이트합니다."""
+        """
+        기존 반려동물 정보를 업데이트합니다.
+        권장량 계산에 영향을 미치는 필드가 변경되면 자동으로 care_settings를 갱신합니다.
+        """
         
-        # --- 수정된 부분: datetime.date 객체를 datetime.datetime으로 변환 ---
-        if 'birthdate' in update_data and isinstance(update_data['birthdate'], date):
-            bdate = update_data['birthdate']
-            update_data['birthdate'] = datetime(bdate.year, bdate.month, bdate.day)
-        # ----------------------------------------------------------------
-
+        # 권장량 계산에 영향을 미치는 핵심 필드들
+        CARE_SETTINGS_TRIGGER_FIELDS = {
+            'current_weight', 'activity_level', 'is_neutered', 'birthdate', 'diet_type'
+        }
+        
+        # 기존 펫 정보 조회
         pet_ref = self.pets_ref.document(pet_id)
+        current_doc = pet_ref.get()
+        
+        if not current_doc.exists:
+            raise ValueError(f"펫을 찾을 수 없습니다: {pet_id}")
+        
+        current_data = current_doc.to_dict()
+        
+        # 권장량 재계산이 필요한지 확인
+        needs_care_settings_update = any(
+            field in update_data for field in CARE_SETTINGS_TRIGGER_FIELDS
+        )
+        
+        # Firestore 호환 변환 (통합 유틸리티 사용)
+        update_data = DateTimeUtils.for_firestore(update_data)
+        
+        # 변경 사항 로깅
+        logging.info(f"펫 정보 업데이트: {pet_id}, 변경 필드: {list(update_data.keys())}")
+        if needs_care_settings_update:
+            logging.info(f"권장량 재계산 트리거됨: {pet_id}")
+        
+        # 1차 업데이트: 사용자가 요청한 필드들
         pet_ref.update(update_data)
-        updated_doc = pet_ref.get()
-        if updated_doc.exists:
-            return updated_doc.to_dict()
+        
+        # 권장량 재계산이 필요한 경우
+        if needs_care_settings_update:
+            try:
+                # 업데이트된 펫 정보 조회
+                updated_doc = pet_ref.get()
+                updated_data = updated_doc.to_dict()
+                
+                # Pet 객체로 변환하여 _generate_care_settings 호출
+                pet_obj = Pet(
+                    pet_id=pet_id,
+                    user_id=updated_data.get('user_id'),
+                    name=updated_data.get('name'),
+                    breed=updated_data.get('breed'),
+                    gender=PetGender(updated_data.get('gender')),
+                    birthdate=updated_data.get('birthdate'),
+                    current_weight=updated_data.get('current_weight'),
+                    activity_level=ActivityLevel(updated_data.get('activity_level')) if updated_data.get('activity_level') else None,
+                    diet_type=DietType(updated_data.get('diet_type')) if updated_data.get('diet_type') else None,
+                    is_neutered=updated_data.get('is_neutered')
+                )
+                
+                # 새로운 care_settings 생성
+                new_care_settings = self._generate_care_settings(pet_obj)
+                
+                # 2차 업데이트: care_settings 갱신
+                pet_ref.update({
+                    'care_settings': DateTimeUtils.for_firestore(new_care_settings)
+                })
+                
+                logging.info(f"펫 정보 업데이트 완료 (care_settings 자동 갱신): {pet_id}")
+                
+            except Exception as e:
+                logging.error(f"care_settings 자동 갱신 실패 ({pet_id}): {e}")
+                # care_settings 갱신에 실패해도 원래 업데이트는 유지
+        
+        # 최종 업데이트된 데이터 반환
+        final_doc = pet_ref.get()
+        if final_doc.exists:
+            return final_doc.to_dict()
         return None
 
     def register_nose_print_for_pet(self, pet_id: str, user_id: str, file_path: str) -> Dict[str, Any]:

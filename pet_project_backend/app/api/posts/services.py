@@ -7,6 +7,7 @@ from dataclasses import asdict
 from typing import Optional, Dict, Any, Tuple, List
 
 from app.models.post import Post, Author, PetInfo
+from app.utils.datetime_utils import DateTimeUtils, for_firestore, from_firestore
 from app.models.notification import NotificationType
 from app.services.notification_service import notification_service
 from app.services.storage_service import StorageService # 삭제 로직에 필요
@@ -45,7 +46,9 @@ class PostService:
                 text=text
             )
 
-            self.posts_ref.document(post_id).set(asdict(new_post))
+            # Firestore 호환 변환 후 저장
+            post_data = DateTimeUtils.for_firestore(asdict(new_post))
+            self.posts_ref.document(post_id).set(post_data)
             return asdict(new_post)
         except Exception as e:
             logging.error(f"게시글 생성 실패 (user_id: {user_id}): {e}", exc_info=True)

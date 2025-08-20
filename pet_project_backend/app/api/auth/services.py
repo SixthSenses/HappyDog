@@ -7,6 +7,7 @@ from dataclasses import asdict
 from firebase_admin import firestore, auth as firebase_auth
 from flask import Flask
 from app.models.user import User
+from app.utils.datetime_utils import DateTimeUtils, for_firestore
 
 class AuthService:
     def __init__(self):
@@ -43,20 +44,25 @@ class AuthService:
                 google_id=google_id,
                 email=google_user_info.get('email'),
                 nickname=google_user_info.get('name'),
-                join_date=datetime.now(),
+                join_date=DateTimeUtils.now(),
                 profile_image_url=None # 최초 가입 시 프로필 이미지는 없음
             )
-            self.users_ref.document(user_id).set(asdict(new_user))
+            # Firestore 호환 변환 후 저장
+            user_data = DateTimeUtils.for_firestore(asdict(new_user))
+            self.users_ref.document(user_id).set(user_data)
             return new_user, is_new_user
 
     # --- Blocklist 관련 로직 ---
     def add_token_to_blocklist(self, jti: str, expires: datetime):
         """전달받은 토큰의 jti를 만료 시간과 함께 Firestore에 저장합니다."""
         try:
-            self.revoked_tokens_ref.document(jti).set({
-                'revoked_at': datetime.now(),
+            token_data = {
+                'revoked_at': DateTimeUtils.now(),
                 'expires_at': expires
-            })
+            }
+            # Firestore 호환 변환 후 저장
+            token_data = DateTimeUtils.for_firestore(token_data)
+            self.revoked_tokens_ref.document(jti).set(token_data)
         except Exception as e:
             logging.error(f"Blocklist 토큰 추가 실패 (jti: {jti}): {e}")
 

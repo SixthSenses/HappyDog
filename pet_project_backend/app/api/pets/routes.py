@@ -55,7 +55,7 @@ def register_pet():
 
 @pets_bp.route('/<string:pet_id>', methods=['GET'])
 @jwt_required()
-def get_my_pet():
+def get_my_pet(pet_id: str):
     """
     현재 로그인된 사용자의 반려동물 정보를 조회합니다.
     """
@@ -63,13 +63,14 @@ def get_my_pet():
     user_id = get_jwt_identity()
     
     try:
-        pet_info = pet_service.get_pet_by_user_id(user_id)
+        # pet_id와 user_id 모두 확인하여 소유권 검증
+        pet_info = pet_service.get_pet_by_id_and_owner(pet_id, user_id)
         if not pet_info:
-            return jsonify({"error_code": "PET_NOT_FOUND", "message": "등록된 반려동물이 없습니다."}), 404
+            return jsonify({"error_code": "PET_NOT_FOUND", "message": "반려동물을 찾을 수 없거나 접근 권한이 없습니다."}), 404
         
         return jsonify(PetSchema().dump(pet_info)), 200
     except Exception as e:
-        logging.error(f"반려동물 정보 조회 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
+        logging.error(f"반려동물 정보 조회 중 오류 발생 (pet_id: {pet_id}, user_id: {user_id}): {e}", exc_info=True)
         return jsonify({"error_code": "PET_FETCH_FAILED", "message": "반려동물 정보를 가져오는 중 오류가 발생했습니다."}), 500
 
 @pets_bp.route('/<string:pet_id>', methods=['PATCH'])

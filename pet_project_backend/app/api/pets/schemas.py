@@ -32,7 +32,7 @@ class PetSchema(Schema):
     faiss_id = fields.Int(dump_only=True, allow_none=True)
     
     @validates('breed')
-    def validate_breed(self, value):
+    def validate_breed(self, value, **kwargs):
         """품종 유효성 검사 - Firestore에서 품종 존재 여부 확인"""
         from app.api.breeds.services import BreedService
         

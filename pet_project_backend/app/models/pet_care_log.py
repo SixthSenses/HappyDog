@@ -5,6 +5,8 @@ from typing import Optional, List, Dict
 from enum import Enum
 from uuid import uuid4
 
+from app.utils.datetime_utils import DateTimeUtils
+
 class FoodType(Enum):
     """음식 타입을 나타내는 Enum 클래스"""
     MEAL = "식사"
@@ -62,10 +64,10 @@ class VomitType(Enum):
 @dataclass
 class FoodLog:
     """음식 섭취 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     calories: float                     # 칼로리
     timestamp: datetime                 # 섭취 시간
     food_type: FoodType                # 음식 타입 (식사/간식/트릿)
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     food_name: Optional[str] = None     # 음식명
     amount_g: Optional[float] = None    # 섭취량 (그램)
     notes: Optional[str] = None         # 특이사항
@@ -73,18 +75,18 @@ class FoodLog:
 @dataclass
 class WaterLog:
     """물 섭취 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     amount_ml: float                    # 섭취량 (밀리리터)
     timestamp: datetime                 # 섭취 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     notes: Optional[str] = None         # 특이사항
 
 @dataclass
 class PoopLog:
     """배변 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     shape: PoopShape                    # 변 모양
     color: PoopColor                    # 변 색깔
     timestamp: datetime                 # 배변 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     special_notes: List[PoopSpecialNote] = field(default_factory=list)  # 특이사항 목록
     size: Optional[str] = None          # 크기 (작음/보통/큼)
     notes: Optional[str] = None         # 추가 메모
@@ -92,11 +94,11 @@ class PoopLog:
 @dataclass
 class ActivityLog:
     """활동 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     duration_minutes: int               # 활동 시간 (분)
     activity_type: ActivityType         # 활동 타입
     intensity: ActivityIntensity        # 활동 강도
     timestamp: datetime                 # 활동 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     distance_km: Optional[float] = None # 거리 (킬로미터)
     calories_burned: Optional[float] = None  # 소모 칼로리
     notes: Optional[str] = None         # 특이사항
@@ -104,9 +106,9 @@ class ActivityLog:
 @dataclass
 class VomitLog:
     """구토 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     vomit_type: VomitType              # 구토 타입
     timestamp: datetime                 # 구토 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     amount: Optional[str] = None        # 양 (적음/보통/많음)
     frequency: int = 1                  # 횟수
     notes: Optional[str] = None         # 특이사항
@@ -114,9 +116,9 @@ class VomitLog:
 @dataclass
 class WeightLog:
     """체중 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     weight_kg: float                    # 체중 (킬로그램)
     timestamp: datetime                 # 측정 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     bcs_level: Optional[int] = None     # BCS(Body Condition Score) 1-9 범위
     measurement_method: Optional[str] = None  # 측정 방법
     notes: Optional[str] = None         # 특이사항
@@ -124,19 +126,19 @@ class WeightLog:
 @dataclass
 class MedicationLog:
     """투약 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     medication_name: str                # 약물명
     dosage: str                        # 투여량
     timestamp: datetime                 # 투약 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     medication_type: Optional[str] = None  # 약물 종류 (처방약/영양제/등)
     notes: Optional[str] = None         # 특이사항
 
 @dataclass
 class SymptomsLog:
     """증상 로그"""
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     symptoms: List[str]                 # 증상 목록
     timestamp: datetime                 # 관찰 시간
+    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     severity: Optional[str] = None      # 심각도 (경미/보통/심각)
     duration_minutes: Optional[int] = None  # 지속 시간 (분)
     notes: Optional[str] = None         # 특이사항
@@ -171,8 +173,8 @@ class PetCareLog:
     # 메타데이터
     general_notes: Optional[str] = None # 일반 메모
     mood: Optional[str] = None          # 기분/상태 (좋음/보통/나쁨)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)
+    updated_at: datetime = field(default_factory=DateTimeUtils.now)
     
     def calculate_totals(self):
         """로그들을 기반으로 총합 정보를 계산합니다."""
@@ -191,7 +193,7 @@ class PetCareLog:
             self.current_weight_kg = latest_weight_log.weight_kg
         
         # 업데이트 시간 갱신
-        self.updated_at = datetime.utcnow()
+        self.updated_at = DateTimeUtils.now()
 
 @dataclass
 class PetCareLogSummary:
@@ -216,4 +218,4 @@ class PetCareLogSummary:
     # 특이사항
     concerning_symptoms: List[str] = field(default_factory=list)  # 주의할 증상들
     
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)

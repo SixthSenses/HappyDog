@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 breeds_bp = Blueprint('breeds_bp', __name__)
 
-# 서비스 인스턴스 생성
-breed_service = BreedService()
+# 서비스 인스턴스는 앱 팩토리에서 주입받을 예정
+def get_breed_service():
+    """현재 앱에서 BreedService 인스턴스를 가져옵니다."""
+    return current_app.services.get('breeds')
 
 @breeds_bp.route('/', methods=['GET'])
 def get_all_breeds():
@@ -45,6 +47,8 @@ def get_all_breeds():
                 "error_code": "INVALID_PARAMETER", 
                 "message": "limit은 1 이상이어야 합니다."
             }), 400
+        
+        breed_service = get_breed_service()
         
         # 요약 정보만 요청된 경우
         if summary_only:
@@ -82,6 +86,8 @@ def get_breed_by_name(breed_name: str):
         - breed_name (str): 품종명 (URL 인코딩된 상태)
     """
     try:
+        breed_service = get_breed_service()
+        
         # URL 디코딩 (한글 품종명 처리)
         decoded_breed_name = unquote(breed_name)
         
@@ -140,6 +146,8 @@ def search_breeds():
                 "message": "offset은 0 이상, limit은 1-100 사이여야 합니다."
             }), 400
         
+        breed_service = get_breed_service()
+        
         # 품종 검색 실행
         breeds, total_count = breed_service.search_breeds(query, limit, offset)
         
@@ -167,6 +175,8 @@ def check_breed_exists(breed_name: str):
         - breed_name (str): 품종명 (URL 인코딩된 상태)
     """
     try:
+        breed_service = get_breed_service()
+        
         # URL 디코딩
         decoded_breed_name = unquote(breed_name)
         
@@ -194,6 +204,7 @@ def get_breed_statistics():
     품종 데이터베이스 통계 정보를 조회합니다.
     """
     try:
+        breed_service = get_breed_service()
         stats = breed_service.get_statistics()
         
         logger.info("품종 통계 정보 조회 성공")

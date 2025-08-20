@@ -7,6 +7,8 @@ from dataclasses import asdict
 from firebase_admin import firestore
 from dateutil.relativedelta import relativedelta
 
+from app.utils.datetime_utils import DateTimeUtils, now, today, parse_iso, for_firestore, from_firestore, validate_datetime
+
 from app.models.pet import Pet, PetGender, ActivityLevel, DietType
 from app.models.pet_care_log import (
     PetCareLog, PetCareLogSummary, FoodLog, WaterLog, PoopLog, 
@@ -26,6 +28,10 @@ class PetCareService:
         self.pets_collection = self.db.collection('pets')
         self.care_logs_collection = self.db.collection('pet_care_logs')
         self.breed_service = breed_service or BreedService()
+    
+    def _convert_date_for_firestore(self, obj: Any) -> Any:
+        """Firestore 저장을 위해 날짜/시간 객체를 변환합니다. (통합 유틸리티 사용)"""
+        return DateTimeUtils.for_firestore(obj)
     
     def _verify_pet_ownership(self, pet_id: str, user_id: str) -> bool:
         """펫 소유권을 확인합니다."""
@@ -58,7 +64,7 @@ class PetCareService:
                 user_id=user_id,
                 date=log_date
             )
-            doc_ref.set(asdict(new_log))
+            doc_ref.set(self._convert_date_for_firestore(asdict(new_log)))
             logger.info(f"새 일일 로그 문서 생성: {log_id}")
         
         return log_id
@@ -111,23 +117,21 @@ class PetCareService:
                 'total_calories': totals['total_calories'],
                 'total_water_ml': totals['total_water_ml'],
                 'total_activity_minutes': totals['total_activity_minutes'],
-                'updated_at': datetime.utcnow()
+                'updated_at': DateTimeUtils.now()
             }
             
             if totals['current_weight_kg'] is not None:
                 update_data['current_weight_kg'] = totals['current_weight_kg']
             
-            doc_ref.update(update_data)
+            doc_ref.update(self._convert_date_for_firestore(update_data))
             logger.debug(f"총량 재계산 완료: {log_id}")
             
         except Exception as e:
             logger.error(f"총량 재계산 실패 ({log_id}): {e}")
     
     def _convert_firestore_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Firestore 데이터를 Python 객체로 변환합니다."""
-        # 복잡한 변환 로직 구현 (datetime, date 등)
-        # 현재는 기본 구현만 제공
-        return data
+        """Firestore 데이터를 Python 객체로 변환합니다. (통합 유틸리티 사용)"""
+        return DateTimeUtils.from_firestore(data)
     
     def _get_logs_in_date_range(self, pet_id: str, start_date: date, end_date: date) -> List[PetCareLog]:
         """날짜 범위 내의 로그들을 조회합니다."""
@@ -195,7 +199,7 @@ class PetCareService:
                 new_log.calculate_totals()
                 
                 doc_ref = self.care_logs_collection.document(log_id)
-                doc_ref.set(asdict(new_log))
+                doc_ref.set(self._convert_date_for_firestore(asdict(new_log)))
                 logger.info(f"새 펫케어 로그 생성 완료: {log_id}")
                 return new_log
                 
@@ -338,7 +342,7 @@ class PetCareService:
             
             food_log = FoodLog(
                 calories=food_data['calories'],
-                timestamp=datetime.fromisoformat(food_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(food_data['timestamp'], 'timestamp'),
                 food_type=food_data['food_type'],
                 food_name=food_data.get('food_name'),
                 amount_g=food_data.get('amount_g'),
@@ -347,8 +351,8 @@ class PetCareService:
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'food_logs': firestore.ArrayUnion([asdict(food_log)]),
-                'updated_at': datetime.utcnow()
+                'food_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(food_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             self._recalculate_and_update_totals(log_id)
@@ -384,13 +388,15 @@ class PetCareService:
             
             updated_logs = self._remove_log_from_array(food_logs, food_log_id)
             target_log.update(update_data)
-            target_log['timestamp'] = datetime.fromisoformat(target_log['timestamp'].replace('Z', '+00:00')) if isinstance(target_log['timestamp'], str) else target_log['timestamp']
+            # timestamp 필드 검증 및 변환
+            if 'timestamp' in target_log:
+                target_log['timestamp'] = DateTimeUtils.validate_datetime_field(target_log['timestamp'], 'timestamp')
             updated_logs.append(target_log)
             
-            doc_ref.update({
+            doc_ref.update(self._convert_date_for_firestore({
                 'food_logs': updated_logs,
-                'updated_at': datetime.utcnow()
-            })
+                'updated_at': DateTimeUtils.now()
+            }))
             
             self._recalculate_and_update_totals(log_id)
             updated_food_log = FoodLog(**target_log)
@@ -425,10 +431,10 @@ class PetCareService:
             
             updated_logs = self._remove_log_from_array(food_logs, food_log_id)
             
-            doc_ref.update({
+            doc_ref.update(self._convert_date_for_firestore({
                 'food_logs': updated_logs,
-                'updated_at': datetime.utcnow()
-            })
+                'updated_at': DateTimeUtils.now()
+            }))
             
             self._recalculate_and_update_totals(log_id)
             logger.info(f"음식 기록 삭제 완료: {pet_id} - {food_log_id}")
@@ -450,14 +456,14 @@ class PetCareService:
             
             water_log = WaterLog(
                 amount_ml=water_data['amount_ml'],
-                timestamp=datetime.fromisoformat(water_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(water_data['timestamp'], 'timestamp'),
                 notes=water_data.get('notes')
             )
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'water_logs': firestore.ArrayUnion([asdict(water_log)]),
-                'updated_at': datetime.utcnow()
+                'water_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(water_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             self._recalculate_and_update_totals(log_id)
@@ -490,7 +496,7 @@ class PetCareService:
             poop_log = PoopLog(
                 shape=poop_data['shape'],
                 color=poop_data['color'],
-                timestamp=datetime.fromisoformat(poop_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(poop_data['timestamp'], 'timestamp'),
                 special_notes=poop_data.get('special_notes', []),
                 size=poop_data.get('size'),
                 notes=poop_data.get('notes')
@@ -498,8 +504,8 @@ class PetCareService:
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'poop_logs': firestore.ArrayUnion([asdict(poop_log)]),
-                'updated_at': datetime.utcnow()
+                'poop_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(poop_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             logger.info(f"배변 기록 추가 완료: {pet_id} - {poop_log.log_id}")
@@ -532,7 +538,7 @@ class PetCareService:
                 duration_minutes=activity_data['duration_minutes'],
                 activity_type=activity_data['activity_type'],
                 intensity=activity_data['intensity'],
-                timestamp=datetime.fromisoformat(activity_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(activity_data['timestamp'], 'timestamp'),
                 distance_km=activity_data.get('distance_km'),
                 calories_burned=activity_data.get('calories_burned'),
                 notes=activity_data.get('notes')
@@ -540,8 +546,8 @@ class PetCareService:
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'activity_logs': firestore.ArrayUnion([asdict(activity_log)]),
-                'updated_at': datetime.utcnow()
+                'activity_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(activity_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             self._recalculate_and_update_totals(log_id)
@@ -573,7 +579,7 @@ class PetCareService:
             
             weight_log = WeightLog(
                 weight_kg=weight_data['weight_kg'],
-                timestamp=datetime.fromisoformat(weight_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(weight_data['timestamp'], 'timestamp'),
                 bcs_level=weight_data.get('bcs_level'),
                 measurement_method=weight_data.get('measurement_method'),
                 notes=weight_data.get('notes')
@@ -581,8 +587,8 @@ class PetCareService:
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'weight_logs': firestore.ArrayUnion([asdict(weight_log)]),
-                'updated_at': datetime.utcnow()
+                'weight_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(weight_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             self._recalculate_and_update_totals(log_id)
@@ -614,7 +620,7 @@ class PetCareService:
             
             vomit_log = VomitLog(
                 vomit_type=vomit_data['vomit_type'],
-                timestamp=datetime.fromisoformat(vomit_data['timestamp'].replace('Z', '+00:00')),
+                timestamp=DateTimeUtils.validate_datetime_field(vomit_data['timestamp'], 'timestamp'),
                 amount=vomit_data.get('amount'),
                 frequency=vomit_data.get('frequency', 1),
                 notes=vomit_data.get('notes')
@@ -622,8 +628,8 @@ class PetCareService:
             
             doc_ref = self.care_logs_collection.document(log_id)
             doc_ref.update({
-                'vomit_logs': firestore.ArrayUnion([asdict(vomit_log)]),
-                'updated_at': datetime.utcnow()
+                'vomit_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(vomit_log))]),
+                'updated_at': DateTimeUtils.now()
             })
             
             logger.info(f"구토 기록 추가 완료: {pet_id} - {vomit_log.log_id}")
@@ -643,6 +649,86 @@ class PetCareService:
     def delete_vomit_log(self, pet_id: str, user_id: str, log_date: date, vomit_log_id: str) -> bool:
         """구토 기록을 삭제합니다."""
         return self._delete_log_generic(pet_id, user_id, log_date, vomit_log_id, 'vomit_logs')
+    
+    def add_medication_log(self, pet_id: str, user_id: str, log_date: date, medication_data: Dict[str, Any]) -> MedicationLog:
+        """투약 기록을 추가합니다."""
+        try:
+            if not self._verify_pet_ownership(pet_id, user_id):
+                raise PermissionError(f"펫 {pet_id}에 대한 접근 권한이 없습니다.")
+            
+            log_id = self._get_or_create_daily_log(pet_id, user_id, log_date)
+            
+            medication_log = MedicationLog(
+                medication_name=medication_data['medication_name'],
+                dosage=medication_data['dosage'],
+                timestamp=DateTimeUtils.validate_datetime_field(medication_data['timestamp'], 'timestamp'),
+                medication_type=medication_data.get('medication_type'),
+                notes=medication_data.get('notes')
+            )
+            
+            doc_ref = self.care_logs_collection.document(log_id)
+            doc_ref.update({
+                'medication_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(medication_log))]),
+                'updated_at': DateTimeUtils.now()
+            })
+            
+            logger.info(f"투약 기록 추가 완료: {pet_id} - {medication_log.log_id}")
+            return medication_log
+            
+        except PermissionError:
+            raise
+        except Exception as e:
+            logger.error(f"투약 기록 추가 실패 ({pet_id}, {log_date}): {e}")
+            raise
+    
+    def update_medication_log(self, pet_id: str, user_id: str, log_date: date, 
+                             medication_log_id: str, update_data: Dict[str, Any]) -> Optional[MedicationLog]:
+        """투약 기록을 수정합니다."""
+        return self._update_log_generic(pet_id, user_id, log_date, medication_log_id, update_data, 'medication_logs', MedicationLog)
+    
+    def delete_medication_log(self, pet_id: str, user_id: str, log_date: date, medication_log_id: str) -> bool:
+        """투약 기록을 삭제합니다."""
+        return self._delete_log_generic(pet_id, user_id, log_date, medication_log_id, 'medication_logs')
+    
+    def add_symptoms_log(self, pet_id: str, user_id: str, log_date: date, symptoms_data: Dict[str, Any]) -> SymptomsLog:
+        """증상 기록을 추가합니다."""
+        try:
+            if not self._verify_pet_ownership(pet_id, user_id):
+                raise PermissionError(f"펫 {pet_id}에 대한 접근 권한이 없습니다.")
+            
+            log_id = self._get_or_create_daily_log(pet_id, user_id, log_date)
+            
+            symptoms_log = SymptomsLog(
+                symptoms=symptoms_data['symptoms'],
+                timestamp=DateTimeUtils.validate_datetime_field(symptoms_data['timestamp'], 'timestamp'),
+                severity=symptoms_data.get('severity'),
+                duration_minutes=symptoms_data.get('duration_minutes'),
+                notes=symptoms_data.get('notes')
+            )
+            
+            doc_ref = self.care_logs_collection.document(log_id)
+            doc_ref.update({
+                'symptoms_logs': firestore.ArrayUnion([self._convert_date_for_firestore(asdict(symptoms_log))]),
+                'updated_at': DateTimeUtils.now()
+            })
+            
+            logger.info(f"증상 기록 추가 완료: {pet_id} - {symptoms_log.log_id}")
+            return symptoms_log
+            
+        except PermissionError:
+            raise
+        except Exception as e:
+            logger.error(f"증상 기록 추가 실패 ({pet_id}, {log_date}): {e}")
+            raise
+    
+    def update_symptoms_log(self, pet_id: str, user_id: str, log_date: date, 
+                           symptoms_log_id: str, update_data: Dict[str, Any]) -> Optional[SymptomsLog]:
+        """증상 기록을 수정합니다."""
+        return self._update_log_generic(pet_id, user_id, log_date, symptoms_log_id, update_data, 'symptoms_logs', SymptomsLog)
+    
+    def delete_symptoms_log(self, pet_id: str, user_id: str, log_date: date, symptoms_log_id: str) -> bool:
+        """증상 기록을 삭제합니다."""
+        return self._delete_log_generic(pet_id, user_id, log_date, symptoms_log_id, 'symptoms_logs')
     
     # ================== 제네릭 CRUD 헬퍼 메서드들 ==================
     
@@ -672,14 +758,14 @@ class PetCareService:
             
             # timestamp 필드 처리
             if 'timestamp' in target_log:
-                target_log['timestamp'] = datetime.fromisoformat(target_log['timestamp'].replace('Z', '+00:00')) if isinstance(target_log['timestamp'], str) else target_log['timestamp']
+                target_log['timestamp'] = DateTimeUtils.validate_datetime_field(target_log['timestamp'], 'timestamp')
             
             updated_logs.append(target_log)
             
-            doc_ref.update({
+            doc_ref.update(self._convert_date_for_firestore({
                 field_name: updated_logs,
-                'updated_at': datetime.utcnow()
-            })
+                'updated_at': DateTimeUtils.now()
+            }))
             
             # 필요한 경우 총량 재계산
             if field_name in ['food_logs', 'water_logs', 'activity_logs', 'weight_logs']:
@@ -718,10 +804,10 @@ class PetCareService:
             
             updated_logs = self._remove_log_from_array(logs, log_id)
             
-            doc_ref.update({
+            doc_ref.update(self._convert_date_for_firestore({
                 field_name: updated_logs,
-                'updated_at': datetime.utcnow()
-            })
+                'updated_at': DateTimeUtils.now()
+            }))
             
             # 필요한 경우 총량 재계산
             if field_name in ['food_logs', 'water_logs', 'activity_logs', 'weight_logs']:
@@ -774,10 +860,10 @@ class PetCareService:
                 raise ValueError(f"지원하지 않는 로그 타입: {log_type}")
             
             # Firestore 업데이트
-            doc_ref.update({
+            doc_ref.update(self._convert_date_for_firestore({
                 field: new_value,
-                'updated_at': datetime.utcnow()
-            })
+                'updated_at': DateTimeUtils.now()
+            }))
             
             logger.info(f"빠른 증감 완료: {pet_id} - {log_type}: {current_value} -> {new_value}")
             return {
@@ -815,10 +901,7 @@ class PetCareService:
             
             # 나이 계산 (월 단위)
             birthdate = pet_data['birthdate']
-            if isinstance(birthdate, str):
-                birthdate = datetime.strptime(birthdate, '%Y-%m-%d').date()
-            
-            age_months = self._calculate_age_months(birthdate)
+            age_months = DateTimeUtils.calculate_age_months(birthdate)
             
             # 품종별 이상 체중 조회
             breed_name = pet_data['breed']
@@ -857,7 +940,7 @@ class PetCareService:
                 'multiplier_reason': multiplier_reason,
                 'weight_status': weight_status,
                 'recommendations': recommendations,
-                'calculated_at': datetime.utcnow()
+                'calculated_at': DateTimeUtils.now()
             }
             
             logger.info(f"권장량 계산 완료: {pet_id} - MER: {mer_calories}kcal, 물: {recommended_water_ml}ml")
@@ -992,11 +1075,7 @@ class PetCareService:
             'trend': trend
         }
     
-    def _calculate_age_months(self, birthdate: date) -> int:
-        """나이를 월 단위로 계산합니다."""
-        today = date.today()
-        age_months = (today.year - birthdate.year) * 12 + (today.month - birthdate.month)
-        return max(0, age_months)
+
     
     def _select_mer_multiplier(self, pet_data: Dict[str, Any], age_months: int) -> Tuple[float, str]:
         """MER 승수를 선택합니다."""

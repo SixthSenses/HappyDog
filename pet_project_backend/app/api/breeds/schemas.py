@@ -46,8 +46,8 @@ class BreedSearchSchema(Schema):
     품종 검색 요청을 위한 스키마
     """
     query = fields.Str(required=True, validate=validate.Length(min=1, max=100))
-    limit = fields.Int(missing=50, validate=validate.Range(min=1, max=100))
-    offset = fields.Int(missing=0, validate=validate.Range(min=0))
+    limit = fields.Int(load_default=50, validate=validate.Range(min=1, max=100))
+    offset = fields.Int(load_default=0, validate=validate.Range(min=0))
 
 class ErrorResponseSchema(Schema):
     """
