@@ -176,8 +176,7 @@ def create_or_update_daily_log(pet_id: str):
             'activity_logs_count': len(care_log.activity_logs),
             'vomit_logs_count': len(care_log.vomit_logs),
             'weight_logs_count': len(care_log.weight_logs),
-            'medication_logs_count': len(care_log.medication_logs),
-            'symptoms_logs_count': len(care_log.symptoms_logs),
+
             'total_calories': care_log.total_calories,
             'total_water_ml': care_log.total_water_ml,
             'total_activity_minutes': care_log.total_activity_minutes,

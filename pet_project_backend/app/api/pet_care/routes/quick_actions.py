@@ -87,16 +87,15 @@ def quick_add_calories(pet_id: str):
         amount = data['amount']
         notes = data.get('notes')
         
-        # 기존 방식 사용: 빠른 증감 기능
-        result = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'calories', amount)
+        # 빠른 칼로리 추가
+        log_id = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'calories', amount)
         
         response_data = {
             "action": "add_calories",
             "pet_id": pet_id,
             "date": log_date.strftime('%Y-%m-%d'),
             "amount_added": amount,
-            "previous_total": result.get('previous_value', 0),
-            "new_total": result.get('new_value', 0),
+            "log_id": log_id,
             "notes": notes,
             "recorded_at": DateTimeUtils.now().isoformat(),
             "message": f"{amount}kcal가 추가되었습니다."
@@ -158,16 +157,15 @@ def quick_add_water(pet_id: str):
         amount = data['amount']
         notes = data.get('notes')
         
-        # 기존 방식 사용: 빠른 증감 기능
-        result = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'water', amount)
+        # 빠른 물 추가
+        log_id = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'water', amount)
         
         response_data = {
             "action": "add_water",
             "pet_id": pet_id,
             "date": log_date.strftime('%Y-%m-%d'),
             "amount_added": amount,
-            "previous_total": result.get('previous_value', 0),
-            "new_total": result.get('new_value', 0),
+            "log_id": log_id,
             "notes": notes,
             "recorded_at": DateTimeUtils.now().isoformat(),
             "message": f"{amount}ml의 물이 추가되었습니다."
@@ -233,8 +231,8 @@ def quick_add_activity(pet_id: str):
         intensity = data.get('intensity', '보통')
         notes = data.get('notes')
         
-        # 기존 방식 사용: 빠른 증감 기능
-        result = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'activity', amount)
+        # 빠른 활동 추가
+        log_id = pet_care_service.quick_add_total(pet_id, user_id, log_date, 'activity', amount)
         
         response_data = {
             "action": "add_activity",
@@ -243,8 +241,7 @@ def quick_add_activity(pet_id: str):
             "amount_added": amount,
             "activity_type": activity_type,
             "intensity": intensity,
-            "previous_total": result.get('previous_value', 0),
-            "new_total": result.get('new_value', 0),
+            "log_id": log_id,
             "notes": notes,
             "recorded_at": DateTimeUtils.now().isoformat(),
             "message": f"{activity_type} {amount}분이 추가되었습니다."

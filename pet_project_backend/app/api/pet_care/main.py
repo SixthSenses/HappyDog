@@ -42,9 +42,12 @@ register_pet_care_routes()
 
 # API 정보 라우트 추가
 @pet_care_v2_bp.route('/info', methods=['GET'])
-def get_api_info():
+def get_api_info(pet_id):
     """
     펫케어 API 정보를 제공합니다.
+    
+    Args:
+        pet_id: 반려동물 ID (URL 경로에서 전달됨)
     
     Response:
         200: API 구조 및 사용법 정보
@@ -67,7 +70,7 @@ def get_api_info():
                 "description": "개별 로그 타입별 CRUD 관리",
                 "log_types": [
                     "food-logs", "water-logs", "poop-logs", "activity-logs",
-                    "weight-logs", "vomit-logs", "medication-logs", "symptoms-logs"
+                    "weight-logs", "vomit-logs"
                 ],
                 "endpoints": {
                     "GET /{log_type}?date=YYYY-MM-DD": "로그 목록 조회",

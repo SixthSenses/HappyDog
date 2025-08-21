@@ -14,6 +14,7 @@ class FoodLogSchema(Schema):
     log_id = fields.Str(dump_only=True)
     calories = fields.Float(required=True, validate=validate.Range(min=0, max=10000))
     timestamp = fields.DateTime(required=True)
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
     food_type = fields.Str(required=True, validate=validate.OneOf([e.value for e in FoodType]))
     food_name = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
     amount_g = fields.Float(required=False, allow_none=True, validate=validate.Range(min=0, max=5000))
@@ -24,6 +25,7 @@ class WaterLogSchema(Schema):
     log_id = fields.Str(dump_only=True)
     amount_ml = fields.Float(required=True, validate=validate.Range(min=0, max=10000))
     timestamp = fields.DateTime(required=True)
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
     notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
 
 class PoopLogSchema(Schema):
@@ -32,6 +34,7 @@ class PoopLogSchema(Schema):
     shape = fields.Str(required=True, validate=validate.OneOf([e.value for e in PoopShape]))
     color = fields.Str(required=True, validate=validate.OneOf([e.value for e in PoopColor]))
     timestamp = fields.DateTime(required=True)
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
     special_notes = fields.List(fields.Str(validate=validate.OneOf([e.value for e in PoopSpecialNote])), 
                                required=False, load_default=[])
     size = fields.Str(required=False, allow_none=True, validate=validate.OneOf(['작음', '보통', '큼']))
@@ -44,8 +47,8 @@ class ActivityLogSchema(Schema):
     activity_type = fields.Str(required=True, validate=validate.OneOf([e.value for e in ActivityType]))
     intensity = fields.Str(required=True, validate=validate.OneOf([e.value for e in ActivityIntensity]))
     timestamp = fields.DateTime(required=True)
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
     distance_km = fields.Float(required=False, allow_none=True, validate=validate.Range(min=0, max=100))
-    calories_burned = fields.Float(required=False, allow_none=True, validate=validate.Range(min=0, max=5000))
     notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
 
 class VomitLogSchema(Schema):
@@ -53,6 +56,7 @@ class VomitLogSchema(Schema):
     log_id = fields.Str(dump_only=True)
     vomit_type = fields.Str(required=True, validate=validate.OneOf([e.value for e in VomitType]))
     timestamp = fields.DateTime(required=True)
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
     amount = fields.Str(required=False, allow_none=True, validate=validate.OneOf(['적음', '보통', '많음']))
     frequency = fields.Int(required=False, load_default=1, validate=validate.Range(min=1, max=50))
     notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
@@ -62,24 +66,8 @@ class WeightLogSchema(Schema):
     log_id = fields.Str(dump_only=True)
     weight_kg = fields.Float(required=True, validate=validate.Range(min=0.1, max=200))
     timestamp = fields.DateTime(required=True)
-    bcs_level = fields.Int(required=False, allow_none=True, validate=validate.Range(min=1, max=9))
-    measurement_method = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
-    notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
-
-class MedicationLogSchema(Schema):
-    """투약 로그 스키마"""
-    medication_name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
-    dosage = fields.Str(required=True, validate=validate.Length(min=1, max=100))
-    timestamp = fields.DateTime(required=True)
-    medication_type = fields.Str(required=False, allow_none=True, validate=validate.Length(max=50))
-    notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
-
-class SymptomsLogSchema(Schema):
-    """증상 로그 스키마"""
-    symptoms = fields.List(fields.Str(validate=validate.Length(min=1, max=100)), required=True, validate=validate.Length(min=1))
-    timestamp = fields.DateTime(required=True)
-    severity = fields.Str(required=False, allow_none=True, validate=validate.OneOf(['경미', '보통', '심각']))
-    duration_minutes = fields.Int(required=False, allow_none=True, validate=validate.Range(min=1, max=10080))
+    date = fields.Date(required=True, format="%Y-%m-%d")  # date 필드 추가
+    bcs_level = fields.Int(required=False, allow_none=True, validate=validate.Range(min=1, max=5))
     notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=500))
 
 # 메인 펫케어 로그 스키마
@@ -97,8 +85,7 @@ class PetCareLogSchema(Schema):
     activity_logs = fields.List(fields.Nested(ActivityLogSchema), required=False, load_default=[])
     vomit_logs = fields.List(fields.Nested(VomitLogSchema), required=False, load_default=[])
     weight_logs = fields.List(fields.Nested(WeightLogSchema), required=False, load_default=[])
-    medication_logs = fields.List(fields.Nested(MedicationLogSchema), required=False, load_default=[])
-    symptoms_logs = fields.List(fields.Nested(SymptomsLogSchema), required=False, load_default=[])
+
     
     # 하루 총합 정보 (자동 계산됨)
     total_calories = fields.Float(dump_only=True)
@@ -126,8 +113,7 @@ class PetCareLogResponseSchema(Schema):
     activity_logs_count = fields.Int(required=True)
     vomit_logs_count = fields.Int(required=True)
     weight_logs_count = fields.Int(required=True)
-    medication_logs_count = fields.Int(required=True)
-    symptoms_logs_count = fields.Int(required=True)
+
     
     # 하루 총합 정보
     total_calories = fields.Float(required=True)
@@ -209,8 +195,7 @@ class PetCareLogCreateRequestSchema(Schema):
     activity_logs = fields.List(fields.Nested(ActivityLogSchema), required=False, load_default=[])
     vomit_logs = fields.List(fields.Nested(VomitLogSchema), required=False, load_default=[])
     weight_logs = fields.List(fields.Nested(WeightLogSchema), required=False, load_default=[])
-    medication_logs = fields.List(fields.Nested(MedicationLogSchema), required=False, load_default=[])
-    symptoms_logs = fields.List(fields.Nested(SymptomsLogSchema), required=False, load_default=[])
+
     
     general_notes = fields.Str(required=False, allow_none=True, validate=validate.Length(max=1000))
     mood = fields.Str(required=False, allow_none=True, validate=validate.OneOf(['좋음', '보통', '나쁨']))
@@ -220,7 +205,7 @@ class PetCareLogCreateRequestSchema(Schema):
         """최소 하나 이상의 로그가 있는지 확인"""
         log_fields = [
             'food_logs', 'water_logs', 'poop_logs', 'activity_logs', 
-            'vomit_logs', 'weight_logs', 'medication_logs', 'symptoms_logs'
+            'vomit_logs', 'weight_logs'
         ]
         
         has_logs = any(data.get(field) for field in log_fields)

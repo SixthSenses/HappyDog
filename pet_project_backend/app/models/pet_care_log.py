@@ -66,6 +66,7 @@ class FoodLog:
     """음식 섭취 로그"""
     calories: float                     # 칼로리
     timestamp: datetime                 # 섭취 시간
+    date: date                         # 기록 날짜
     food_type: FoodType                # 음식 타입 (식사/간식/트릿)
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     food_name: Optional[str] = None     # 음식명
@@ -77,6 +78,7 @@ class WaterLog:
     """물 섭취 로그"""
     amount_ml: float                    # 섭취량 (밀리리터)
     timestamp: datetime                 # 섭취 시간
+    date: date                         # 기록 날짜
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     notes: Optional[str] = None         # 특이사항
 
@@ -86,6 +88,7 @@ class PoopLog:
     shape: PoopShape                    # 변 모양
     color: PoopColor                    # 변 색깔
     timestamp: datetime                 # 배변 시간
+    date: date                         # 기록 날짜
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     special_notes: List[PoopSpecialNote] = field(default_factory=list)  # 특이사항 목록
     size: Optional[str] = None          # 크기 (작음/보통/큼)
@@ -98,9 +101,9 @@ class ActivityLog:
     activity_type: ActivityType         # 활동 타입
     intensity: ActivityIntensity        # 활동 강도
     timestamp: datetime                 # 활동 시간
+    date: date                         # 기록 날짜
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     distance_km: Optional[float] = None # 거리 (킬로미터)
-    calories_burned: Optional[float] = None  # 소모 칼로리
     notes: Optional[str] = None         # 특이사항
 
 @dataclass
@@ -108,6 +111,7 @@ class VomitLog:
     """구토 로그"""
     vomit_type: VomitType              # 구토 타입
     timestamp: datetime                 # 구토 시간
+    date: date                         # 기록 날짜
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
     amount: Optional[str] = None        # 양 (적음/보통/많음)
     frequency: int = 1                  # 횟수
@@ -118,29 +122,9 @@ class WeightLog:
     """체중 로그"""
     weight_kg: float                    # 체중 (킬로그램)
     timestamp: datetime                 # 측정 시간
+    date: date                         # 기록 날짜
     log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
-    bcs_level: Optional[int] = None     # BCS(Body Condition Score) 1-9 범위
-    measurement_method: Optional[str] = None  # 측정 방법
-    notes: Optional[str] = None         # 특이사항
-
-@dataclass
-class MedicationLog:
-    """투약 로그"""
-    medication_name: str                # 약물명
-    dosage: str                        # 투여량
-    timestamp: datetime                 # 투약 시간
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
-    medication_type: Optional[str] = None  # 약물 종류 (처방약/영양제/등)
-    notes: Optional[str] = None         # 특이사항
-
-@dataclass
-class SymptomsLog:
-    """증상 로그"""
-    symptoms: List[str]                 # 증상 목록
-    timestamp: datetime                 # 관찰 시간
-    log_id: str = field(default_factory=lambda: str(uuid4()))  # 고유 ID
-    severity: Optional[str] = None      # 심각도 (경미/보통/심각)
-    duration_minutes: Optional[int] = None  # 지속 시간 (분)
+    bcs_level: Optional[int] = None     # BCS(Body Condition Score) 1-5 범위
     notes: Optional[str] = None         # 특이사항
 
 @dataclass
@@ -161,8 +145,7 @@ class PetCareLog:
     activity_logs: List[ActivityLog] = field(default_factory=list) # 활동 기록
     vomit_logs: List[VomitLog] = field(default_factory=list)       # 구토 기록
     weight_logs: List[WeightLog] = field(default_factory=list)     # 체중 기록
-    medication_logs: List[MedicationLog] = field(default_factory=list)  # 투약 기록
-    symptoms_logs: List[SymptomsLog] = field(default_factory=list) # 증상 기록
+
     
     # 하루 총합 정보
     total_calories: float = 0.0         # 총 섭취 칼로리

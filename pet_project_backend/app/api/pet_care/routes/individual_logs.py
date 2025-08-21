@@ -5,7 +5,7 @@
 자원: /api/pets/{pet_id}/care/{log-type}
 - 각 로그 타입별 개별 CRUD 작업
 - 일관된 RESTful 패턴 적용
-- 지원하는 로그 타입: food-logs, water-logs, poop-logs, activity-logs, weight-logs, vomit-logs, medication-logs, symptoms-logs
+- 지원하는 로그 타입: food-logs, water-logs, poop-logs, activity-logs, weight-logs, vomit-logs
 """
 
 import logging
@@ -17,7 +17,7 @@ from marshmallow import ValidationError
 from app.utils.datetime_utils import DateTimeUtils, validate_date
 from ..schemas import (
     FoodLogSchema, WaterLogSchema, PoopLogSchema, ActivityLogSchema,
-    WeightLogSchema, VomitLogSchema, MedicationLogSchema, SymptomsLogSchema,
+    WeightLogSchema, VomitLogSchema,
     ErrorResponseSchema
 )
 
@@ -41,9 +41,7 @@ LOG_TYPE_SCHEMAS = {
     'poop-logs': PoopLogSchema,
     'activity-logs': ActivityLogSchema,
     'weight-logs': WeightLogSchema,
-    'vomit-logs': VomitLogSchema,
-    'medication-logs': MedicationLogSchema,
-    'symptoms-logs': SymptomsLogSchema,
+    'vomit-logs': VomitLogSchema
 }
 
 # 로그 타입별 서비스 메서드 매핑
@@ -77,16 +75,6 @@ LOG_TYPE_SERVICE_METHODS = {
         'add': 'add_vomit_log',
         'update': 'update_vomit_log',
         'delete': 'delete_vomit_log'
-    },
-    'medication-logs': {
-        'add': 'add_medication_log',
-        'update': 'update_medication_log',
-        'delete': 'delete_medication_log'
-    },
-    'symptoms-logs': {
-        'add': 'add_symptoms_log',
-        'update': 'update_symptoms_log',
-        'delete': 'delete_symptoms_log'
     }
 }
 
@@ -163,8 +151,24 @@ def get_logs_by_type(pet_id: str, log_type: str):
             log_field = log_type.replace('-', '_')  # food-logs -> food_logs
             logs = getattr(daily_log, log_field, [])
             
+            # 로그 데이터를 직렬화 가능한 형태로 변환
+            serialized_logs = []
+            for log in logs:
+                if hasattr(log, '__dict__'):
+                    # dataclass 객체인 경우
+                    serialized_logs.append(vars(log))
+                elif isinstance(log, dict):
+                    # 이미 딕셔너리인 경우
+                    serialized_logs.append(log)
+                else:
+                    # 기타 경우 - 문자열로 변환 후 처리 시도
+                    try:
+                        serialized_logs.append(log.__dict__ if hasattr(log, '__dict__') else str(log))
+                    except:
+                        serialized_logs.append(str(log))
+            
             return jsonify({
-                "logs": [vars(log) for log in logs],
+                "logs": serialized_logs,
                 "total_count": len(logs),
                 "date": log_date.strftime('%Y-%m-%d')
             }), 200
@@ -240,12 +244,12 @@ def create_log(pet_id: str, log_type: str):
         service_method_name = LOG_TYPE_SERVICE_METHODS[log_type]['add']
         service_method = getattr(pet_care_service, service_method_name)
         
-        created_log = service_method(pet_id, user_id, log_date, log_data)
+        created_log_id = service_method(pet_id, user_id, log_date, log_data)
         
-        # 응답 데이터 생성
-        response_data = schema_class().dump(created_log)
+        # 응답 데이터 생성 (log_id만 반환)
+        response_data = {"log_id": created_log_id}
         
-        logger.info(f"{log_type} 생성 성공: {pet_id} - {created_log.log_id}")
+        logger.info(f"{log_type} 생성 성공: {pet_id} - {created_log_id}")
         return jsonify(response_data), 201
         
     except PermissionError as e:
