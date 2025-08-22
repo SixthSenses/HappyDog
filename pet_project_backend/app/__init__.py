@@ -19,30 +19,36 @@ from firebase_admin import credentials
 
 # - 설정
 from app.core.config import config_by_name
+
 # - API 블루프린트
 from app.api.auth.routes import auth_bp
 from app.api.uploads.routes import uploads_bp
 from app.api.users.routes import users_bp
-from app.api.pets.routes import pets_bp
 from app.api.posts.routes import posts_bp
 from app.api.comments.routes import comments_bp
 from app.api.cartoon_jobs.routes import cartoon_jobs_bp
 from app.api.breeds.routes import breeds_bp
-# v1 pet_care_bp는 제거됨 - v2 전용으로 전환
+from app.api.pets.routes import pets_bp
+from app.api.pet_care.settings.routes import pet_care_settings_bp
+from app.api.pet_care.records.routes import pet_care_records_bp
+
 # - 서비스 모듈
 from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
 from app.services import openai_service as openai_service_module
 from app.api.auth import services as auth_service_module
 from app.api.users import services as user_service_module
-from app.api.pets import services as pet_service_module
 from app.api.posts import services as post_service_module
 from app.api.comments import services as comment_service_module
 from app.api.cartoon_jobs import services as cartoon_job_service_module
+from app.api.breeds.services import BreedService
+from app.api.pets.services import PetService
+from app.api.pet_care.settings.services import PetCareSettingService
+from app.api.pet_care.records.services import PetCareRecordService
+
 # - ML 모델 파이프라인
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
 from eyes_models.eyes_lib.inference import EyeAnalyzer
-
 
 def create_app():
     """
@@ -52,6 +58,18 @@ def create_app():
     # 3. Flask 앱 생성 및 기본 설정
     # =====================================================================================
     config_name = os.getenv('FLASK_ENV', 'development')
+    
+    # 필수 환경 변수 검증
+    # required_env_vars = [
+    #     'FIREBASE_CREDENTIALS_PATH',
+    #     'FIREBASE_STORAGE_BUCKET',
+    #     'JWT_SECRET_KEY'
+    # ]
+    
+    # missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    # if missing_vars:
+    #     raise ValueError(f"필수 환경 변수가 설정되지 않았습니다: {', '.join(missing_vars)}")
+    
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
     app.json.ensure_ascii = False
@@ -71,66 +89,81 @@ def create_app():
         })
 
     # =====================================================================================
-    # 5. 서비스 인스턴스 생성 및 'app.services'에 저장
+    # 5. 서비스 인스턴스 생성 및 'app.services'에 저장 (의존성 주입)
     # =====================================================================================
     app.services = {}
 
-    # 5-1. 독립적인 공용 서비스 및 ML 모델 생성
-    storage_instance = storage_service_module.StorageService()
-    storage_instance.init_app(app)
-    app.services['storage'] = storage_instance
+    # 5-1. 의존성이 없거나 다른 서비스의 기반이 되는 공용/핵심 서비스 먼저 생성
+    try:
+        storage_instance = storage_service_module.StorageService()
+        storage_instance.init_app(app)
+        app.services['storage'] = storage_instance
+        logging.info("Storage service initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize storage service: {e}")
+        raise
     
+    try:
+        openai_instance = openai_service_module.OpenAIService()
+        openai_instance.init_app(app)
+        app.services['openai'] = openai_instance
+        logging.info("OpenAI service initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize OpenAI service: {e}")
+        raise
+
     app.services['notifications'] = notification_service_module.NotificationService()
+    app.services['breeds'] = BreedService()
     
-    # OpenAI 서비스 초기화
-    openai_instance = openai_service_module.OpenAIService()
-    openai_instance.init_app(app)
-    app.services['openai'] = openai_instance
+    # ML 파이프라인 초기화 (선택적)
+    try:
+        app.services['nose_pipeline'] = NosePrintPipeline(
+            yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
+            config_path=os.getenv('ML_CONFIG_PATH'),
+            extractor_weights_path=os.getenv('EXTRACTOR_WEIGHTS_PATH'),
+            faiss_index_path=os.getenv('FAISS_INDEX_PATH')
+        )
+        logging.info("Nose print pipeline initialized successfully")
+    except Exception as e:
+        logging.warning(f"Failed to initialize nose pipeline: {e}")
+        app.services['nose_pipeline'] = None
+    
+    try:
+        app.services['eye_analyzer'] = EyeAnalyzer()
+        logging.info("Eye analyzer initialized successfully")
+    except Exception as e:
+        logging.warning(f"Failed to initialize eye analyzer: {e}")
+        app.services['eye_analyzer'] = None
 
-    app.services['nose_pipeline'] = NosePrintPipeline(
-        yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
-        config_path=os.getenv('ML_CONFIG_PATH'),
-        extractor_weights_path=os.getenv('EXTRACTOR_WEIGHTS_PATH'),
-        faiss_index_path=os.getenv('FAISS_INDEX_PATH')
+    # 5-2. 다른 서비스를 주입받아야 하는 도메인 서비스 생성
+    # - pet_care 도메인
+    app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'])
+    app.services['pet_care_records'] = PetCareRecordService()
+
+    # - pets 도메인
+    app.services['pets'] = PetService(
+        pet_care_setting_service=app.services['pet_care_settings'],
+        storage_service=app.services['storage'],
+        nose_pipeline=app.services['nose_pipeline'],
+        eye_analyzer=app.services['eye_analyzer']
     )
+    logging.info("Pet service initialized successfully")
     
-    app.services['eye_analyzer'] = EyeAnalyzer()
-
-    # 5-2. 기능별 서비스 생성 (의존성 주입)
-    auth_service_module.auth_service.init_app(app) # 인증 서비스는 기존 방식 유지
-    
-    # 브리드 서비스 생성 (독립적)
-    from app.api.breeds.services import BreedService
-    breed_service_instance = BreedService()
-    app.services['breeds'] = breed_service_instance
-    
+    # - 나머지 도메인
     post_service_instance = post_service_module.PostService()
     app.services['posts'] = post_service_instance
-    
+    app.services['comments'] = comment_service_module.CommentService()
     app.services['users'] = user_service_module.UserService(
         storage_service=app.services['storage'],
         post_service=app.services['posts']
     )
-    
-    app.services['pets'] = pet_service_module.PetService(
-        storage_service=app.services['storage'],
-        nose_pipeline=app.services['nose_pipeline'],
-        eye_analyzer=app.services['eye_analyzer'],
-        breed_service=breed_service_instance
-    )
-    
-    # 펫케어 서비스 생성 (브리드 서비스 의존성 주입)
-    from app.api.pet_care.services import PetCareService
-    
-    pet_care_service_instance = PetCareService(breed_service=breed_service_instance)
-    app.services['pet_care'] = pet_care_service_instance
-    
-    app.services['comments'] = comment_service_module.CommentService()
     app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService(
         post_service=app.services['posts'],
         notification_service=app.services['notifications']
     )
-
+    
+    # - 인증 서비스 (앱 컨텍스트 필요)
+    auth_service_module.auth_service.init_app(app)
 
     # =====================================================================================
     # 6. 블루프린트 등록
@@ -138,45 +171,15 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(uploads_bp, url_prefix='/api/uploads')
     app.register_blueprint(users_bp, url_prefix='/api/users')
-    app.register_blueprint(pets_bp, url_prefix='/api/pets')
     app.register_blueprint(posts_bp, url_prefix='/api/posts')
     app.register_blueprint(comments_bp, url_prefix='/api/comments')
     app.register_blueprint(cartoon_jobs_bp, url_prefix='/api/cartoon-jobs')
-    # 새로 추가된 블루프린트들
     app.register_blueprint(breeds_bp, url_prefix='/api/breeds')
     
-    # 펫케어 API - v2 전용 RESTful 설계
-    from app.api.pet_care import pet_care_v2_bp
-    app.register_blueprint(pet_care_v2_bp)  # URL 프리픽스는 블루프린트에서 정의됨
-
-    # 디버그용 라우트 목록 확인 엔드포인트
-    @app.route('/debug/routes')
-    def list_routes():
-        routes = []
-        pet_care_routes = []
-        
-        for rule in app.url_map.iter_rules():
-            route_info = {
-                'endpoint': rule.endpoint,
-                'methods': list(rule.methods),
-                'rule': str(rule)
-            }
-            routes.append(route_info)
-            
-            # 펫케어 API 분류
-            if '/care/' in str(rule):
-                pet_care_routes.append(route_info)
-        
-        return {
-            'total_routes': len(routes),
-            'all_routes': routes,
-            'pet_care_routes': pet_care_routes,
-            'api_status': {
-                'version': 'v2_only',
-                'pet_care_endpoints': len(pet_care_routes),
-                'status': 'active'
-            }
-        }
+    # - pets 및 pet_care 도메인 블루프린트 등록
+    app.register_blueprint(pets_bp, url_prefix='/api/pets')
+    app.register_blueprint(pet_care_settings_bp, url_prefix='/api/pet-care')
+    app.register_blueprint(pet_care_records_bp, url_prefix='/api/pet-care')
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정
@@ -188,14 +191,17 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_generic_exception(err):
-        logging.error(f"처리되지 않은 예외 발생: {err}", exc_info=True)
-        response = {"error_code": "INTERNAL_SERVER_ERROR", "message": "서버 내부 오류가 발생했습니다."}
+        # 다른 핸들러에서 처리되지 않은 모든 예외를 여기서 처리
+        logging.error(f"An unhandled exception occurred: {err}", exc_info=True)
+        response = {"error_code": "INTERNAL_SERVER_ERROR", "message": "서버 내부에서 예상치 못한 오류가 발생했습니다."}
         return jsonify(response), 500
 
     # =====================================================================================
     # 8. 로깅 및 앱 반환
     # =====================================================================================
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
-    logging.info("Flask 앱 생성 및 모든 컴포넌트 초기화 완료. (Production Ready)")
+    if not app.debug:
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+    
+    logging.info(f"Flask app created for '{config_name}' environment.")
     
     return app

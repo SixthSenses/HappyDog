@@ -1,380 +1,145 @@
 # app/api/pets/services.py
 import logging
-from firebase_admin import firestore
-from typing import Optional, Dict, Any
+import uuid
+from typing import Dict, Any, Optional
 from dataclasses import asdict
-from datetime import date, datetime
+from firebase_admin import firestore
 
-from app.models.pet import Pet, PetGender, ActivityLevel, DietType
-from app.utils.datetime_utils import DateTimeUtils, for_firestore, from_firestore
+# 도메인 모델
+from app.models.pet import Pet, PetGender
+
+# 유틸리티 및 타 도메인 서비스
+from app.utils.datetime_utils import DateTimeUtils
+from app.api.pet_care.settings.services import PetCareSettingService
 from app.services.storage_service import StorageService
+from app.services.firestore_service import save_analysis_result
+
+# ML 파이프라인
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
 from eyes_models.eyes_lib.inference import EyeAnalyzer
-from app.services.firestore_service import save_analysis_result
+
 
 class PetService:
     """
-    반려동물 관련 비즈니스 로직을 담당하는 서비스 클래스.
+    반려동물의 고유 식별 정보(프로필, 생체인식) 관리를 전담하는 서비스.
     """
-    def __init__(self, storage_service: StorageService, nose_pipeline: NosePrintPipeline, eye_analyzer: EyeAnalyzer, breed_service=None):
-        """
-        서비스 초기화 시 의존성 주입을 통해 필요한 서비스를 받습니다.
-        """
+    def __init__(self,
+                 pet_care_setting_service: PetCareSettingService,
+                 storage_service: StorageService,
+                 nose_pipeline: NosePrintPipeline,
+                 eye_analyzer: EyeAnalyzer):
         self.db = firestore.client()
         self.pets_ref = self.db.collection('pets')
+        # 의존성 주입 (Dependency Injection)
+        self.pet_care_setting_service = pet_care_setting_service
         self.storage_service = storage_service
         self.nose_pipeline = nose_pipeline
         self.eye_analyzer = eye_analyzer
-        self.breed_service = breed_service
-
-    def get_pet_by_user_id(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """user_id로 반려동물 문서를 찾아 딕셔너리로 반환합니다."""
-        query = self.pets_ref.where('user_id', '==', user_id).limit(1).stream()
-        pet_doc = next(query, None)
-        if pet_doc:
-            pet_data = pet_doc.to_dict()
-            pet_data['pet_id'] = pet_doc.id # 문서 ID를 포함하여 반환
-            return pet_data
-        return None
+        logging.info("PetService initialized with dependencies.")
 
     def get_pet_by_id_and_owner(self, pet_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """pet_id로 반려동물을 찾되, user_id가 소유주일 경우에만 반환합니다."""
-        try:
-            doc = self.pets_ref.document(pet_id).get()
-            if doc.exists and doc.to_dict().get('user_id') == user_id:
-                pet_data = doc.to_dict()
-                pet_data['pet_id'] = doc.id
-                return pet_data
-            return None
-        except Exception as e:
-            logging.error(f"ID와 소유주로 반려동물 조회 실패: {e}", exc_info=True)
-            raise
-
-    def create_pet(self, new_pet: Pet) -> Dict[str, Any]:
-        """새로운 반려동물 정보를 Firestore에 저장합니다."""
-        # 품종 유효성 검사
-        if self.breed_service and not self.breed_service.breed_exists(new_pet.breed):
-            raise ValueError(f"존재하지 않는 품종입니다: {new_pet.breed}")
-        
-        pet_data_dict = asdict(new_pet)
-        pet_data_dict['gender'] = new_pet.gender.value
-        
-        # Enum 값들을 문자열로 변환
-        if new_pet.activity_level:
-            pet_data_dict['activity_level'] = new_pet.activity_level.value
-        if new_pet.diet_type:
-            pet_data_dict['diet_type'] = new_pet.diet_type.value
-        
-        # Firestore 호환 변환 (통합 유틸리티 사용)
-        pet_data_dict = DateTimeUtils.for_firestore(pet_data_dict)
-
-        # 펫케어 설정 자동 생성 (온보딩 연동)
-        care_settings = self._generate_care_settings(new_pet)
-        pet_data_dict['care_settings'] = care_settings
-
-        self.pets_ref.document(new_pet.pet_id).set(pet_data_dict)
-        logging.info(f"새 반려동물 등록 완료: {new_pet.pet_id}, 품종: {new_pet.breed}")
-        return pet_data_dict
-
-    def update_pet(self, pet_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        기존 반려동물 정보를 업데이트합니다.
-        권장량 계산에 영향을 미치는 필드가 변경되면 자동으로 care_settings를 갱신합니다.
-        """
-        
-        # 권장량 계산에 영향을 미치는 핵심 필드들
-        CARE_SETTINGS_TRIGGER_FIELDS = {
-            'current_weight', 'activity_level', 'is_neutered', 'birthdate', 'diet_type'
-        }
-        
-        # 기존 펫 정보 조회
-        pet_ref = self.pets_ref.document(pet_id)
-        current_doc = pet_ref.get()
-        
-        if not current_doc.exists:
-            raise ValueError(f"펫을 찾을 수 없습니다: {pet_id}")
-        
-        current_data = current_doc.to_dict()
-        
-        # 권장량 재계산이 필요한지 확인
-        needs_care_settings_update = any(
-            field in update_data for field in CARE_SETTINGS_TRIGGER_FIELDS
-        )
-        
-        # Firestore 호환 변환 (통합 유틸리티 사용)
-        update_data = DateTimeUtils.for_firestore(update_data)
-        
-        # 변경 사항 로깅
-        logging.info(f"펫 정보 업데이트: {pet_id}, 변경 필드: {list(update_data.keys())}")
-        if needs_care_settings_update:
-            logging.info(f"권장량 재계산 트리거됨: {pet_id}")
-        
-        # 1차 업데이트: 사용자가 요청한 필드들
-        pet_ref.update(update_data)
-        
-        # 권장량 재계산이 필요한 경우
-        if needs_care_settings_update:
-            try:
-                # 업데이트된 펫 정보 조회
-                updated_doc = pet_ref.get()
-                updated_data = updated_doc.to_dict()
-                
-                # Pet 객체로 변환하여 _generate_care_settings 호출
-                pet_obj = Pet(
-                    pet_id=pet_id,
-                    user_id=updated_data.get('user_id'),
-                    name=updated_data.get('name'),
-                    breed=updated_data.get('breed'),
-                    gender=PetGender(updated_data.get('gender')),
-                    birthdate=updated_data.get('birthdate'),
-                    current_weight=updated_data.get('current_weight'),
-                    activity_level=ActivityLevel(updated_data.get('activity_level')) if updated_data.get('activity_level') else None,
-                    diet_type=DietType(updated_data.get('diet_type')) if updated_data.get('diet_type') else None,
-                    is_neutered=updated_data.get('is_neutered')
-                )
-                
-                # 새로운 care_settings 생성
-                new_care_settings = self._generate_care_settings(pet_obj)
-                
-                # 2차 업데이트: care_settings 갱신
-                pet_ref.update({
-                    'care_settings': DateTimeUtils.for_firestore(new_care_settings)
-                })
-                
-                logging.info(f"펫 정보 업데이트 완료 (care_settings 자동 갱신): {pet_id}")
-                
-            except Exception as e:
-                logging.error(f"care_settings 자동 갱신 실패 ({pet_id}): {e}")
-                # care_settings 갱신에 실패해도 원래 업데이트는 유지
-        
-        # 최종 업데이트된 데이터 반환
-        final_doc = pet_ref.get()
-        if final_doc.exists:
-            return final_doc.to_dict()
+        doc = self.pets_ref.document(pet_id).get()
+        if doc.exists and doc.to_dict().get('user_id') == user_id:
+            return doc.to_dict()
         return None
+        
+    def register_pet(self, user_id: str, pet_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        [트랜잭션] 최초 반려동물 등록 및 펫케어 초기 설정 생성을 원자적으로 처리합니다.
+        """
+        transaction = self.db.transaction()
+        pet_id = str(uuid.uuid4())
+        pet_ref = self.pets_ref.document(pet_id)
+
+        @firestore.transactional
+        def _register_in_transaction(transaction):
+            # 1. pets 컬렉션에 프로필 문서 생성
+            new_pet = Pet(
+                pet_id=pet_id,
+                user_id=user_id,
+                name=pet_data['name'],
+                gender=PetGender(pet_data['gender']),
+                breed=pet_data['breed'],
+                birthdate=pet_data['birthdate'],
+                initial_weight=pet_data['current_weight'],
+                fur_color=pet_data.get('fur_color'),
+                health_concerns=pet_data.get('health_concerns', [])
+            )
+            
+            pet_dict = asdict(new_pet)
+            pet_dict['gender'] = new_pet.gender.value
+            firestore_data = DateTimeUtils.for_firestore(pet_dict)
+            
+            transaction.set(pet_ref, firestore_data)
+            logging.info(f"Transaction: Pet profile created for {pet_id}")
+
+            # 2. [도메인 간 상호작용] pet_care.settings 서비스 호출
+            # 트랜잭션 내에서 외부 서비스 호출은 주의가 필요하지만,
+            # create_initial_settings가 멱등성을 가지거나 실패 시 롤백된다면 가능합니다.
+            self.pet_care_setting_service.create_initial_settings_transactional(
+                transaction, # 트랜잭션을 전달하여 원자성 보장
+                pet_id=pet_id,
+                gender=new_pet.gender.value,
+                breed=new_pet.breed,
+                current_weight=new_pet.initial_weight
+            )
+            logging.info(f"Transaction: Pet care settings creation requested for {pet_id}")
+            return firestore_data
+
+        try:
+            created_pet_data = _register_in_transaction(transaction)
+            return created_pet_data
+        except Exception as e:
+            logging.error(f"Pet registration transaction failed for user {user_id}: {e}", exc_info=True)
+            raise RuntimeError("반려동물 등록 및 설정 생성에 실패했습니다. 다시 시도해주세요.")
 
     def register_nose_print_for_pet(self, pet_id: str, user_id: str, file_path: str) -> Dict[str, Any]:
-        """
-        특정 반려동물의 비문을 분석하고 등록/인증합니다.
-        - routes 계층에서 전달받은 인자를 기반으로 소유권을 먼저 확인합니다.
-        - ML 파이프라인의 모든 상태(SUCCESS, DUPLICATE 등)에 대한 명확한 응답을 반환합니다.
-        """
-        # 1. 소유권 확인
+        """비문 분석 및 등록/인증 로직."""
         pet_info = self.get_pet_by_id_and_owner(pet_id, user_id)
         if not pet_info:
             raise PermissionError("비문을 등록할 권한이 없거나 반려동물을 찾을 수 없습니다.")
 
-        # 2. 이미 인증되었는지 확인
         if pet_info.get('is_verified', False):
             return {"status": "ALREADY_VERIFIED", "message": "이미 비문 인증이 완료된 반려동물입니다."}
         
-        # 3. ML 파이프라인 실행
-        result = self.nose_pipeline.process_image(storage_service=self.storage_service, file_path=file_path)
+        result = self.nose_pipeline.process_image(self.storage_service, file_path)
         status = result.get("status")
 
-        # 4. 파이프라인 결과에 따라 분기 처리
         if status == "SUCCESS":
-            blob = self.storage_service.bucket.blob(file_path)
-            blob.make_public()
+            public_url = self.storage_service.make_public_and_get_url(file_path)
             update_data = {
                 "is_verified": True,
-                "nose_print_url": blob.public_url,
+                "nose_print_url": public_url,
                 "faiss_id": result['faiss_id']
             }
-            updated_pet = self.update_pet(pet_id, update_data)
-            
-            # DB 업데이트 성공 후 Faiss 인덱스에 벡터를 영구적으로 추가
-            self.nose_pipeline.add_vector_to_index(result['vector'])
-            
-            return {"status": "SUCCESS", "message": "비문이 성공적으로 등록 및 인증되었습니다.", "pet": updated_pet}
+            self.pets_ref.document(pet_id).update(update_data)
+            self.nose_pipeline.add_vector_to_index(result['vector']) # DB 업데이트 성공 후 인덱스에 영구 반영
+            return {"status": "SUCCESS", "message": "비문이 성공적으로 등록 및 인증되었습니다."}
         
-        elif status == "DUPLICATE":
-            return {
-                "status": "DUPLICATE",
-                "message": "이미 다른 반려동물의 비문으로 등록된 사진입니다."
-            }
-        
-        elif status == "INVALID_IMAGE":
-             return {"status": "INVALID_IMAGE", "message": "코를 명확하게 식별할 수 없습니다. 더 선명하거나 가까운 사진을 이용해주세요."}
-        
-        else: # "ERROR" 또는 예기치 않은 상태
-            error_message = result.get("message", "비문 분석 중 알 수 없는 오류가 발생했습니다.")
-            return {"status": "ERROR", "message": error_message}
+        return result # DUPLICATE, INVALID_IMAGE, ERROR 상태 그대로 반환
 
     def analyze_eye_image_for_pet(self, user_id: str, pet_id: str, file_path: str) -> Dict[str, Any]:
-        """
-        GCS에 저장된 반려동물의 안구 이미지를 분석하고 결과를 Firestore에 저장합니다.
-        - 소유권 확인 후 GCS에서 이미지를 다운로드하여 분석을 수행합니다.
-        """
-        # 1. 소유권 확인
-        pet_info = self.get_pet_by_id_and_owner(pet_id, user_id)
-        if not pet_info:
+        """안구 이미지 분석 로직."""
+        if not self.get_pet_by_id_and_owner(pet_id, user_id):
             raise PermissionError("안구 분석을 요청할 권한이 없거나 반려동물을 찾을 수 없습니다.")
 
-        # 2. GCS에서 이미지 다운로드
         try:
-            blob = self.storage_service.bucket.blob(file_path)
-            if not blob.exists():
-                raise RuntimeError("GCS에서 분석할 이미지를 찾을 수 없습니다.")
-            image_bytes = blob.download_as_bytes()
-        except Exception as e:
-            logging.error(f"GCS 파일 다운로드 실패 (file_path: {file_path}): {e}")
-            raise RuntimeError(f"스토리지에서 파일을 가져오는 데 실패했습니다.")
+            image_bytes = self.storage_service.download_as_bytes(file_path)
+        except FileNotFoundError:
+            raise RuntimeError("GCS에서 분석할 이미지를 찾을 수 없습니다.")
 
-        # 3. EyeAnalyzer로 분석 실행
-        final_disease_name, probability, all_predictions = self.eye_analyzer.predict(image_bytes)
+        disease_name, probability, all_predictions = self.eye_analyzer.predict(image_bytes)
+        image_url = self.storage_service.make_public_and_get_url(file_path)
 
-        # 4. GCS 이미지 URL을 공개로 설정
-        blob.make_public()
-        image_url = blob.public_url
-
-        # 5. Firestore에 저장할 데이터 구성
         result_data = {
             'pet_id': pet_id,
             'analysis_type': 'eye',
             'image_url': image_url,
-            'result': {
-                'final_disease_name': final_disease_name,
-                'probability': probability
-            },
+            'result': {'final_disease_name': disease_name, 'probability': probability},
             'raw_predictions': all_predictions
         }
         
-        # 6. 분석 결과 저장 (공용 서비스 사용)
-        analysis_id = save_analysis_result(
-            collection_name='analysis_history', 
-            user_id=user_id, 
-            data=result_data
-        )
-        if not analysis_id:
-            raise RuntimeError("분석 결과를 데이터베이스에 저장하는데 실패했습니다.")
-
-        # 7. API 응답을 위한 최종 데이터 반환
-        return {
-            'analysis_id': analysis_id,
-            'disease_name': final_disease_name,
-            'probability': probability
-        }
-
-    def _generate_care_settings(self, pet: Pet) -> Dict[str, Any]:
-        """
-        펫 정보를 바탕으로 펫케어 기본 설정을 생성합니다.
+        analysis_id = save_analysis_result('analysis_history', user_id, result_data)
         
-        Args:
-            pet: Pet 객체
-            
-        Returns:
-            펫케어 설정 딕셔너리
-        """
-        try:
-            # 나이 계산 (월 단위)
-            if pet.birthdate:
-                if isinstance(pet.birthdate, date):
-                    birthdate = pet.birthdate
-                else:
-                    # datetime 객체인 경우 date로 변환
-                    birthdate = pet.birthdate.date()
-                
-                today = date.today()
-                age_months = (today.year - birthdate.year) * 12 + (today.month - birthdate.month)
-                age_months = max(0, age_months)
-            else:
-                age_months = 12  # 기본값: 1세
-            
-            # 품종별 이상 체중 조회
-            ideal_weight = 15.0  # 기본값
-            if self.breed_service and pet.breed:
-                breed_weight = self.breed_service.get_breed_ideal_weight(pet.breed, pet.gender.value)
-                if breed_weight:
-                    ideal_weight = breed_weight
-            
-            # 현재 체중이 있으면 사용, 없으면 이상 체중 사용
-            current_weight = pet.current_weight or ideal_weight
-            
-            # RER 계산 (휴식대사율)
-            rer_calories = 70 * (ideal_weight ** 0.75)
-            
-            # MER 승수 계산
-            multiplier = self._calculate_mer_multiplier(pet, age_months)
-            mer_calories = rer_calories * multiplier
-            
-            # 권장 음수량 계산
-            recommended_water_ml = self._calculate_water_intake(mer_calories, pet.diet_type)
-            
-            # 빠른 증감을 위한 기본 증분 설정
-            food_increment = max(25, round(mer_calories * 0.05))  # MER의 5% 또는 최소 25kcal
-            water_increment = max(50, round(recommended_water_ml * 0.1))  # 권장량의 10% 또는 최소 50ml
-            activity_increment = 15 if age_months < 12 else 30  # 자견은 15분, 성견은 30분
-            
-            care_settings = {
-                'food_increment': food_increment,
-                'water_increment': water_increment,
-                'activity_increment': activity_increment,
-                'recommended_calories': round(mer_calories, 1),
-                'recommended_water_ml': round(recommended_water_ml, 1),
-                'ideal_weight_kg': ideal_weight,
-                'age_months': age_months,
-                'mer_multiplier': multiplier,
-                'generated_at': datetime.utcnow()
-            }
-            
-            logging.info(f"펫케어 설정 생성 완료: {pet.pet_id} - 칼로리: {mer_calories}, 물: {recommended_water_ml}ml")
-            return care_settings
-            
-        except Exception as e:
-            logging.error(f"펫케어 설정 생성 실패 ({pet.pet_id}): {e}")
-            # 기본값 반환
-            return {
-                'food_increment': 50,
-                'water_increment': 100,
-                'activity_increment': 30,
-                'recommended_calories': 400.0,
-                'recommended_water_ml': 400.0,
-                'ideal_weight_kg': 15.0,
-                'age_months': 12,
-                'mer_multiplier': 1.6,
-                'generated_at': datetime.utcnow()
-            }
-    
-    def _calculate_mer_multiplier(self, pet: Pet, age_months: int) -> float:
-        """MER 승수를 계산합니다."""
-        # 생애 주기 확인
-        if age_months < 4:
-            return 3.0  # 자견 (4개월 미만)
-        elif age_months < 12:
-            return 2.0  # 자견 (4개월 이상)
-        
-        # 성견의 경우
-        # 활동 수준에 따른 승수 (우선순위 높음)
-        if pet.activity_level:
-            if pet.activity_level == ActivityLevel.INACTIVE:
-                return 1.4  # 비활동적 / 비만 경향
-            elif pet.activity_level == ActivityLevel.LIGHT:
-                return 2.0  # 가벼운 활동
-            elif pet.activity_level == ActivityLevel.MODERATE:
-                return 3.0  # 중간 수준 활동
-            elif pet.activity_level in [ActivityLevel.ACTIVE, ActivityLevel.VERY_ACTIVE]:
-                return 6.0  # 격렬한 활동 (워킹독)
-        
-        # 중성화 상태에 따른 기본 승수
-        if pet.is_neutered is True:
-            return 1.6  # 중성화한 성견
-        elif pet.is_neutered is False:
-            return 1.8  # 중성화하지 않은 성견
-        else:
-            return 1.6  # 기본값
-    
-    def _calculate_water_intake(self, mer_calories: float, diet_type: Optional[DietType]) -> float:
-        """권장 음수량을 계산합니다."""
-        base_water_ml = mer_calories
-        
-        # 식단 타입에 따른 조정
-        if diet_type == DietType.WET_FOOD:
-            return base_water_ml * 0.4  # 습식사료는 수분 함량이 높음
-        elif diet_type == DietType.MIXED:
-            return base_water_ml * 0.7  # 혼합식
-        else:
-            return base_water_ml  # 건사료 또는 기타
-
-# 서비스 인스턴스는 app/__init__.py에서 생성 및 주입됩니다.
-pet_service: Optional[PetService] = None
+        return {'analysis_id': analysis_id, 'disease_name': disease_name, 'probability': probability}

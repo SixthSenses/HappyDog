@@ -326,6 +326,60 @@ class DateTimeUtils:
             logger.error(f"{field_name} 검증 실패: {value} - {e}")
             raise ValueError(f"잘못된 {field_name} 형식입니다: {value}")
 
+    @staticmethod
+    def from_timestamp_ms(timestamp_ms: int) -> datetime:
+        """
+        Unix timestamp (밀리초)를 UTC datetime 객체로 변환
+        
+        Args:
+            timestamp_ms: Unix timestamp in milliseconds
+            
+        Returns:
+            UTC timezone-aware datetime 객체
+        """
+        try:
+            if not isinstance(timestamp_ms, (int, float)):
+                raise ValueError("timestamp_ms는 숫자여야 합니다")
+            
+            # 밀리초를 초로 변환하여 datetime 생성
+            dt = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
+            return dt
+            
+        except Exception as e:
+            logger.error(f"timestamp_ms 변환 실패: {timestamp_ms} - {e}")
+            raise ValueError(f"잘못된 timestamp 형식입니다: {timestamp_ms}")
+
+    @staticmethod
+    def to_timestamp_ms(dt: Union[datetime, Any]) -> int:
+        """
+        datetime 객체를 Unix timestamp (밀리초)로 변환
+        
+        Args:
+            dt: datetime 객체 또는 Firestore timestamp
+            
+        Returns:
+            Unix timestamp in milliseconds
+        """
+        try:
+            # Firestore timestamp 객체 처리
+            if hasattr(dt, 'timestamp'):
+                return int(dt.timestamp() * 1000)
+            
+            # datetime 객체 처리
+            elif isinstance(dt, datetime):
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                else:
+                    dt = dt.astimezone(timezone.utc)
+                return int(dt.timestamp() * 1000)
+            
+            else:
+                raise ValueError(f"datetime 객체 또는 Firestore timestamp여야 합니다: {type(dt)}")
+                
+        except Exception as e:
+            logger.error(f"timestamp_ms 변환 실패: {dt} - {e}")
+            raise ValueError(f"timestamp로 변환할 수 없습니다: {dt}")
+
 
 # 편의를 위한 글로벌 함수들 (기존 코드와의 호환성)
 def now() -> datetime:
