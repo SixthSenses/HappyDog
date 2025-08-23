@@ -45,6 +45,7 @@ def social_login():
         return jsonify({
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "user_id": user.user_id,
             "is_new_user": is_new_user,
             "user_info": { # [개선] 신규/기존 유저 정보 함께 반환
                 "user_id": user.user_id,

@@ -78,6 +78,27 @@ class StorageService:
             "file_path": destination_blob_name
         }
 
+    def download_as_bytes(self, file_path: str) -> bytes:
+        """
+        Firebase Storage에서 파일을 바이트로 다운로드합니다.
+        
+        :param file_path: 다운로드할 파일의 경로
+        :return: 파일의 바이트 데이터
+        """
+        if not self.bucket:
+            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
+            
+        blob = self.bucket.blob(file_path)
+        
+        if not blob.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+            
+        try:
+            return blob.download_as_bytes()
+        except Exception as e:
+            logging.error(f"파일 다운로드 실패: {e}", exc_info=True)
+            raise
+
     def make_public_and_get_url(self, file_path: str) -> str:
         """
         지정된 파일을 공개(public)로 설정하고 해당 URL을 반환합니다.

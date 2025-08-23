@@ -34,7 +34,8 @@ migrations/versions/*.py
 # Logs
 *.log
 
-
+# scriptts
+scripts/
 
 # MyPy
 .mypy_cache/
@@ -46,10 +47,8 @@ migrations/versions/*.py
 *.jpg
 
 #secrets
-secrets/
+
 /secrets
-*.json
-.json
 
 # Editable Install Metadata
 *.egg-info/
@@ -59,7 +58,6 @@ secrets/
 
 # User Uploads (임시 파일)
 uploads/
-/secrets
-*.json
+
+
 .env
-pet_project_backend/.env

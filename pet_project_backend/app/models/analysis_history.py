@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any
 
+from app.utils.datetime_utils import DateTimeUtils
+
 @dataclass
 class AnalysisHistory:
     """
@@ -15,4 +17,4 @@ class AnalysisHistory:
     image_url: str
     result: Dict[str, Any]
     raw_predictions: Dict[str, float]
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)

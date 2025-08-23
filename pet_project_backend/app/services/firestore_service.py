@@ -3,6 +3,8 @@ import datetime
 import logging
 from firebase_admin import firestore
 
+from app.utils.datetime_utils import DateTimeUtils
+
 def save_analysis_result(collection_name: str, user_id: str, data: dict) -> str:
     """
     AI 분석 결과를 Firestore의 지정된 컬렉션에 저장하고 문서 ID를 반환합니다.
@@ -16,8 +18,11 @@ def save_analysis_result(collection_name: str, user_id: str, data: dict) -> str:
         db = firestore.client()
         
         # 공통 필드 추가
-        data['created_at'] = datetime.datetime.utcnow()
+        data['created_at'] = DateTimeUtils.now()
         data['user_id'] = user_id
+        
+        # Firestore 호환 변환
+        data = DateTimeUtils.for_firestore(data)
         
         # 컬렉션에 새 문서 추가
         doc_ref = db.collection(collection_name).document()
