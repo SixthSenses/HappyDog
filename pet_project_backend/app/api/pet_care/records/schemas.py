@@ -64,6 +64,7 @@ class RecordsQuerySchema(Schema):
     grouped = fields.Bool(load_default=False)  # 타입별 그룹화 여부
     limit = fields.Int(validate=validate.Range(min=1, max=100), load_default=50)
     offset = fields.Int(validate=validate.Range(min=0), load_default=0)
+    cursor = fields.Str()  # 커서 기반 페이지네이션용
     sort = fields.Str(validate=validate.OneOf(['timestamp_asc', 'timestamp_desc']), load_default='timestamp_desc')
     
     @pre_load
