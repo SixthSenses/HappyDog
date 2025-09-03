@@ -1,13 +1,11 @@
-name: happydog-backend
+name: happydog-mac-cpu
 channels:
   - pytorch
   - conda-forge
   - defaults
 dependencies:
-  # Python
   - python=3.10
   - pip
-
   # Core backend
   - flask=3.1
   - flask-jwt-extended=4.7
@@ -19,13 +17,10 @@ dependencies:
   - psutil
   - tqdm
   - marshmallow=4.0
-
-  # PyTorch (CPU by default on all platforms)
+  # PyTorch CPU (intel or arm64)
   - pytorch=2.5
   - torchvision=0.20
   - torchaudio=2.5
-
-  # Pip-only deps
   - pip:
       - google-auth-oauthlib==1.2.2
       - opencv-python==4.10.0.84
@@ -43,4 +38,3 @@ dependencies:
       - shapely==2.1.1
       - scipy==1.11.4
       - faiss-cpu==1.9.0
-
