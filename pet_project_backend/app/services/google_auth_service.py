@@ -79,8 +79,8 @@ class GoogleAuthService:
             )
             
             # --- 'httpso' -> 'https'로 수정 ---
-            flow.redirect_uri = "https://developers.google.com/oauthplayground"
-
+            #flow.redirect_uri = "https://developers.google.com/oauthplayground"  # 안드로이드 스튜디오에서 테스트 할때 http://127.0.0.1:5000/api/auth/social
+            flow.redirect_uri = "http://127.0.0.1:5000/api/auth/social"  # oauthplayground에서 발급받을떄 https://developers.google.com/oauthplayground
             # 2. 인증 코드를 사용해 Access Token 및 Refresh Token으로 교환합니다.
             flow.fetch_token(code=auth_code)
 
