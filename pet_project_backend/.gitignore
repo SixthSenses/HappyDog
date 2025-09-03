@@ -60,4 +60,5 @@ scripts/
 uploads/
 
 
-.env
+*.env
+.github
