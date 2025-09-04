@@ -47,7 +47,13 @@ def list_notifications():
                 elif type_value == NotificationType.COMMENT_LIKE.value:
                     deeplink = f"app://comments/{n.get('target_id')}"
                 elif type_value and type_value.startswith('PET_CARE'):
-                    deeplink = "app://pet-care/dashboard"
+                    # PET_CARE_* 규칙: petId/date/tab 포함, 기본값 적용
+                    pet_id = n.get('pet_id') or n.get('recipient_id')  # 최소 식별 보조; 필요 시 알림 생성 시 pet_id 포함 추천
+                    from datetime import datetime, timezone
+                    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                    # record_type 힌트가 있으면 tab 반영, 기본 weight
+                    tab = n.get('record_type') or 'weight'
+                    deeplink = f"app://pet-care/dashboard?petId={pet_id}&date={today}&tab={tab}"
             except Exception:
                 pass
 

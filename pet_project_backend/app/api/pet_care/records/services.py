@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from firebase_admin import firestore
 import uuid
 from dataclasses import asdict
+from marshmallow import ValidationError
 
 from app.models.pet_care_log import PetCareLog
 from app.utils.datetime_utils import DateTimeUtils
@@ -297,6 +298,44 @@ class PetCareRecordService:
         update_data = {k: v for k, v in (payload or {}).items() if k in ALLOWED_FIELDS}
         if not update_data:
             return data
+
+        # ---- 엄격 유효성 검증 ----
+        record_type = data.get('record_type')
+        errors: Dict[str, List[str]] = {}
+
+        if 'data' in update_data:
+            val = update_data['data']
+            if record_type == 'weight':
+                # float > 0
+                if not isinstance(val, (int, float)) or float(val) <= 0:
+                    errors.setdefault('data', []).append('weight는 0보다 큰 실수여야 합니다.')
+                else:
+                    # 정규화: float로 캐스팅
+                    update_data['data'] = float(val)
+            elif record_type in ('water', 'activity', 'meal'):
+                # int >= 0
+                if not isinstance(val, int) or val < 0:
+                    errors.setdefault('data', []).append(f'{record_type}는 0 이상의 정수여야 합니다.')
+            elif record_type == 'bcs':
+                # int 1..5
+                if not isinstance(val, int) or val < 1 or val > 5:
+                    errors.setdefault('data', []).append('bcs는 1~5 범위의 정수여야 합니다.')
+            else:
+                # 알 수 없는 타입: 서버 정책상 거부
+                errors.setdefault('data', []).append('알 수 없는 record_type에 대한 data입니다.')
+
+        if 'notes' in update_data:
+            val = update_data['notes']
+            if val is not None and not isinstance(val, str):
+                errors.setdefault('notes', []).append('notes는 문자열 또는 null이어야 합니다.')
+
+        if 'timestamp' in update_data:
+            val = update_data['timestamp']
+            if not isinstance(val, int) or val < 0:
+                errors.setdefault('timestamp', []).append('timestamp는 0 이상의 밀리초 정수여야 합니다.')
+
+        if errors:
+            raise ValidationError(errors)
 
         # timestamp(ms) 수정 시 보조 필드 재계산
         if 'timestamp' in update_data:
