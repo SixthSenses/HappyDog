@@ -10,7 +10,8 @@ from app.api.pet_care.records.schemas import (
     DailyRecordsResponseSchema,
     RecordsQuerySchema,
     RecordsResponseSchema,
-    RecordTypeQuerySchema
+    RecordTypeQuerySchema,
+    CareRecordUpdateSchema
 )
 
 pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
@@ -41,7 +42,7 @@ def get_records(pet_id: str):
     쿼리 파라미터:
     - date: 단일 날짜 조회 (YYYY-MM-DD)
     - start_date, end_date: 날짜 범위 조회 (YYYY-MM-DD)
-    - record_types: 필터링할 기록 타입 (weight,water,activity,meal)
+    - record_types: 필터링할 기록 타입 (weight,water,activity,meal,bcs)
     - grouped: 타입별 그룹화 여부 (true/false)
     - limit: 조회 개수 제한 (1-100, 기본값: 50)
     - cursor: 커서 기반 페이지네이션 (다음 페이지 조회용)
@@ -94,7 +95,7 @@ def get_records_by_type(pet_id: str, record_type: str):
     service = current_app.services['pet_care_records']
     
     # record_type 검증
-    valid_types = ['weight', 'water', 'activity', 'meal']
+    valid_types = ['weight', 'water', 'activity', 'meal', 'bcs']
     if record_type not in valid_types:
         return jsonify({
             "error_code": "INVALID_RECORD_TYPE", 
@@ -167,3 +168,38 @@ def get_records_legacy(pet_id: str):
     except Exception as e:
         logging.error(f"Record retrieval API error (pet_id: {pet_id}): {e}", exc_info=True)
         return jsonify({"error_code": "FETCH_FAILED", "message": "기록 조회 중 오류가 발생했습니다."}), 500
+
+@pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['PATCH'])
+@jwt_required()
+def update_care_record(pet_id: str, log_id: str):
+    """기존 기록을 부분 수정합니다. (퀵애드 오입력 정정 UX)"""
+    service = current_app.services['pet_care_records']
+    try:
+        payload = CareRecordUpdateSchema().load(request.get_json() or {})
+        updated = service.update_care_record(pet_id, log_id, payload)
+        return jsonify(updated), 200
+    except ValidationError as err:
+        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+    except FileNotFoundError:
+        return jsonify({"error_code": "NOT_FOUND", "message": "기록을 찾을 수 없습니다."}), 404
+    except PermissionError:
+        return jsonify({"error_code": "FORBIDDEN", "message": "해당 기록을 수정할 권한이 없습니다."}), 403
+    except Exception as e:
+        logging.error(f"기록 수정 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
+        return jsonify({"error_code": "UPDATE_FAILED", "message": "기록 수정 중 오류가 발생했습니다."}), 500
+
+@pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['DELETE'])
+@jwt_required()
+def delete_care_record(pet_id: str, log_id: str):
+    """기존 기록을 삭제합니다."""
+    service = current_app.services['pet_care_records']
+    try:
+        service.delete_care_record(pet_id, log_id)
+        return jsonify({}), 204
+    except FileNotFoundError:
+        return jsonify({"error_code": "NOT_FOUND", "message": "기록을 찾을 수 없습니다."}), 404
+    except PermissionError:
+        return jsonify({"error_code": "FORBIDDEN", "message": "해당 기록을 삭제할 권한이 없습니다."}), 403
+    except Exception as e:
+        logging.error(f"기록 삭제 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
+        return jsonify({"error_code": "DELETE_FAILED", "message": "기록 삭제 중 오류가 발생했습니다."}), 500

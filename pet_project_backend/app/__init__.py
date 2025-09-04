@@ -31,6 +31,7 @@ from app.api.breeds.routes import breeds_bp
 from app.api.pets.routes import pets_bp
 from app.api.pet_care.settings.routes import pet_care_settings_bp
 from app.api.pet_care.records.routes import pet_care_records_bp
+from app.api.notifications.routes import notifications_bp
 
 # - 서비스 모듈
 from app.services import storage_service as storage_service_module
@@ -180,6 +181,7 @@ def create_app():
     app.register_blueprint(pets_bp, url_prefix='/api/pets')
     app.register_blueprint(pet_care_settings_bp, url_prefix='/api/pet-care')
     app.register_blueprint(pet_care_records_bp, url_prefix='/api/pet-care')
+    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정

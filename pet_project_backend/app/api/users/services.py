@@ -114,5 +114,27 @@ class UserService:
             logging.error(f"FCM 토큰 업데이트 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
 
+    def get_notification_preferences(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """사용자의 알림 개인 설정을 조회합니다."""
+        try:
+            doc = self.users_ref.document(user_id).get()
+            if not doc.exists:
+                return None
+            data = doc.to_dict()
+            return data.get('notification_preferences')
+        except Exception as e:
+            logging.error(f"알림 설정 조회 실패 (user_id: {user_id}): {e}", exc_info=True)
+            raise
+
+    def update_notification_preferences(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """사용자의 알림 개인 설정을 저장/업데이트합니다."""
+        try:
+            ref = self.users_ref.document(user_id)
+            ref.update({"notification_preferences": preferences})
+            return ref.get().to_dict().get('notification_preferences', {})
+        except Exception as e:
+            logging.error(f"알림 설정 업데이트 실패 (user_id: {user_id}): {e}", exc_info=True)
+            raise
+
 # 서비스 인스턴스는 app/__init__.py에서 생성되어 주입됩니다.
 user_service: Optional[UserService] = None
