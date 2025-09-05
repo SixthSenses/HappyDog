@@ -11,7 +11,7 @@ class PetCareLog:
     """
     log_id: str
     pet_id: str
-    record_type: str  # 'weight', 'water', 'activity', 'meal'
+    record_type: str  # 'weight', 'water', 'activity', 'meal', 'bcs'
     timestamp: datetime # 클라이언트 제공 Unix timestamp(ms)를 변환한 UTC datetime
     searchDate: str   # 조회 최적화를 위한 YYYY-MM-DD 형식의 문자열
     data: Any         # 실제 기록 값 (예: 5.2, 1, 30)

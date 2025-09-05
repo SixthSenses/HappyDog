@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from firebase_admin import firestore
 import uuid
 from dataclasses import asdict
+from marshmallow import ValidationError
 
 from app.models.pet_care_log import PetCareLog
 from app.utils.datetime_utils import DateTimeUtils
@@ -25,7 +26,9 @@ class PetCareRecordService:
             # 검색 및 필터링을 위한 searchDate 필드 생성 (YYYY-MM-DD)
             search_date = record_dt_utc.strftime('%Y-%m-%d')
             
-            log_id = str(uuid.uuid4())
+            # 멱등성 보장: request_id가 있으면 그것을 우선 사용 (없으면 UUID)
+            request_id = record_data.get('request_id')
+            log_id = request_id if request_id else str(uuid.uuid4())
             new_log = PetCareLog(
                 log_id=log_id,
                 pet_id=pet_id,
@@ -38,7 +41,8 @@ class PetCareRecordService:
             
             log_dict = asdict(new_log)
             firestore_data = DateTimeUtils.for_firestore(log_dict)
-            self.logs_ref.document(log_id).set(firestore_data)
+            # set(merge=True) 사용 시 동일 log_id로 재시도해도 안전
+            self.logs_ref.document(log_id).set(firestore_data, merge=True)
             
             logging.info(f"Care record created for pet {pet_id} (type: {record_data['record_type']})")
             return log_dict
@@ -136,7 +140,7 @@ class PetCareRecordService:
             
             # 타입별 그룹화 (요청된 경우)
             if query_params.get('grouped', False):
-                grouped = {'weight': [], 'water': [], 'activity': [], 'meal': []}
+                grouped = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
                 for record in records:
                     record_type = record.get('record_type')
                     if record_type in grouped:
@@ -159,7 +163,7 @@ class PetCareRecordService:
             
             docs = query.stream()
             
-            grouped_records = {'weight': [], 'water': [], 'activity': [], 'meal': []}
+            grouped_records = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
             
             for doc in docs:
                 record = doc.to_dict()
@@ -204,7 +208,7 @@ class PetCareRecordService:
                 record_type = record.get('record_type')
 
                 if date_key not in records_by_date:
-                    records_by_date[date_key] = {'weight': [], 'water': [], 'activity': [], 'meal': []}
+                    records_by_date[date_key] = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
                 
                 if record_type in records_by_date[date_key]:
                     timestamp_obj = record.get('timestamp')
@@ -279,3 +283,78 @@ class PetCareRecordService:
         except Exception as e:
             logging.error(f"Failed to get {record_type} records for pet {pet_id}: {e}", exc_info=True)
             raise
+
+    def update_care_record(self, pet_id: str, log_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """기존 케어 기록 일부 필드를 수정합니다."""
+        ref = self.logs_ref.document(log_id)
+        snap = ref.get()
+        if not snap.exists:
+            raise FileNotFoundError("기록 없음")
+        data = snap.to_dict()
+        if data.get('pet_id') != pet_id:
+            raise PermissionError("잘못된 접근")
+
+        ALLOWED_FIELDS = {'data', 'notes', 'timestamp'}
+        update_data = {k: v for k, v in (payload or {}).items() if k in ALLOWED_FIELDS}
+        if not update_data:
+            return data
+
+        # ---- 엄격 유효성 검증 ----
+        record_type = data.get('record_type')
+        errors: Dict[str, List[str]] = {}
+
+        if 'data' in update_data:
+            val = update_data['data']
+            if record_type == 'weight':
+                # float > 0
+                if not isinstance(val, (int, float)) or float(val) <= 0:
+                    errors.setdefault('data', []).append('weight는 0보다 큰 실수여야 합니다.')
+                else:
+                    # 정규화: float로 캐스팅
+                    update_data['data'] = float(val)
+            elif record_type in ('water', 'activity', 'meal'):
+                # int >= 0
+                if not isinstance(val, int) or val < 0:
+                    errors.setdefault('data', []).append(f'{record_type}는 0 이상의 정수여야 합니다.')
+            elif record_type == 'bcs':
+                # int 1..5
+                if not isinstance(val, int) or val < 1 or val > 5:
+                    errors.setdefault('data', []).append('bcs는 1~5 범위의 정수여야 합니다.')
+            else:
+                # 알 수 없는 타입: 서버 정책상 거부
+                errors.setdefault('data', []).append('알 수 없는 record_type에 대한 data입니다.')
+
+        if 'notes' in update_data:
+            val = update_data['notes']
+            if val is not None and not isinstance(val, str):
+                errors.setdefault('notes', []).append('notes는 문자열 또는 null이어야 합니다.')
+
+        if 'timestamp' in update_data:
+            val = update_data['timestamp']
+            if not isinstance(val, int) or val < 0:
+                errors.setdefault('timestamp', []).append('timestamp는 0 이상의 밀리초 정수여야 합니다.')
+
+        if errors:
+            raise ValidationError(errors)
+
+        # timestamp(ms) 수정 시 보조 필드 재계산
+        if 'timestamp' in update_data:
+            from app.utils.datetime_utils import DateTimeUtils
+            ts_ms = update_data['timestamp']
+            dt = DateTimeUtils.from_timestamp_ms(ts_ms)
+            update_data['timestamp'] = dt
+            update_data['searchDate'] = dt.strftime('%Y-%m-%d')
+
+        ref.update(update_data)
+        return ref.get().to_dict()
+
+    def delete_care_record(self, pet_id: str, log_id: str) -> None:
+        """기존 케어 기록을 삭제합니다."""
+        ref = self.logs_ref.document(log_id)
+        snap = ref.get()
+        if not snap.exists:
+            raise FileNotFoundError("기록 없음")
+        data = snap.to_dict()
+        if data.get('pet_id') != pet_id:
+            raise PermissionError("잘못된 접근")
+        ref.delete()

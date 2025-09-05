@@ -19,3 +19,9 @@ class FCMTokenSchema(Schema):
     FCM 토큰 등록/업데이트 요청 본문의 유효성을 검사하는 스키마.
     """
     fcm_token = fields.Str(required=True, error_messages={"required": "fcm_token은 필수 항목입니다."})
+
+class NotificationPreferencesSchema(Schema):
+    """유저 알림 개인 설정 스키마."""
+    mode = fields.Str(required=False, allow_none=True)
+    # 타입별 on/off. 키는 NotificationType의 문자열 값 사용을 권장
+    types = fields.Dict(keys=fields.Str(), values=fields.Bool(), required=False)

@@ -6,10 +6,12 @@ class CareRecordCreateSchema(Schema):
     """
     POST /api/pet-care/<pet_id>/records 요청 본문을 위한 통합 스키마.
     """
-    record_type = fields.Str(required=True, validate=validate.OneOf(['weight', 'water', 'activity', 'meal']))
+    record_type = fields.Str(required=True, validate=validate.OneOf(['weight', 'water', 'activity', 'meal', 'bcs']))
     timestamp = fields.Int(required=True)  # 클라이언트에서 생성한 Unix time (ms)
     data = fields.Raw(required=True)  # 기록 값 (타입에 따라 다름)
     notes = fields.Str(required=False, allow_none=True)
+    # 중복 방지용 선택 필드: 같은 request_id로 여러 번 호출해도 같은 문서를 대상으로 처리
+    request_id = fields.Str(required=False)
     
     @validates_schema
     def validate_data_by_type(self, data, **kwargs):
@@ -29,6 +31,10 @@ class CareRecordCreateSchema(Schema):
         elif record_type == 'meal':
             if not isinstance(value, int) or value < 0:
                 raise ValidationError('식사 횟수는 0 이상의 정수여야 합니다.', 'data')
+        elif record_type == 'bcs':
+            # 1(마름) ~ 5(비만) 5단계 정수
+            if not isinstance(value, int) or value < 1 or value > 5:
+                raise ValidationError('BCS는 1~5 범위의 정수여야 합니다.', 'data')
 
 class RecordItemSchema(Schema):
     """개별 기록 항목 스키마."""
@@ -48,6 +54,12 @@ class RecordsResponseSchema(Schema):
     meta = fields.Dict(dump_default={})
     grouped = fields.Dict(dump_default={})  # 타입별 그룹화 (grouped=true일 때만)
 
+class CareRecordUpdateSchema(Schema):
+    """PATCH /api/pet-care/<pet_id>/records/<log_id> 요청 스키마."""
+    data = fields.Raw(required=False)
+    notes = fields.Str(required=False, allow_none=True)
+    timestamp = fields.Int(required=False)
+
 class RecordsQuerySchema(Schema):
     """
     GET /api/pet-care/<pet_id>/records 쿼리 파라미터 검증 스키마.
@@ -58,7 +70,7 @@ class RecordsQuerySchema(Schema):
     end_date = fields.Str(validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
     
     # 타입 필터링
-    record_types = fields.List(fields.Str(validate=validate.OneOf(['weight', 'water', 'activity', 'meal'])))
+    record_types = fields.List(fields.Str(validate=validate.OneOf(['weight', 'water', 'activity', 'meal', 'bcs'])))
     
     # 응답 옵션
     grouped = fields.Bool(load_default=False)  # 타입별 그룹화 여부
@@ -81,6 +93,14 @@ class RecordsQuerySchema(Schema):
         if 'grouped' in processed_data and isinstance(processed_data['grouped'], str):
             grouped_str = processed_data['grouped'].lower()
             processed_data['grouped'] = grouped_str in ('true', '1', 'yes')
+
+        # sort 별칭 허용: asc/desc -> timestamp_asc/desc
+        if 'sort' in processed_data and isinstance(processed_data['sort'], str):
+            s = processed_data['sort'].lower()
+            if s == 'asc':
+                processed_data['sort'] = 'timestamp_asc'
+            elif s == 'desc':
+                processed_data['sort'] = 'timestamp_desc'
         
         return processed_data
     
@@ -141,3 +161,4 @@ class DailyRecordsResponseSchema(Schema):
     water = fields.List(fields.Dict(), dump_default=[])
     activity = fields.List(fields.Dict(), dump_default=[])
     meal = fields.List(fields.Dict(), dump_default=[])
+    bcs = fields.List(fields.Dict(), dump_default=[])
