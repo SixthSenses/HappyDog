@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from firebase_admin import firestore, auth as firebase_auth
 from app.services.storage_service import StorageService
 from app.api.posts.services import PostService 
+from app.utils.datetime_utils import DateTimeUtils
 class UserService:
     """
     사용자 관련 비즈니스 로직을 담당하는 서비스 클래스.
@@ -17,6 +18,7 @@ class UserService:
         """
         self.db = firestore.client()
         self.users_ref = self.db.collection('users')
+        self.user_selected_pet_ref = self.db.collection('user_selected_pet')
         self.storage_service = storage_service
         self.post_service = post_service
         
@@ -134,6 +136,46 @@ class UserService:
             return ref.get().to_dict().get('notification_preferences', {})
         except Exception as e:
             logging.error(f"알림 설정 업데이트 실패 (user_id: {user_id}): {e}", exc_info=True)
+            raise
+
+    # ---------------------- Selected Pet Persistence ----------------------
+    def get_selected_pet(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        사용자의 현재 선택된 펫을 조회합니다.
+        Returns dict {user_id, pet_id, updated_at} or None
+        """
+        try:
+            doc = self.user_selected_pet_ref.document(user_id).get()
+            if not doc.exists:
+                return None
+            data = doc.to_dict() or {}
+            # 정규화: updated_at을 ISO 문자열로 변환
+            if data.get('updated_at'):
+                data['updated_at'] = DateTimeUtils.to_iso_string(DateTimeUtils.from_firestore(data['updated_at']))
+            return data
+        except Exception as e:
+            logging.error(f"선택 펫 조회 실패 (user_id: {user_id}): {e}", exc_info=True)
+            raise
+
+    def set_selected_pet(self, user_id: str, pet_id: Optional[str]) -> Dict[str, Any]:
+        """
+        사용자의 선택된 펫을 설정/갱신합니다. pet_id는 None일 수 있음(초기화).
+        Upsert, 멱등. Returns stored payload.
+        """
+        try:
+            payload: Dict[str, Any] = {
+                'user_id': user_id,
+                'pet_id': pet_id,
+                'updated_at': DateTimeUtils.now(),
+            }
+            # Firestore 저장 형식으로 변환 (datetime -> UTC aware)
+            firestore_payload = DateTimeUtils.for_firestore(payload)
+            self.user_selected_pet_ref.document(user_id).set(firestore_payload)
+            # 응답은 ISO로 변환
+            payload['updated_at'] = DateTimeUtils.to_iso_string(payload['updated_at'])
+            return payload
+        except Exception as e:
+            logging.error(f"선택 펫 업데이트 실패 (user_id: {user_id}, pet_id: {pet_id}): {e}", exc_info=True)
             raise
 
 # 서비스 인스턴스는 app/__init__.py에서 생성되어 주입됩니다.
