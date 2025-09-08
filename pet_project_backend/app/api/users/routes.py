@@ -5,7 +5,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 
-from app.api.users.schemas import UserPublicResponseSchema, FCMTokenSchema, NotificationPreferencesSchema
+from app.api.users.schemas import (
+    UserPublicResponseSchema,
+    FCMTokenSchema,
+    NotificationPreferencesSchema,
+    SelectedPetUpdateSchema,
+)
 
 users_bp = Blueprint('users_bp', __name__)
 
@@ -230,3 +235,93 @@ def get_me_summary():
     except Exception as e:
         logging.error(f"Summary endpoint error: {e}", exc_info=True)
         return jsonify({"error_code": "SUMMARY_FETCH_FAILED", "message": "요약 정보 조회 중 오류가 발생했습니다."}), 500
+
+
+# ----------------------- Selected Pet Endpoints -----------------------
+@users_bp.route('/me/selected-pet', methods=['GET'])
+@jwt_required()
+def get_my_selected_pet():
+    """
+    인증 사용자 기준 현재 선택 펫 조회.
+    200: { pet_id, name?, profile_image_url?, updated_at? }
+    204: 선택 펫 없음
+    404: 기록은 있으나 해당 펫이 삭제됨 등
+    """
+    user_service = current_app.services['users']
+    pet_service = current_app.services['pets']
+    user_id = get_jwt_identity()
+    try:
+        record = user_service.get_selected_pet(user_id)
+        if not record or not record.get('pet_id'):
+            return Response(status=204)
+
+        pet_id = record['pet_id']
+        # 펫 존재 여부 확인 (공개 프로필로 충분)
+        try:
+            pet_public = pet_service.get_public_pet_profile(pet_id)
+        except FileNotFoundError:
+            # 기록은 있으나 펫이 삭제된 경우
+            return jsonify({"message": "선택된 반려동물을 찾을 수 없습니다."}), 404
+        # 소유권 상실 케이스 (기록은 있으나 더 이상 소유하지 않음)
+        if pet_public.get('user_id') != user_id:
+            return jsonify({"message": "선택된 반려동물에 대한 소유 권한이 없습니다."}), 403
+
+        payload = {
+            'pet_id': pet_id,
+            'name': pet_public.get('name'),
+            'profile_image_url': pet_public.get('profile_image_url'),
+            'updated_at': record.get('updated_at'),
+        }
+        return jsonify(payload), 200
+    except Exception as e:
+        logging.error(f"선택 펫 조회 오류 (user_id: {user_id}): {e}", exc_info=True)
+        return jsonify({"message": "선택 펫 조회 중 오류가 발생했습니다."}), 500
+
+
+@users_bp.route('/me/selected-pet', methods=['PATCH'])
+@jwt_required()
+def update_my_selected_pet():
+    """
+    현재 로그인된 사용자의 선택 펫을 설정/갱신합니다.
+    Body: { pet_id: uuid }
+    200: { pet_id }
+    400: 잘못된 UUID
+    403: 소유권 불일치
+    404: 존재하지 않는 pet
+    """
+    user_service = current_app.services['users']
+    pet_service = current_app.services['pets']
+
+    user_id = get_jwt_identity()
+    try:
+        data = SelectedPetUpdateSchema().load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify({"message": "유효하지 않은 요청 본문입니다.", "errors": err.messages}), 400
+    except Exception:
+        return jsonify({"message": "잘못된 요청 형식입니다."}), 400
+
+    pet_id = data['pet_id']
+
+    # 존재/소유권 검사
+    try:
+        pet_owned = pet_service.get_pet_by_id_and_owner(pet_id, user_id)
+    except Exception as e:
+        logging.error(f"펫 조회 중 오류 (pet_id: {pet_id}, user_id: {user_id}): {e}", exc_info=True)
+        return jsonify({"message": "선택 펫 설정 중 오류가 발생했습니다."}), 500
+
+    if pet_owned is None:
+        # 펫이 없거나 소유권이 아님. 존재여부를 구분하기 위해 공개 조회 시도
+        try:
+            pet_service.get_public_pet_profile(pet_id)
+            # 존재하지만 소유권 없음
+            return jsonify({"message": "해당 반려동물을 선택할 권한이 없습니다."}), 403
+        except FileNotFoundError:
+            return jsonify({"message": "해당 반려동물을 찾을 수 없습니다."}), 404
+
+    # 멱등 저장
+    try:
+        user_service.set_selected_pet(user_id, pet_id)
+        return jsonify({"pet_id": pet_id}), 200
+    except Exception as e:
+        logging.error(f"선택 펫 저장 실패 (user_id: {user_id}, pet_id: {pet_id}): {e}", exc_info=True)
+        return jsonify({"message": "선택 펫 저장 중 오류가 발생했습니다."}), 500

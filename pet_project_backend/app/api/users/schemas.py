@@ -1,5 +1,7 @@
 # app/api/users/schemas.py
 from marshmallow import Schema, fields
+from marshmallow import validates, ValidationError
+import uuid
 
 class UserPublicResponseSchema(Schema):
     """
@@ -25,3 +27,18 @@ class NotificationPreferencesSchema(Schema):
     mode = fields.Str(required=False, allow_none=True)
     # 타입별 on/off. 키는 NotificationType의 문자열 값 사용을 권장
     types = fields.Dict(keys=fields.Str(), values=fields.Bool(), required=False)
+
+
+class SelectedPetUpdateSchema(Schema):
+    """
+    PATCH /api/users/me/selected-pet 요청 본문 검증 스키마.
+    pet_id는 UUID 형식 문자열이어야 합니다.
+    """
+    pet_id = fields.Str(required=True)
+
+    @validates("pet_id")
+    def validate_uuid(self, value: str):
+        try:
+            uuid.UUID(str(value))
+        except Exception:
+            raise ValidationError("유효한 UUID가 아닙니다.")
