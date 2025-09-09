@@ -392,21 +392,23 @@ class DateTimeUtils:
             Unix timestamp in milliseconds
         """
         try:
-            # Firestore timestamp 객체 처리
-            if hasattr(dt, 'timestamp'):
-                return int(dt.timestamp() * 1000)
-            
+            # 이미 ms 정수 값인 경우 (V2 서비스 내 재호출 시) 그대로 반환
+            if isinstance(dt, int):
+                return dt
+            # Firestore timestamp 객체 처리 (datetime 유사 인터페이스)
+            if hasattr(dt, 'timestamp') and not isinstance(dt, datetime):
+                try:
+                    return int(dt.timestamp() * 1000)  # type: ignore[attr-defined]
+                except Exception:
+                    pass  # fallback 아래 분기
             # datetime 객체 처리
-            elif isinstance(dt, datetime):
+            if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
                 else:
                     dt = dt.astimezone(timezone.utc)
                 return int(dt.timestamp() * 1000)
-            
-            else:
-                raise ValueError(f"datetime 객체 또는 Firestore timestamp여야 합니다: {type(dt)}")
-                
+            raise ValueError(f"datetime/int(ms) 또는 Firestore timestamp여야 합니다: {type(dt)}")
         except Exception as e:
             logger.error(f"timestamp_ms 변환 실패: {dt} - {e}")
             raise ValueError(f"timestamp로 변환할 수 없습니다: {dt}")
