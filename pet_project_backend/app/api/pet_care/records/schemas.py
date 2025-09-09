@@ -162,3 +162,79 @@ class DailyRecordsResponseSchema(Schema):
     activity = fields.List(fields.Dict(), dump_default=[])
     meal = fields.List(fields.Dict(), dump_default=[])
     bcs = fields.List(fields.Dict(), dump_default=[])
+
+# 신규 스펙 전용 쿼리 스키마들
+class DailyQuerySchema(Schema):
+    """GET /records/daily 쿼리 파라미터: date 필수, record_types 선택."""
+    date = fields.Str(required=True, validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
+    record_types = fields.List(fields.Str(validate=validate.OneOf(['weight','water','activity','meal','bcs'])))
+    limit = fields.Int(load_default=100, validate=validate.Range(min=1, max=500))
+    cursor = fields.Str()  # 마지막 문서 id
+
+    @pre_load
+    def alias_params(self, data, **kwargs):  # types -> record_types
+        mutable = dict(data)
+        if 'types' in mutable and 'record_types' not in mutable:
+            val = mutable['types']
+            if isinstance(val, str):
+                mutable['record_types'] = [t.strip() for t in val.split(',') if t.strip()]
+            elif isinstance(val, list):
+                mutable['record_types'] = val
+        return mutable
+
+class RangeQuerySchema(Schema):
+    """GET /records/range 쿼리 파라미터: start_date/end_date 필수, record_types 선택 (최대 31일)."""
+    start_date = fields.Str(required=True, validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
+    end_date = fields.Str(required=True, validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
+    record_types = fields.List(fields.Str(validate=validate.OneOf(['weight','water','activity','meal','bcs'])))
+    limit = fields.Int(load_default=300, validate=validate.Range(min=1, max=1000))  # 기간 전체에서 수집할 최대 문서 수
+    cursor = fields.Str()  # 이전 페이지 마지막 문서 id (searchDate+timestamp order 기반)
+
+    @pre_load
+    def alias_params(self, data, **kwargs):  # start/end/types 별칭 처리
+        mutable = dict(data)
+        if 'start' in mutable and 'start_date' not in mutable:
+            mutable['start_date'] = mutable['start']
+        if 'end' in mutable and 'end_date' not in mutable:
+            mutable['end_date'] = mutable['end']
+        if 'types' in mutable and 'record_types' not in mutable:
+            val = mutable['types']
+            if isinstance(val, str):
+                mutable['record_types'] = [t.strip() for t in val.split(',') if t.strip()]
+            elif isinstance(val, list):
+                mutable['record_types'] = val
+        return mutable
+
+    @validates_schema
+    def validate_range(self, data, **kwargs):
+        import datetime as _dt
+        s = _dt.datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        e = _dt.datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        if e < s:
+            raise ValidationError('end_date는 start_date보다 빠를 수 없습니다.', 'end_date')
+        if (e - s).days > 31:
+            raise ValidationError('최대 31일 범위만 조회할 수 있습니다.', 'end_date')
+
+class SummaryQuerySchema(Schema):
+    """GET /records/summary (범위 요약: start_date ~ end_date)"""
+    start_date = fields.Str(required=True, validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
+    end_date = fields.Str(required=True, validate=validate.Regexp(r'^\d{4}-\d{2}-\d{2}$'))
+
+    @pre_load
+    def alias_params(self, data, **kwargs):  # start/end 별칭 처리
+        mutable = dict(data)
+        if 'start' in mutable and 'start_date' not in mutable:
+            mutable['start_date'] = mutable['start']
+        if 'end' in mutable and 'end_date' not in mutable:
+            mutable['end_date'] = mutable['end']
+        return mutable
+
+    @validates_schema
+    def validate_range(self, data, **kwargs):
+        import datetime as _dt
+        s = _dt.datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        e = _dt.datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        if e < s:
+            raise ValidationError('end_date는 start_date보다 빠를 수 없습니다.', 'end_date')
+        if (e - s).days > 31:
+            raise ValidationError('최대 31일 범위만 요약할 수 있습니다.', 'end_date')

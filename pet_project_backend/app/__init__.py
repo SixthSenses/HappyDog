@@ -46,6 +46,9 @@ from app.api.breeds.services import BreedService
 from app.api.pets.services import PetService
 from app.api.pet_care.settings.services import PetCareSettingService
 from app.api.pet_care.records.services import PetCareRecordService
+from app.services.idempotency_service import IdempotencyService
+from app.middleware.request_id_middleware import install_request_id
+from app.middleware.rate_limit_middleware import install_rate_limit
 
 # - ML 모델 파이프라인
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
@@ -114,6 +117,7 @@ def create_app():
         raise
 
     app.services['notifications'] = notification_service_module.NotificationService()
+    app.services['idempotency'] = IdempotencyService()
     app.services['breeds'] = BreedService()
     
     # ML 파이프라인 초기화 (선택적)
@@ -200,6 +204,9 @@ def create_app():
 
     # =====================================================================================
     # 8. 로깅 및 앱 반환
+    # 미들웨어 설치 (request_id, rate_limit)
+    install_request_id(app)
+    install_rate_limit(app, capacity=300, window_seconds=60)  # 분당 300 요청 기본
     # =====================================================================================
     if not app.debug:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')

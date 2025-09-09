@@ -3,34 +3,44 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
+from app.utils.error_catalog import build_error
 import datetime
 
 from app.api.pet_care.records.schemas import (
-    CareRecordCreateSchema, 
+    CareRecordCreateSchema,
     DailyRecordsResponseSchema,
     RecordsQuerySchema,
     RecordsResponseSchema,
     RecordTypeQuerySchema,
-    CareRecordUpdateSchema
+    CareRecordUpdateSchema,
+    DailyQuerySchema,
+    RangeQuerySchema,
+    SummaryQuerySchema
 )
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
 
 @pet_care_records_bp.route('/<string:pet_id>/records', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint()
 def create_care_record(pet_id: str):
     """통합 기록 생성 API 엔드포인트."""
     service = current_app.services['pet_care_records']
     try:
-        validated_data = CareRecordCreateSchema().load(request.get_json())
+        payload = request.get_json() or {}
+        validated_data = CareRecordCreateSchema().load(payload)
         created_record = service.create_care_record(pet_id, validated_data)
-        return jsonify(created_record), 201
-        
+    # Sprint A: affected_dates(단일), timestamp_ms 포함 응답
+        affected = [created_record.get('searchDate')] if created_record.get('searchDate') else []
+        return jsonify({"data": created_record, "affected_dates": affected}), 201
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 생성 API 오류 (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "RECORD_CREATION_FAILED", "message": "기록 생성 중 오류 발생"}), 500
+        status, body = build_error('RECORD_CREATION_FAILED')
+        return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records', methods=['GET'])
 @jwt_required()
@@ -69,10 +79,12 @@ def get_records(pet_id: str):
         return jsonify(response_schema.dump(result)), 200
         
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"Record retrieval API error (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "FETCH_FAILED", "message": "기록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:record_type>', methods=['GET'])
 @jwt_required()
@@ -97,10 +109,8 @@ def get_records_by_type(pet_id: str, record_type: str):
     # record_type 검증
     valid_types = ['weight', 'water', 'activity', 'meal', 'bcs']
     if record_type not in valid_types:
-        return jsonify({
-            "error_code": "INVALID_RECORD_TYPE", 
-            "message": f"유효하지 않은 기록 타입입니다. 가능한 타입: {', '.join(valid_types)}"
-        }), 400
+        status, body = build_error('VALIDATION_ERROR', message=f"유효하지 않은 기록 타입입니다. 가능한 타입: {', '.join(valid_types)}")
+        return jsonify(body), status
     
     try:
         # 일관된 스키마 사용으로 파라미터 검증
@@ -121,10 +131,12 @@ def get_records_by_type(pet_id: str, record_type: str):
         return jsonify(result), 200
         
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"Record type retrieval API error (pet_id: {pet_id}, type: {record_type}): {e}", exc_info=True)
-        return jsonify({"error_code": "FETCH_FAILED", "message": "기록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
 
 # 기존 호환성을 위한 엔드포인트 (deprecated)
 @pet_care_records_bp.route('/<string:pet_id>/records/legacy', methods=['GET'])
@@ -158,16 +170,16 @@ def get_records_legacy(pet_id: str):
         
         # 분기 3: 파라미터가 잘못된 경우
         else:
-            return jsonify({
-                "error_code": "MISSING_PARAMETERS",
-                "message": "조회를 위해 'date' 또는 'start_date'와 'end_date' 쿼리 파라미터가 필요합니다."
-            }), 400
+            status, body = build_error('VALIDATION_ERROR', message="조회를 위해 'date' 또는 'start_date'와 'end_date' 쿼리 파라미터가 필요합니다.")
+            return jsonify(body), status
 
     except ValueError:
-        return jsonify({"error_code": "INVALID_DATE_FORMAT", "message": "날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)."}), 400
+        status, body = build_error('VALIDATION_ERROR', message="날짜 형식이 올바르지 않습니다 (YYYY-MM-DD).")
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"Record retrieval API error (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "FETCH_FAILED", "message": "기록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['PATCH'])
 @jwt_required()
@@ -177,16 +189,23 @@ def update_care_record(pet_id: str, log_id: str):
     try:
         payload = CareRecordUpdateSchema().load(request.get_json() or {})
         updated = service.update_care_record(pet_id, log_id, payload)
-        return jsonify(updated), 200
+        prev_sd = updated.pop('__previous_searchDate', None)
+        new_sd = updated.get('searchDate')
+        affected = {d for d in [prev_sd, new_sd] if d}
+        return jsonify({"data": updated, "affected_dates": sorted(list(affected))}), 200
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except FileNotFoundError:
-        return jsonify({"error_code": "NOT_FOUND", "message": "기록을 찾을 수 없습니다."}), 404
+        status, body = build_error('NOT_FOUND')
+        return jsonify(body), status
     except PermissionError:
-        return jsonify({"error_code": "FORBIDDEN", "message": "해당 기록을 수정할 권한이 없습니다."}), 403
+        status, body = build_error('FORBIDDEN')
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 수정 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "UPDATE_FAILED", "message": "기록 수정 중 오류가 발생했습니다."}), 500
+        status, body = build_error('UPDATE_FAILED')
+        return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['DELETE'])
 @jwt_required()
@@ -194,12 +213,77 @@ def delete_care_record(pet_id: str, log_id: str):
     """기존 기록을 삭제합니다."""
     service = current_app.services['pet_care_records']
     try:
-        service.delete_care_record(pet_id, log_id)
-        return jsonify({}), 204
+        deleted_search_date = service.delete_care_record(pet_id, log_id)
+        return jsonify({"data": None, "affected_dates": [d for d in [deleted_search_date] if d]}), 200
     except FileNotFoundError:
-        return jsonify({"error_code": "NOT_FOUND", "message": "기록을 찾을 수 없습니다."}), 404
+        status, body = build_error('NOT_FOUND')
+        return jsonify(body), status
     except PermissionError:
-        return jsonify({"error_code": "FORBIDDEN", "message": "해당 기록을 삭제할 권한이 없습니다."}), 403
+        status, body = build_error('FORBIDDEN')
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 삭제 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "DELETE_FAILED", "message": "기록 삭제 중 오류가 발생했습니다."}), 500
+        status, body = build_error('DELETE_FAILED')
+        return jsonify(body), status
+
+# -------------------- 신규 스펙 엔드포인트 --------------------
+@pet_care_records_bp.route('/<string:pet_id>/records/daily', methods=['GET'])
+@jwt_required()
+def get_daily_v2(pet_id: str):
+    service = current_app.services['pet_care_records']
+    try:
+        params = DailyQuerySchema().load(request.args)
+        result = service.get_daily_v2(
+            pet_id,
+            params['date'],
+            params.get('record_types'),
+            params.get('limit', 100),
+            params.get('cursor')
+        )
+        return jsonify(result), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"daily v2 error pet={pet_id}: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+@pet_care_records_bp.route('/<string:pet_id>/records/range', methods=['GET'])
+@jwt_required()
+def get_range_v2(pet_id: str):
+    service = current_app.services['pet_care_records']
+    try:
+        params = RangeQuerySchema().load(request.args)
+        result = service.get_range_v2(
+            pet_id,
+            params['start_date'],
+            params['end_date'],
+            params.get('record_types'),
+            params.get('limit', 300),
+            params.get('cursor')
+        )
+        return jsonify(result), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"range v2 error pet={pet_id}: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+@pet_care_records_bp.route('/<string:pet_id>/records/summary', methods=['GET'])
+@jwt_required()
+def get_summary_v2(pet_id: str):  # 범위 요약 (Sprint B 이전 유지)
+    service = current_app.services['pet_care_records']
+    try:
+        params = SummaryQuerySchema().load(request.args)
+        result = service.get_summary_v2(pet_id, params['start_date'], params['end_date'])
+        return jsonify(result), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"summary v2 error pet={pet_id}: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status

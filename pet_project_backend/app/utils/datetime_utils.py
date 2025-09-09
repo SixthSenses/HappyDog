@@ -28,6 +28,31 @@ class DateTimeUtils:
     def now() -> datetime:
         """현재 시간을 UTC timezone-aware datetime으로 반환"""
         return datetime.now(timezone.utc)
+
+    @staticmethod
+    def validate_clock_skew(client_ts_ms: int, max_skew_seconds: int = 300) -> None:
+        """클라이언트 제공 timestamp(ms)가 허용 편차(±max_skew_seconds)를 벗어나면 ValidationError.
+        Sprint A: ±300s 정책 적용.
+        """
+        try:
+            from marshmallow import ValidationError
+            server_now = DateTimeUtils.now()
+            client_dt = DateTimeUtils.from_timestamp_ms(client_ts_ms)
+            diff = abs((server_now - client_dt).total_seconds())
+            if diff > max_skew_seconds:
+                # V2 표준화: details.timestamp_skew 구조
+                raise ValidationError({
+                    "timestamp_skew": {
+                        "diff_seconds": int(diff),
+                        "max_seconds": max_skew_seconds,
+                        "error": "CLOCK_SKEW_EXCEEDED"
+                    }
+                })
+        except ValidationError:
+            raise
+        except Exception as e:
+            # 예기치 오류는 검증 실패로 간주하지 않고 로그만
+            logger.warning(f"clock skew validation error fallback: {e}")
     
     @staticmethod
     def today() -> date:

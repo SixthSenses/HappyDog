@@ -1,360 +1,72 @@
-# app/api/pet_care/records/services.py
-import logging
-from typing import Dict, Any, List, Optional, Tuple
-from firebase_admin import firestore
-import uuid
-from dataclasses import asdict
-from marshmallow import ValidationError
+"""Thin aggregator module for Pet Care Record services.
 
-from app.models.pet_care_log import PetCareLog
-from app.utils.datetime_utils import DateTimeUtils
+이 파일은 이전 단일 거대 `services.py`를 V1 / V2 로 분리한 뒤,
+라우트 코드가 기존 import 경로(`app.api.pet_care.records.services`)를 계속 사용할 수 있도록
+얇은 어댑터 클래스를 제공한다.
+
+구성:
+ - PetCareRecordServiceV1: CRUD 및 레거시/범용 조회
+ - PetCareRecordServiceV2: 신규 평탄화/범위/요약 조회
+ - PetCareRecordService: 두 버전을 합친 퍼사드(Facade)
+
+주의:
+ - 신규 기능 추가 시 직접 이 파일에 비즈니스 로직을 넣지 말고, 해당 버전 서비스 클래스를 확장.
+ - 향후 스키마 마이그레이션(예: data 객체화)은 V2 계층에 우선 적용 후 V1 듀얼리드 고려.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from .services_v1 import PetCareRecordServiceV1
+from .services_v2 import PetCareRecordServiceV2
+
 
 class PetCareRecordService:
-    """일일 케어 기록의 생성 및 조회를 전담하는 서비스 클래스."""
+    """Facade aggregating V1 & V2 services.
+
+    라우트에서 기존 메소드 이름을 그대로 호출할 수 있도록 위임(delegate)만 수행한다.
+    """
+
     def __init__(self):
-        self.db = firestore.client()
-        self.logs_ref = self.db.collection('pet_care_logs')
-        logging.info("PetCareRecordService initialized.")
+        self.v1 = PetCareRecordServiceV1()
+        self.v2 = PetCareRecordServiceV2(self.v1)
 
+    # ---------------- V1 위임 (CRUD & legacy/flexible) ----------------
     def create_care_record(self, pet_id: str, record_data: Dict[str, Any]) -> Dict[str, Any]:
-        """통합된 케어 기록을 Firestore에 저장합니다."""
-        try:
-            ts_ms = record_data['timestamp']
-            # Unix timestamp(ms)를 UTC datetime 객체로 변환
-            record_dt_utc = DateTimeUtils.from_timestamp_ms(ts_ms)
-            
-            # 검색 및 필터링을 위한 searchDate 필드 생성 (YYYY-MM-DD)
-            search_date = record_dt_utc.strftime('%Y-%m-%d')
-            
-            # 멱등성 보장: request_id가 있으면 그것을 우선 사용 (없으면 UUID)
-            request_id = record_data.get('request_id')
-            log_id = request_id if request_id else str(uuid.uuid4())
-            new_log = PetCareLog(
-                log_id=log_id,
-                pet_id=pet_id,
-                record_type=record_data['record_type'],
-                timestamp=record_dt_utc,
-                searchDate=search_date,
-                data=record_data['data'],
-                notes=record_data.get('notes')
-            )
-            
-            log_dict = asdict(new_log)
-            firestore_data = DateTimeUtils.for_firestore(log_dict)
-            # set(merge=True) 사용 시 동일 log_id로 재시도해도 안전
-            self.logs_ref.document(log_id).set(firestore_data, merge=True)
-            
-            logging.info(f"Care record created for pet {pet_id} (type: {record_data['record_type']})")
-            return log_dict
-
-        except Exception as e:
-            logging.error(f"Failed to create care record for pet {pet_id}: {e}", exc_info=True)
-            raise
-
-    def get_records_flexible(self, pet_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        [개선된] 유연한 쿼리 파라미터를 지원하는 통합 조회 메서드.
-        서버 사이드 필터링과 커서 기반 페이지네이션을 사용합니다.
-        
-        Args:
-            pet_id: 반려동물 ID
-            query_params: 쿼리 파라미터 딕셔너리
-                - date: 단일 날짜 (YYYY-MM-DD)
-                - start_date, end_date: 날짜 범위
-                - record_types: 필터링할 기록 타입 리스트
-                - grouped: 타입별 그룹화 여부
-                - limit: 조회 개수 제한
-                - cursor: 커서 기반 페이지네이션용
-                - sort: 정렬 방식
-        
-        Returns:
-            조회 결과 딕셔너리
-        """
-        try:
-            # 기본 쿼리 구성
-            query = self.logs_ref.where('pet_id', '==', pet_id)
-            
-            # 날짜 필터링
-            if query_params.get('date'):
-                query = query.where('searchDate', '==', query_params['date'])
-            elif query_params.get('start_date') and query_params.get('end_date'):
-                query = query.where('searchDate', '>=', query_params['start_date']) \
-                            .where('searchDate', '<=', query_params['end_date'])
-            
-            # 서버 사이드 타입 필터링 (Firestore 'in' 연산자 사용)
-            record_types = query_params.get('record_types')
-            if record_types and len(record_types) <= 10:  # Firestore 'in' 연산자는 최대 10개 값 지원
-                query = query.where('record_type', 'in', record_types)
-            
-            # 정렬
-            sort = query_params.get('sort', 'timestamp_desc')
-            if sort == 'timestamp_asc':
-                query = query.order_by('timestamp')
-            else:  # timestamp_desc
-                query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
-            
-            # 커서 기반 페이지네이션
-            cursor = query_params.get('cursor')
-            if cursor:
-                try:
-                    # 커서에서 마지막 문서 정보 추출 (실제 구현에서는 더 안전한 방식 사용)
-                    cursor_doc = self.logs_ref.document(cursor).get()
-                    if cursor_doc.exists:
-                        query = query.start_after(cursor_doc)
-                except Exception as e:
-                    logging.warning(f"Invalid cursor provided: {cursor}, ignoring cursor")
-            
-            # 페이지네이션
-            limit = query_params.get('limit', 50)
-            
-            # 쿼리 실행
-            docs = query.limit(limit + 1).stream()  # has_more 확인을 위해 +1
-            records = []
-            last_doc = None
-            
-            for doc in docs:
-                if len(records) >= limit:
-                    last_doc = doc
-                    break
-                    
-                record = doc.to_dict()
-                # Firestore Timestamp를 Unix timestamp(ms)로 변환
-                timestamp_obj = record.get('timestamp')
-                if timestamp_obj:
-                    record['timestamp'] = DateTimeUtils.to_timestamp_ms(timestamp_obj)
-                records.append(record)
-            
-            # 다음 페이지 커서 생성
-            next_cursor = last_doc.id if last_doc else None
-            
-            # 응답 구성
-            response = {
-                'records': records,
-                'meta': {
-                    'total_count': len(records),
-                    'limit': limit,
-                    'has_more': len(records) == limit and last_doc is not None,
-                    'next_cursor': next_cursor
-                }
-            }
-            
-            # 타입별 그룹화 (요청된 경우)
-            if query_params.get('grouped', False):
-                grouped = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
-                for record in records:
-                    record_type = record.get('record_type')
-                    if record_type in grouped:
-                        grouped[record_type].append(record)
-                response['grouped'] = grouped
-            
-            return response
-
-        except Exception as e:
-            logging.error(f"Flexible records query failed for pet {pet_id}: {e}", exc_info=True)
-            raise
-
-    def get_daily_records(self, pet_id: str, date_str: str) -> Dict[str, List[Dict]]:
-        """특정 날짜의 모든 케어 기록을 타입별로 그룹화하여 조회합니다."""
-        try:
-            query = self.logs_ref \
-                .where('pet_id', '==', pet_id) \
-                .where('searchDate', '==', date_str) \
-                .order_by('timestamp')
-            
-            docs = query.stream()
-            
-            grouped_records = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
-            
-            for doc in docs:
-                record = doc.to_dict()
-                record_type = record.get('record_type')
-                if record_type in grouped_records:
-                    # Firestore Timestamp를 다시 Unix timestamp(ms)로 변환하여 응답
-                    timestamp_obj = record.get('timestamp')
-                    if timestamp_obj:
-                        record['timestamp'] = DateTimeUtils.to_timestamp_ms(timestamp_obj)
-                    grouped_records[record_type].append(record)
-            
-            return grouped_records
-
-        except Exception as e:
-            logging.error(f"Failed to get daily records for pet {pet_id} on {date_str}: {e}", exc_info=True)
-            raise
-
-    def get_records_for_date_range(self, pet_id: str, start_date: str, end_date: str) -> Dict[str, List[Dict]]:
-        """
-        [신규] 지정된 기간 동안의 모든 케어 기록을 날짜별, 타입별로 그룹화하여 조회합니다.
-        단 한 번의 DB 쿼리로 7일치(또는 N일치) 데이터를 가져옵니다.
-        """
-        try:
-            #  중요: 이 쿼리를 위해서는 Firestore에서 'pet_care_logs' 컬렉션에 대한
-            # (pet_id, searchDate, timestamp) 복합 색인을 생성해야 합니다.
-            query = self.logs_ref \
-                .where('pet_id', '==', pet_id) \
-                .where('searchDate', '>=', start_date) \
-                .where('searchDate', '<=', end_date) \
-                .order_by('searchDate') \
-                .order_by('timestamp')
-                
-            docs = query.stream()
-            
-            # 날짜별로 그룹화하기 위한 딕셔너리
-            # 예: { "2023-10-26": {"water": [...]}, "2023-10-27": {"meal": [...]} }
-            records_by_date = {}
-
-            for doc in docs:
-                record = doc.to_dict()
-                date_key = record.get('searchDate')
-                record_type = record.get('record_type')
-
-                if date_key not in records_by_date:
-                    records_by_date[date_key] = {'weight': [], 'water': [], 'activity': [], 'meal': [], 'bcs': []}
-                
-                if record_type in records_by_date[date_key]:
-                    timestamp_obj = record.get('timestamp')
-                    if timestamp_obj:
-                        record['timestamp'] = DateTimeUtils.to_timestamp_ms(timestamp_obj)
-                    records_by_date[date_key][record_type].append(record)
-            
-            return records_by_date
-
-        except Exception as e:
-            logging.error(f"Date range query failed for pet {pet_id} ({start_date}-{end_date}): {e}", exc_info=True)
-            raise
-
-    def get_records_by_type(self, pet_id: str, record_type: str, date_str: str = None, 
-                           start_date: str = None, end_date: str = None, limit: int = 50,
-                           cursor: str = None) -> Dict[str, Any]:
-        """
-        [개선된] 특정 타입의 기록만 조회하는 메서드.
-        커서 기반 페이지네이션을 지원합니다.
-        """
-        try:
-            query = self.logs_ref.where('pet_id', '==', pet_id).where('record_type', '==', record_type)
-            
-            # 날짜 필터링
-            if date_str:
-                query = query.where('searchDate', '==', date_str)
-            elif start_date and end_date:
-                query = query.where('searchDate', '>=', start_date).where('searchDate', '<=', end_date)
-            
-            # 정렬 및 제한
-            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
-            
-            # 커서 기반 페이지네이션
-            if cursor:
-                try:
-                    cursor_doc = self.logs_ref.document(cursor).get()
-                    if cursor_doc.exists:
-                        query = query.start_after(cursor_doc)
-                except Exception as e:
-                    logging.warning(f"Invalid cursor provided: {cursor}, ignoring cursor")
-            
-            # 쿼리 실행
-            docs = query.limit(limit + 1).stream()  # has_more 확인을 위해 +1
-            records = []
-            last_doc = None
-            
-            for doc in docs:
-                if len(records) >= limit:
-                    last_doc = doc
-                    break
-                    
-                record = doc.to_dict()
-                timestamp_obj = record.get('timestamp')
-                if timestamp_obj:
-                    record['timestamp'] = DateTimeUtils.to_timestamp_ms(timestamp_obj)
-                records.append(record)
-            
-            # 다음 페이지 커서 생성
-            next_cursor = last_doc.id if last_doc else None
-            
-            return {
-                'records': records,
-                'meta': {
-                    'record_type': record_type,
-                    'total_count': len(records),
-                    'limit': limit,
-                    'has_more': len(records) == limit and last_doc is not None,
-                    'next_cursor': next_cursor
-                }
-            }
-
-        except Exception as e:
-            logging.error(f"Failed to get {record_type} records for pet {pet_id}: {e}", exc_info=True)
-            raise
+        return self.v1.create_care_record(pet_id, record_data)
 
     def update_care_record(self, pet_id: str, log_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """기존 케어 기록 일부 필드를 수정합니다."""
-        ref = self.logs_ref.document(log_id)
-        snap = ref.get()
-        if not snap.exists:
-            raise FileNotFoundError("기록 없음")
-        data = snap.to_dict()
-        if data.get('pet_id') != pet_id:
-            raise PermissionError("잘못된 접근")
+        return self.v1.update_care_record(pet_id, log_id, payload)
 
-        ALLOWED_FIELDS = {'data', 'notes', 'timestamp'}
-        update_data = {k: v for k, v in (payload or {}).items() if k in ALLOWED_FIELDS}
-        if not update_data:
-            return data
+    def delete_care_record(self, pet_id: str, log_id: str) -> str:
+        return self.v1.delete_care_record(pet_id, log_id)
 
-        # ---- 엄격 유효성 검증 ----
-        record_type = data.get('record_type')
-        errors: Dict[str, List[str]] = {}
+    def get_records_flexible(self, pet_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        return self.v1.get_records_flexible(pet_id, query_params)
 
-        if 'data' in update_data:
-            val = update_data['data']
-            if record_type == 'weight':
-                # float > 0
-                if not isinstance(val, (int, float)) or float(val) <= 0:
-                    errors.setdefault('data', []).append('weight는 0보다 큰 실수여야 합니다.')
-                else:
-                    # 정규화: float로 캐스팅
-                    update_data['data'] = float(val)
-            elif record_type in ('water', 'activity', 'meal'):
-                # int >= 0
-                if not isinstance(val, int) or val < 0:
-                    errors.setdefault('data', []).append(f'{record_type}는 0 이상의 정수여야 합니다.')
-            elif record_type == 'bcs':
-                # int 1..5
-                if not isinstance(val, int) or val < 1 or val > 5:
-                    errors.setdefault('data', []).append('bcs는 1~5 범위의 정수여야 합니다.')
-            else:
-                # 알 수 없는 타입: 서버 정책상 거부
-                errors.setdefault('data', []).append('알 수 없는 record_type에 대한 data입니다.')
+    def get_daily_records(self, pet_id: str, date_str: str) -> Dict[str, List[Dict]]:
+        return self.v1.get_daily_records(pet_id, date_str)
 
-        if 'notes' in update_data:
-            val = update_data['notes']
-            if val is not None and not isinstance(val, str):
-                errors.setdefault('notes', []).append('notes는 문자열 또는 null이어야 합니다.')
+    def get_records_for_date_range(self, pet_id: str, start_date: str, end_date: str) -> Dict[str, List[Dict]]:
+        return self.v1.get_records_for_date_range(pet_id, start_date, end_date)
 
-        if 'timestamp' in update_data:
-            val = update_data['timestamp']
-            if not isinstance(val, int) or val < 0:
-                errors.setdefault('timestamp', []).append('timestamp는 0 이상의 밀리초 정수여야 합니다.')
+    def get_records_by_type(self, pet_id: str, record_type: str, date_str: str = None,
+                            start_date: str = None, end_date: str = None, limit: int = 50,
+                            cursor: str = None) -> Dict[str, Any]:
+        return self.v1.get_records_by_type(pet_id, record_type, date_str, start_date, end_date, limit, cursor)
 
-        if errors:
-            raise ValidationError(errors)
+    # ---------------- V2 위임 (신규 스펙) ----------------
+    def get_daily_v2(self, pet_id: str, date: str, record_types: Optional[List[str]] = None,
+                     limit: int = 100, cursor: Optional[str] = None) -> Dict[str, Any]:
+        return self.v2.get_daily_v2(pet_id, date, record_types, limit, cursor)
 
-        # timestamp(ms) 수정 시 보조 필드 재계산
-        if 'timestamp' in update_data:
-            from app.utils.datetime_utils import DateTimeUtils
-            ts_ms = update_data['timestamp']
-            dt = DateTimeUtils.from_timestamp_ms(ts_ms)
-            update_data['timestamp'] = dt
-            update_data['searchDate'] = dt.strftime('%Y-%m-%d')
+    def get_range_v2(self, pet_id: str, start_date: str, end_date: str,
+                      record_types: Optional[List[str]] = None, limit: int = 300,
+                      cursor: Optional[str] = None) -> Dict[str, Any]:
+        return self.v2.get_range_v2(pet_id, start_date, end_date, record_types, limit, cursor)
 
-        ref.update(update_data)
-        return ref.get().to_dict()
+    def get_summary_v2(self, pet_id: str, start_date: str, end_date: str) -> Dict[str, Any]:
+        return self.v2.get_summary_v2(pet_id, start_date, end_date)
 
-    def delete_care_record(self, pet_id: str, log_id: str) -> None:
-        """기존 케어 기록을 삭제합니다."""
-        ref = self.logs_ref.document(log_id)
-        snap = ref.get()
-        if not snap.exists:
-            raise FileNotFoundError("기록 없음")
-        data = snap.to_dict()
-        if data.get('pet_id') != pet_id:
-            raise PermissionError("잘못된 접근")
-        ref.delete()
+
+__all__ = ["PetCareRecordService"]
