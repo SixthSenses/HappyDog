@@ -18,6 +18,8 @@ from app.api.pet_care.records.schemas import (
     SummaryQuerySchema
 )
 from app.middleware.idempotency_middleware import idempotent_endpoint
+from app.utils.etag_utils import generate_etag, check_if_none_match, invalidate_etag_cache
+from app.utils import metrics
 
 pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
 
@@ -33,6 +35,11 @@ def create_care_record(pet_id: str):
         created_record = service.create_care_record(pet_id, validated_data)
     # Sprint A: affected_dates(단일), timestamp_ms 포함 응답
         affected = [created_record.get('searchDate')] if created_record.get('searchDate') else []
+        # ETag 무효화: summary:, summary_range:, daily:<date>
+        if affected:
+            patterns = [f"daily:{d}" for d in affected]
+            patterns.extend(["summary:", "summary_range:"])
+            invalidate_etag_cache(patterns)
         return jsonify({"data": created_record, "affected_dates": affected}), 201
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
@@ -73,10 +80,28 @@ def get_records(pet_id: str):
         
         # 유연한 조회 실행
         result = service.get_records_flexible(pet_id, validated_params)
+
+        # include_total gating (limit ≤50 & estimated total ≤5000). V1 현재 fetch된 개수만 알 수 있어 page size==limit이면 next fetch 필요
+        if validated_params.get('include_total'):
+            limit = validated_params.get('limit', 50)
+            # 조건: limit <= 50 (스키마 보장) & 현재 페이지가 마지막( has_more False ) & 총개수 <= 5000
+            meta = result.get('meta', {})
+            if (limit <= 50) and (not meta.get('has_more')) and (meta.get('total_count', 0) <= 5000):
+                meta['total'] = meta.get('total_count')  # expose standard key
+            else:
+                meta.pop('total', None)  # ensure absence
+            result['meta'] = meta
         
         # 응답 스키마로 직렬화
         response_schema = RecordsResponseSchema()
-        return jsonify(response_schema.dump(result)), 200
+        resp = jsonify(response_schema.dump(result))
+        # grouped=true Deprecation 헤더 (향후 제거 예정)
+        if validated_params.get('grouped'):
+            resp.headers['Deprecation'] = 'true'
+            resp.headers['Sunset'] = 'Mon, 01 Sep 2025 00:00:00 GMT'
+            resp.headers['Link'] = '</api/pet-care/{pet_id}/records/daily>; rel="successor-version"'
+            resp.headers['X-Deprecation-Phase'] = 'announce'
+        return resp, 200
         
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
@@ -192,7 +217,13 @@ def update_care_record(pet_id: str, log_id: str):
         prev_sd = updated.pop('__previous_searchDate', None)
         new_sd = updated.get('searchDate')
         affected = {d for d in [prev_sd, new_sd] if d}
-        return jsonify({"data": updated, "affected_dates": sorted(list(affected))}), 200
+        response = jsonify({"data": updated, "affected_dates": sorted(list(affected))})
+        # ETag 무효화
+        if affected:
+            patterns = [f"daily:{d}" for d in affected]
+            patterns.extend(["summary:", "summary_range:"])
+            invalidate_etag_cache(patterns)
+        return response, 200
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
         return jsonify(body), status
@@ -214,7 +245,13 @@ def delete_care_record(pet_id: str, log_id: str):
     service = current_app.services['pet_care_records']
     try:
         deleted_search_date = service.delete_care_record(pet_id, log_id)
-        return jsonify({"data": None, "affected_dates": [d for d in [deleted_search_date] if d]}), 200
+        affected = [d for d in [deleted_search_date] if d]
+        resp = jsonify({"data": None, "affected_dates": affected})
+        if affected:
+            patterns = [f"daily:{d}" for d in affected]
+            patterns.extend(["summary:", "summary_range:"])
+            invalidate_etag_cache(patterns)
+        return resp, 200
     except FileNotFoundError:
         status, body = build_error('NOT_FOUND')
         return jsonify(body), status
@@ -240,6 +277,22 @@ def get_daily_v2(pet_id: str):
             params.get('limit', 100),
             params.get('cursor')
         )
+        # ETag 적용 (cursor 없고 record_types 필터 없을 때만 캐시 키 단순화)
+        if not params.get('cursor') and not params.get('record_types'):
+            cache_key = f"daily:{pet_id}:{params['date']}:limit={params.get('limit',100)}"
+            etag_val = generate_etag(cache_key)
+            if check_if_none_match(request, etag_val):
+                metrics.increment('etag_hit', endpoint='daily')
+                r304 = jsonify({})
+                r304.status_code = 304
+                r304.headers['ETag'] = f'"{etag_val}"'
+                r304.headers['Cache-Control'] = 'private, max-age=120'
+                return r304
+            resp = jsonify(result)
+            resp.headers['ETag'] = f'"{etag_val}"'
+            resp.headers['Cache-Control'] = 'private, max-age=120'
+            metrics.increment('etag_miss', endpoint='daily')
+            return resp, 200
         return jsonify(result), 200
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
@@ -263,6 +316,21 @@ def get_range_v2(pet_id: str):
             params.get('limit', 300),
             params.get('cursor')
         )
+        if not params.get('cursor') and not params.get('record_types'):
+            cache_key = f"range:{pet_id}:{params['start_date']}:{params['end_date']}:limit={params.get('limit',300)}"
+            etag_val = generate_etag(cache_key)
+            if check_if_none_match(request, etag_val):
+                metrics.increment('etag_hit', endpoint='range')
+                r304 = jsonify({})
+                r304.status_code = 304
+                r304.headers['ETag'] = f'"{etag_val}"'
+                r304.headers['Cache-Control'] = 'private, max-age=300'
+                return r304
+            resp = jsonify(result)
+            resp.headers['ETag'] = f'"{etag_val}"'
+            resp.headers['Cache-Control'] = 'private, max-age=300'
+            metrics.increment('etag_miss', endpoint='range')
+            return resp, 200
         return jsonify(result), 200
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
@@ -275,11 +343,31 @@ def get_range_v2(pet_id: str):
 @pet_care_records_bp.route('/<string:pet_id>/records/summary', methods=['GET'])
 @jwt_required()
 def get_summary_v2(pet_id: str):  # 범위 요약 (Sprint B 이전 유지)
+    """
+    [DEPRECATED] 기존 summary 엔드포인트 - 새로운 /summary 엔드포인트 사용 권장
+    """
     service = current_app.services['pet_care_records']
     try:
         params = SummaryQuerySchema().load(request.args)
-        result = service.get_summary_v2(pet_id, params['start_date'], params['end_date'])
-        return jsonify(result), 200
+        
+        # 새로운 엔드포인트로 내부 위임
+        if params['start_date'] == params['end_date']:
+            # 단일 날짜 요약
+            result = service.get_summary_single_day(pet_id, params['start_date'])
+        else:
+            # 범위 요약
+            result = service.get_summary_v2(pet_id, params['start_date'], params['end_date'])
+        
+        response = jsonify(result)
+        
+        # Deprecation 헤더 추가 (Sprint C)
+        response.headers['Deprecation'] = 'true'
+        response.headers['Sunset'] = 'Mon, 01 Apr 2025 00:00:00 GMT'
+        response.headers['Link'] = '</api/pet-care/{pet_id}/summary>; rel="successor-version"'
+        response.headers['X-Deprecation-Phase'] = 'announce'
+        
+        return response
+        
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
         return jsonify(body), status

@@ -26,6 +26,11 @@ class PetCareRecordServiceV2:
         self.v1 = v1_service
         self.logs_ref = v1_service.logs_ref  # 공유
         logging.info("PetCareRecordServiceV2 initialized (reusing V1 Firestore reference).")
+    # TODO(feedback 2025-09-09):
+    #  - Add pagination regression tests: cross-page ordering, last page next_cursor None, has_more ↔ next_cursor equivalence.
+    #  - Implement include_total logic (threshold 5000) once route layer exposes with_total param.
+    #  - Prepare dual-read adapter Phase0 for scalar→object migration (weight etc.).
+    #  - Emit metrics (etag_hit/miss, dual_read_adapter_fallback, rate_limit shadow, idempotent_conflict).
 
     # -------------------- V2 Endpoints --------------------
     def get_daily_v2(self, pet_id: str, date: str, record_types: Optional[List[str]] = None,
@@ -164,36 +169,70 @@ class PetCareRecordServiceV2:
         return round(v, 1)
 
     def get_summary_single_day(self, pet_id: str, date: str) -> Dict[str, Any]:
+        """
+        Sprint C 개선: weight_latest 형식 정규화
+        """
         daily = self.get_daily_v2(pet_id, date, record_types=None, limit=500)
         buckets = daily['data']
+        
         # Aggregate values
         water_total = sum([i.get('data',0) for i in buckets.get('water', []) if isinstance(i.get('data'), (int,float))])
         activity_total = sum([i.get('data',0) for i in buckets.get('activity', []) if isinstance(i.get('data'), (int,float))])
         meal_count = len(buckets.get('meal', []))
-        latest_weight_record = None
+        
+        # Weight latest with timestamp
+        weight_latest = None
         if buckets.get('weight'):
-            latest_weight_record = sorted(buckets['weight'], key=lambda x: x['timestamp'])[-1]
-        latest_weight_value = latest_weight_record.get('data') if latest_weight_record else None
+            latest_record = sorted(buckets['weight'], key=lambda x: x['timestamp'])[-1]
+            latest_ts_ms = latest_record.get('timestamp')
+            weight_latest = {
+                'value': latest_record.get('data'),
+                'timestamp_ms': latest_ts_ms
+            }
+        
+        # BCS latest with timestamp  
+        bcs_latest = None
+        if buckets.get('bcs'):
+            latest_record = sorted(buckets['bcs'], key=lambda x: x['timestamp'])[-1]
+            latest_ts_ms = latest_record.get('timestamp')
+            bcs_latest = {
+                'value': latest_record.get('data'),
+                'timestamp_ms': latest_ts_ms
+            }
+        
+        # Goals
         goals = self._fetch_goals(pet_id)
+        
+        # Progress calculation
         progress = {
             'water_ml': self._progress_pct(water_total, goals.get('water_ml')),
             'meal_count': self._progress_pct(meal_count, goals.get('meal_count')),
             'activity_minutes': self._progress_pct(activity_total, goals.get('activity_minutes')),
         }
-        if latest_weight_value and goals.get('weight_goal'):
-            g = goals.get('weight_goal')
-            if g:
-                progress['weight_delta_pct'] = round(((latest_weight_value / g) - 1) * 100.0, 1) if g != 0 else None
+        
+        # Weight delta percentage (null if no goal or no weight)
+        if weight_latest and goals.get('weight_goal'):
+            goal_weight = goals.get('weight_goal')
+            if goal_weight and goal_weight != 0:
+                current_weight = weight_latest['value']
+                progress['weight_delta_pct'] = round(((current_weight / goal_weight) - 1) * 100.0, 1)
+            else:
+                progress['weight_delta_pct'] = None
+        else:
+            progress['weight_delta_pct'] = None
+        
         summary = {
             'pet_id': pet_id,
             'date': date,
-            'weight_latest': latest_weight_record,
+            'weight_latest': weight_latest,
             'water_intake_total': water_total,
             'meal_count': meal_count,
             'activity_minutes': activity_total,
+            'bcs_latest': bcs_latest,
             'goals': goals,
             'progress_percent': progress
         }
+        
         return {'data': summary, 'meta': {}}
 
     def get_summary_v2(self, pet_id: str, start_date: str, end_date: str) -> Dict[str, Any]:

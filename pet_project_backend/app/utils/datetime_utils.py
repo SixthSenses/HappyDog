@@ -39,6 +39,8 @@ class DateTimeUtils:
             server_now = DateTimeUtils.now()
             client_dt = DateTimeUtils.from_timestamp_ms(client_ts_ms)
             diff = abs((server_now - client_dt).total_seconds())
+            # 경고 임계값 (예: 250~300초 구간)
+            warn_threshold = max_skew_seconds - 50  # 250s (300 기준)
             if diff > max_skew_seconds:
                 # V2 표준화: details.timestamp_skew 구조
                 raise ValidationError({
@@ -48,6 +50,10 @@ class DateTimeUtils:
                         "error": "CLOCK_SKEW_EXCEEDED"
                     }
                 })
+            elif diff >= warn_threshold:
+                # 경고(메트릭 증가 placeholder)
+                logger.warning(f"clock skew warn window diff={diff:.1f}s (threshold={warn_threshold}s, max={max_skew_seconds}s)")
+                # 메트릭 시스템 연동 시: metrics.increment('clock_skew_warn_total')
         except ValidationError:
             raise
         except Exception as e:

@@ -49,6 +49,7 @@ from app.api.pet_care.records.services import PetCareRecordService
 from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
 from app.middleware.rate_limit_middleware import install_rate_limit
+from app.utils import metrics as metrics_module
 
 # - ML 모델 파이프라인
 from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
@@ -186,6 +187,11 @@ def create_app():
     app.register_blueprint(pet_care_settings_bp, url_prefix='/api/pet-care')
     app.register_blueprint(pet_care_records_bp, url_prefix='/api/pet-care')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+
+    # Health & metrics (lightweight JSON; Prometheus 미도입 상태)
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        return {"status": "ok", "counters": metrics_module.get_counters()}, 200
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정

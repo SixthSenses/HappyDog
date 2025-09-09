@@ -650,6 +650,8 @@ POST /api/pet-care/{pet_id}/records
 | 1.0.2 | 2025-09-09 | 섹션 24 하위 번호 수정, BCS/Meal 의미 추가(3.5.1/3.5.2), Clock Skew 로그 레벨, Canonical 해시 전체값, 추가 테스트/메트릭/거버넌스 행, TTL 만료 처리 명시 |
 | 1.0.3 | 2025-09-09 | Meal size & kcal 비활성화(3.5/3.5.2), 관련 검증/테스트 제거, TOC 추가, OpenAPI 스니펫 들여쓰기 정규화 |
 | 1.0.4 | 2025-09-09 | Meal 비활성 정책 세분화(3.5.3), meal_count 계산 명시(3.3), 비활성 필드 메인 Validation 표 분리, 클라이언트 섹션 번호 정규화 준비 |
+| 1.0.5 | 2025-09-09 | weight_latest/bcs_latest 표준 객체 `{ value,timestamp_ms }` (기존 timestamp ISO → ISO 유지 + ms 병행), Clock Skew WARN 밴드(±250~300s) 로깅, Idempotency 다른 본문 재사용 409 `IDEMPOTENCY_KEY_REUSED_DIFFERENT_BODY`, ETag 확장(daily/range/summary range) + mutation 기반 invalidation, summary range 캐시/ETag 문서화 |
+| 1.0.6 | 2025-09-09 | include_total 게이팅(limit≤50 & has_more=false & total≤5000) 구현, grouped=true Deprecation 헤더(announce), ETag hit/miss 메트릭 스텁, Pagination cross-page 테스트 추가, /health metrics 노출, RateLimit exceeded/requests 메트릭 추가, ETag 캐시 키 ordering 명시 |
 
 ---
 ## 27. 요약 (Executive Summary)
@@ -968,6 +970,22 @@ X-RateLimit-Reset: 1736486400
 ---
 ## 41. Spec Decisions (2025-09-09)
 상태: 확정(Decision Log). 변경 시 Change Log > next 버전에 기록.
+
+### 41.a (추가) 2025-09-09 Batch 업데이트 요약
+본 배치에서 실제 구현 완료된 항목 (코드 반영됨):
+1) weight_latest / bcs_latest 응답 형식 정규화: 기존 단일 값 또는 `{ value, timestamp }` 혼재 가능성 제거 → `{ value, timestamp_ms }` 구조 유지. (단일 값 기대하는 구버전 클라이언트 호환을 위해 서버 측에서 필요 시 wrapping 로직 포함) ISO `timestamp` 필드는 핵심 summary 사양(41.1) 유지.
+2) Clock Skew Validation 경고 밴드: ±250s 초과~±300s 이하 구간 WARN 로그 + metric(`clock_skew_warn_total`) 증가. ±300s 초과는 기존과 동일하게 OUT_OF_RANGE Validation 실패.
+3) Idempotency 충돌 정밀화: 동일 `X-Idempotency-Key` + 상이 해시(body) 시 `409 CONFLICT` + `error_code=IDEMPOTENCY_KEY_REUSED_DIFFERENT_BODY` (category=CONFLICT, retriable=false). 동일 해시 재생 시 200/201 + `Idempotent-Replay: true` 유지.
+4) ETag 확장: `/records/daily`, `/records/range`, `/summary`(단일 및 range) 에 강한 ETag 적용 (조건: range는 cursor/타입 필터 없는 경우 캐시 가능). If-None-Match 일치 시 304 빈 JSON 바디.
+5) 캐시 무효화: create/update/delete 시 `affected_dates` 기반으로 해당 날짜의 daily/summary/summary_range 관련 ETag 키 무효화 수행.
+6) updated_at / computed_at: summary range 계산 완료 시각(ms) 반영 및 meta.cache_hit=false 세트 (304 경로에서는 제공 안 함).
+클라이언트 영향: weight_latest/bcs_latest 구조 객체 형태 강제 → nullable 필드로 파싱. ETag 저장 키 스킴: `summary:<pet_id>:<date>`, `summary_range:<pet_id>:<start>:<end>`, `daily:<pet_id>:<date>`.
+
+향후 예정(미구현):
+- Metrics 실제 카운터(export) wiring (현재 로깅만).
+- UNSUPPORTED_CLIENT_VERSION 정책 사용 여부 확정.
+- summary stale 탐지용 `calculation_basis_last_record_at` 필드(40.8 아이디어) 도입 검토.
+
 
 ### 41.1 weight_latest & updated_at
 Decision: summary 응답 내 `weight_latest` 객체 구조 유지 `{ value: <kg>, timestamp: ISO }` (존재 없으면 null). 별도 `weight_latest_ms` 추가하지 않음; ms 정밀 시 클라이언트는 동일 timestamp ISO 파싱 후 ms 변환.
