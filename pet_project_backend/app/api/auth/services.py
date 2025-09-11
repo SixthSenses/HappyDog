@@ -7,6 +7,7 @@ from dataclasses import asdict
 from firebase_admin import firestore, auth as firebase_auth
 from flask import Flask
 from app.models.user import User
+from dataclasses import fields as dataclass_fields
 from app.utils.datetime_utils import DateTimeUtils, for_firestore
 
 class AuthService:
@@ -53,10 +54,14 @@ class AuthService:
 
         if user_doc:
             is_new_user = False
-            user_data = user_doc.to_dict()
-            # User 모델에서 지원하지 않는 필드 제거 (프로필 이미지는 Pet에서 관리)
-            user_data.pop('profile_image_url', None)
-            user = User(**user_data)
+            user_data = user_doc.to_dict() or {}
+            # User 데이터클래스에 정의된 필드만 선별 (예상치 못한 필드로 인한 __init__ 오류 방지)
+            allowed = {f.name for f in dataclass_fields(User)}
+            filtered = {k: v for k, v in user_data.items() if k in allowed}
+            # 누락 가능 기본 필드 보정
+            if 'notification_unread_count' not in filtered:
+                filtered['notification_unread_count'] = 0
+            user = User(**filtered)
             return user, is_new_user
         else:
             is_new_user = True

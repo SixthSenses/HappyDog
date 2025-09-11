@@ -162,8 +162,23 @@ def get_my_summary():
             status, body = build_error('USER_NOT_FOUND')
             return jsonify(body), status
         
-        # 반려동물 정보 (단일 반려동물 전제)
-        pet_info = pets_service.get_user_pet(current_user_id)
+        # 반려동물 정보 (단일 반려동물 정책) - 서비스의 실제 메소드 명(get_first_pet_by_owner) 사용
+        # 기존 코드에서 get_user_pet 호출 -> 존재하지 않아 AttributeError 발생
+        pet_info = None
+        try:
+            pet_info = pets_service.get_first_pet_by_owner(current_user_id)
+        except AttributeError:
+            # 구버전 호환: 만약 나중에 get_user_pet_profile만 있는 경우 dict로 변환
+            if hasattr(pets_service, 'get_user_pet_profile'):
+                pet_obj = pets_service.get_user_pet_profile(current_user_id)
+                if pet_obj:
+                    pet_info = {
+                        'pet_id': getattr(pet_obj, 'pet_id', None),
+                        'name': getattr(pet_obj, 'name', None),
+                        'breed': getattr(pet_obj, 'breed', None),
+                        'profile_image_url': getattr(pet_obj, 'profile_image_url', None),
+                        'is_verified': getattr(pet_obj, 'is_verified', False)
+                    }
         
         # 펫케어 설정 정보
         settings_info = None
