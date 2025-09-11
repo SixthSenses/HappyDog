@@ -53,7 +53,7 @@ Base URL: `/api/notifications`
 ```
 { "status": "ok" }
 ```
-실패 (권한/존재X): 404 + `{ "error_code": "NOT_FOUND_OR_FORBIDDEN", ... }`
+실패 (권한/존재X 은닉): 404 + `{ "error_code": "NOT_FOUND" }`
 
 ### 4.3 미읽음 수 (GET /unread-count)
 ```
@@ -79,7 +79,7 @@ Base URL: `/api/notifications`
 |---|---|---|---|
 | 목록 | INVALID_PARAMETER | 400 | 쿼리 검증 실패 (Marshmallow) |
 |  | FETCH_FAILED | 500 | 조회 중 내부 오류 |
-| ack | NOT_FOUND_OR_FORBIDDEN | 404 | 소유자 불일치 또는 미존재(ack 실패) |
+| ack | NOT_FOUND | 404 | 존재하지 않음 또는 권한 없음(정보 은닉 목적 통합) |
 |  | ACK_FAILED | 500 | ack 처리 중 예외 |
 | unread-count | FETCH_FAILED | 500 | 카운트 조회 중 예외 |
 
@@ -108,12 +108,12 @@ JWT 오류(MISSING_JWT, INVALID_JWT)는 공통 처리.
 | 항목 | 내용 |
 |---|---|
 | 목록/ack/unread | JWT 필수, user_id = recipient_id 매칭 확인 |
-| 권한 오류 | ack에서만 404 (NOT_FOUND_OR_FORBIDDEN)로 은닉 처리 |
+| 권한 오류 | ack에서 404 (NOT_FOUND)로 은닉 처리 |
 
 ## 10. 향후 개선 메모
 | 이슈 | 현상 | 개선안 |
 |---|---|---|
-| NOT_FOUND_OR_FORBIDDEN 혼합 | 리소스 없음 vs 권한 구분 불가 | ErrorCatalog 분리 (NOT_FOUND, FORBIDDEN) 적용 예정 |
+| ACK 404 단일화 | 권한/존재 구분 불가 | 필요 시 별도 헤더/세부 코드 확장 고려 |
 | unread 레이스 | 동시 ack 처리 시 count 일시 불일치 | 주기적 재집계 배치 or transaction 이용 |
 | summary 중복 sanitize | 일부 도메인 잔존 중복 util 미사용 | text_utils.truncate_summary 전면 적용 (PR4) |
 | push 실패 사유 다양화 | 세부 reason 더 필요 | FCM 응답 코드 매핑 확장 (quota, auth 등) |

@@ -105,7 +105,7 @@ routes.py 직렬화 결과 기준.
 |---|---|---|
 | NOT_FOUND 사용 범위 | 존재 X vs 권한 문제 혼재 가능 | 권한 별도 코드 분리 (PERMISSION_DENIED) 재검토 |
 | is_liked N회전 위험 | batch 사용하나 limit 확대시 성능 검증 필요 | LIKE_BATCH 상수화 & 인덱스 점검 |
-| 멘션 중복 알림 | 동일 사용자 다중 멘션 시 중복 가능성 | set 처리 및 de-dup 로직 강화 |
+| 멘션 중복 알림 | 동일 사용자 다중 멘션 시 중복 가능성 | (완료) de-dup 적용, 추가 고도화 시 멘션 순서 유지 검토 |
 
 ---
 문서 버전: 2025-09 코드 스냅샷 기준 (comments/routes.py)

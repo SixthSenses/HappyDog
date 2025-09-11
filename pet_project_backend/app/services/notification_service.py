@@ -6,6 +6,7 @@ from dataclasses import asdict
 from firebase_admin import firestore, messaging
 from typing import Optional, Tuple
 from app.utils.text_utils import truncate_summary
+from app.core.constants import SUMMARY_MAX_LEN
 
 from app.models.notification import Notification, NotificationType
 from app.utils import metrics
@@ -21,7 +22,6 @@ class NotificationService:
         # 기본 정책: 인앱+푸시 동시 제공
         self.default_delivery = "both"  # values: "inapp", "push", "both"
 
-    SUMMARY_MAX_LEN = 80
 
     def create_notification(self, recipient_id: str, sender_id: str, n_type: NotificationType, target_id: str, target_summary: Optional[str] = None, delivery: Optional[str] = None):
         """

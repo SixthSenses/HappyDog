@@ -172,7 +172,7 @@ def cancel_cartoon_job(job_id: str):
         status, body = build_error('FORBIDDEN', message=str(e))
         return jsonify(body), status
     except ValueError as e:  # 상태가 취소 가능하지 않은 경우
-        status, body = build_error('OUT_OF_RANGE', message=str(e))
+        status, body = build_error('INVALID_STATE_FOR_CANCEL', message=str(e))
         return jsonify(body), status
     except Exception as e:
         logging.error(f"만화 작업 취소 중 오류 발생 (job_id: {job_id}): {e}", exc_info=True)

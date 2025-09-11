@@ -1,6 +1,6 @@
 # uploads API
 
-실제 구현(`app/api/uploads/routes.py`) 및 분리된 스키마 기준.
+실제 구현(`app/api/uploads/routes.py`) 및 분리된 스키마 기준. Canonical upload_type 적용 (alias 자동 변환은 일시적).
 
 ## 엔드포인트
 | Method | Path | Auth | 설명 | 성공 | 주요 오류 |
@@ -57,8 +57,8 @@ FinalizeCartoonRequestSchema:
 ## Deprecated / Migration
 | Deprecated | Canonical 대체 | 비고 |
 |-----------|----------------|------|
-| profile_image | pet_profile | alias 자동 변환 (유예) |
-| cartoon_source | cartoon_source_image | alias 자동 변환 (유예) |
+| profile_image | pet_profile | alias 자동 변환 (유예, 제거 예정) |
+| cartoon_source | cartoon_source_image | alias 자동 변환 (유예, 제거 예정) |
 | pet_biometric | (제거) | 사용 금지 |
 | cartoon_result | (제거) | 서버 생성 산출물, 직접 업로드 불필요 |
 

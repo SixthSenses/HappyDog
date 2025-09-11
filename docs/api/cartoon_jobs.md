@@ -119,11 +119,11 @@
 | GET /{id} | NOT_FOUND | 404 | 존재하지 않거나 소유자 불일치 |
 |  | FETCH_FAILED | 500 | 조회 중 내부 오류 |
 | DELETE /{id} | FORBIDDEN | 403 | 소유자 아님(PermissionError) |
-|  | OUT_OF_RANGE | 400 | (1) 존재하지 않음 (취소 시점 ValueError) 또는 (2) 취소 불가 상태 ValueError 메시지 |
+|  | INVALID_STATE_FOR_CANCEL | 409 | 취소 불가 상태(ValueError) (예: 이미 완료/실패/취소됨) |
 |  | UPDATE_FAILED | 500 | 취소 처리 중 일반 예외 |
 | GET /health | SERVICE_UNAVAILABLE | 503 | 헬스 정보 수집 실패 |
 
-주의: Swagger에 표기된 INVALID_STATE_FOR_CANCEL / JOB_CANCEL_FAILED 등은 구버전 용어. 현재 코드에서는 OUT_OF_RANGE / UPDATE_FAILED 로 매핑되어 있으므로 문서도 실제 코드에 맞춤.
+주의: 이전 버전에서 취소 불가 상태에 OUT_OF_RANGE(400)가 사용되었으나 현재는 전용 코드 INVALID_STATE_FOR_CANCEL(409) 로 정규화되었습니다. `JOB_CANCEL_FAILED` 는 내부 일반 예외를 UPDATE_FAILED 로 통일.
 
 ## 5. 비즈니스 플로우
 
@@ -146,7 +146,7 @@
 ## 7. 설계 주석 & 향후 개선
 | 이슈 | 현상 | 개선 아이디어 |
 |---|---|---|
-| OUT_OF_RANGE 오용 | 취소 불가와 존재하지 않음 혼재 | 에러 카탈로그 통일(PR4)시 INVALID_STATE / NOT_FOUND 분리 |
+| 취소 상태 오류 코드 정규화 | 과거 OUT_OF_RANGE(400) 사용 | INVALID_STATE_FOR_CANCEL(409) 적용 완료 |
 | 상태 중복 전이 | canceling→cancelled polling 지연 | 워커 즉시 확인 최적화 또는 pub/sub 이벤트화 |
 | 단일 이미지 제한 | file_paths 길이=1 | 멀티 이미지 batch 변환 요구 검토 |
 | Post 생성 타이밍 | 완료 즉시 게시 | 사용자가 게시 승인 단계를 원할 수 있음 (draft) |

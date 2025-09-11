@@ -48,7 +48,7 @@ cursor: 마지막 문서 created_at + ID 기반 서버 생성 커서 (불투명)
 |---|---|---|
 | 생성 | post_events_service.handle_post_created | 작성자/펫 통계 증가, 알림 생성 가능 |
 | 삭제 | post_events_service.handle_post_deleted | 이미지 정리 후 통계 감소 |
-| 좋아요(liked) | post_events_service.handle_post_liked | 게시글 작성자에게 알림 (중복 토글 해제 시 없음) |
+| 좋아요(liked) | post_events_service.handle_post_liked | 게시글 작성자에게 알림 (unlike 시 알림 없음) |
 
 ## 오류 코드 (실제 build_error 사용)
 | 상황 | error_code | 비고 |
@@ -59,7 +59,7 @@ cursor: 마지막 문서 created_at + ID 기반 서버 생성 커서 (불투명)
 | 권한 없음 (소유자 아님) | FORBIDDEN | PermissionError 변환 |
 | 생성 내부 오류 | RECORD_CREATION_FAILED | 500 |
 | 목록 조회 오류 | FETCH_FAILED | 500 |
-| 좋아요 내부 처리 실패(None 반환) | UPDATE_FAILED | 서비스 None 반환 시 |
+| 좋아요 내부 처리 실패(None 반환) | UPDATE_FAILED | 서비스 None 반환 또는 알림 처리 중 예외 |
 
 LIKE_TOGGLE_FAILED 등 과거 문자열은 코드 경량화 과정에서 UPDATE_FAILED 로 통일(미정리 영역 존재 가능) 되었으며, 클라이언트는 code 기반 분기 권장.
 

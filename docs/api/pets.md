@@ -1,6 +1,6 @@
 # pets API
 
-실제 코드(app/api/pets/routes.py & schemas.py) 기반 재작성. weight 관련 필드는 전부 제거됨. gender 는 소문자 입력도 Enum 대문자로 정규화.
+실제 코드(app/api/pets/routes.py & schemas.py) 기반 재작성. weight 관련 필드는 전부 제거됨. gender 는 입력이 소문자여도 Enum 대문자로 정규화.
 
 ## 엔드포인트
 
@@ -80,5 +80,5 @@ legacy 호환: file_path 누락 시 nose_image_url 또는 eye_image_url 필드�
 * gender 입력은 소문자여도 Enum 대문자로 변환
 * /profile 엔드포인트는 Presenter + Policy 조합으로 최소/확장 필드 결정
 * 업로드 타입 표준화(Option A) 적용: pets 관련 클라이언트는 반드시 위 표의 canonical upload_type 사용 권장
-* Deprecated alias (profile_image, cartoon_source) 는 uploads 라우트에서 자동 변환되지만 추후 제거 예정
+* Deprecated alias (profile_image, cartoon_source) 는 uploads 라우트에서 자동 변환되지만 추후 제거 예정 (클라이언트는 즉시 canonical 타입 사용 권장)
 

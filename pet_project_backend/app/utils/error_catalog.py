@@ -38,6 +38,8 @@ ERRORS: Dict[str, ErrorSpec] = {
     
     # Range & Query Validation (Sprint C)
     'OUT_OF_RANGE': ErrorSpec('OUT_OF_RANGE', 'VALIDATION', 422, False, '값이 허용 범위를 벗어났습니다.'),
+    # 상태 전이 / 현재 상태에서 불가능한 액션 (범위 문제 아님)
+    'INVALID_STATE': ErrorSpec('INVALID_STATE', 'VALIDATION', 409, False, '현재 상태에서는 수행할 수 없는 작업입니다.'),
     'RANGE_TOO_LARGE': ErrorSpec('RANGE_TOO_LARGE', 'VALIDATION', 400, False, '조회 범위가 너무 큽니다.'),
     'INVALID_QUERY_COMBINATION': ErrorSpec('INVALID_QUERY_COMBINATION', 'VALIDATION', 400, False, '잘못된 쿼리 파라미터 조합입니다.'),
 

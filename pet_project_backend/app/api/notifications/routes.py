@@ -8,6 +8,7 @@ from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, NotificationErrors, ExternalServiceErrors, RequestExamples, ResponseExamples
 )
+from app.utils.error_catalog import build_error
 
 notifications_bp = Blueprint('notifications_bp', __name__)
 
@@ -121,11 +122,14 @@ def ack_notification(notification_id: str):
     try:
         ok = service.ack_notification(user_id, notification_id)
         if not ok:
-            return jsonify({'error_code': 'NOT_FOUND_OR_FORBIDDEN', 'message': '알림이 없거나 권한이 없습니다.'}), 404
+            # 정확한 구분: 존재하지 않거나 권한 없음 -> 우선 NOT_FOUND (정보 누출 방지)
+            status, body = build_error('NOT_FOUND', message='알림이 없거나 권한이 없습니다.')
+            return jsonify(body), status
         return jsonify({'status': 'ok'}), 200
     except Exception as e:
         logging.error(f"알림 확인 처리 오류: {e}", exc_info=True)
-        return jsonify({'error_code': 'ACK_FAILED', 'message': '알림 확인 처리 중 오류가 발생했습니다.'}), 500
+        status, body = build_error('ACK_FAILED', message='알림 확인 처리 중 오류가 발생했습니다.')
+        return jsonify(body), status
 
 
 @notifications_bp.route('/unread-count', methods=['GET'])
