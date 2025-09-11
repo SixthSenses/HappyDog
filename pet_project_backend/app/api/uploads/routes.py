@@ -4,6 +4,10 @@ import logging
 from flask import request, jsonify, Blueprint, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import Schema, fields, validate, ValidationError
+from app.utils.api_documentation import (
+    api_doc, error_responses, request_examples, response_examples,
+    CommonErrors, UploadErrors, RequestExamples, ResponseExamples
+)
 
 # 'uploads' 기능을 위한 새로운 블루프린트를 생성합니다.
 # 이 블루프린트에 속한 모든 API는 '/api/uploads' 라는 접두사 URL을 갖게 됩니다.
@@ -16,6 +20,38 @@ class FilePathSchema(Schema):
 
 @uploads_bp.route('/url', methods=['POST'])
 @jwt_required()
+@api_doc(
+    summary="업로드 URL 생성",
+    description="모든 파일 업로드를 위한 범용 Pre-signed URL을 발급합니다. 클라이언트는 이 API를 먼저 호출하여 업로드할 권한이 있는 임시 URL을 받아야 합니다.",
+    tags=["uploads"]
+)
+@error_responses(
+    CommonErrors.MISSING_JWT,
+    CommonErrors.INVALID_JWT,
+    UploadErrors.INVALID_PARAMETERS,
+    UploadErrors.INVALID_UPLOAD_TYPE,
+    UploadErrors.URL_GENERATION_FAILED
+)
+@request_examples({
+    "name": "upload_url_request",
+    "summary": "업로드 URL 요청",
+    "description": "파일 업로드를 위한 Pre-signed URL 요청",
+    "value": {
+        "upload_type": "profile_image",
+        "filename": "profile.jpg",
+        "content_type": "image/jpeg"
+    }
+})
+@response_examples({
+    "name": "upload_url_response",
+    "summary": "업로드 URL 응답",
+    "description": "생성된 Pre-signed URL과 업로드 정보",
+    "value": {
+        "upload_url": "https://storage.googleapis.com/...",
+        "file_path": "uploads/profile_images/user_123/profile.jpg",
+        "expires_at": "2023-12-10T13:00:00Z"
+    }
+})
 def get_upload_url():
     """
     모든 파일 업로드를 위한 범용 Pre-signed URL을 발급합니다.
@@ -67,6 +103,30 @@ def get_upload_url():
 
 @uploads_bp.route('/finalize-cartoon', methods=['POST'])
 @jwt_required()
+@api_doc(
+    summary="만화 이미지 공개 전환",
+    description="업로드된 만화 원본 이미지를 공개로 전환하고 공개 URL을 반환합니다. 만화 변환 작업 완료 후 사용됩니다.",
+    tags=["uploads"]
+)
+@error_responses(
+    CommonErrors.MISSING_JWT,
+    CommonErrors.INVALID_JWT,
+    CommonErrors.VALIDATION_ERROR,
+    UploadErrors.FILE_NOT_FOUND,
+    CommonErrors.INTERNAL_SERVER_ERROR
+)
+@request_examples({
+    "name": "finalize_cartoon_request",
+    "summary": "만화 이미지 공개 전환 요청",
+    "description": "공개로 전환할 만화 이미지 파일 경로",
+    "value": {"file_path": "uploads/cartoon/temp/cartoon_123.jpg"}
+})
+@response_examples({
+    "name": "finalize_cartoon_response",
+    "summary": "공개 전환 성공",
+    "description": "공개로 전환된 파일의 URL",
+    "value": {"public_url": "https://storage.googleapis.com/public/cartoon_123.jpg"}
+})
 def finalize_cartoon_upload():
     """
     업로드된 만화 원본 이미지를 공개로 전환하고 URL을 반환합니다.

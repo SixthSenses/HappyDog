@@ -9,10 +9,10 @@ class UserPublicResponseSchema(Schema):
     다른 사용자의 프로필 정보를 응답할 때 사용하는 스키마.
     민감한 정보(예: email, google_id, fcm_token)는 제외하고
     공개 가능한 정보만 포함하여 반환하도록 정의합니다.
+    프로필 이미지는 Pet 정보에서 가져오도록 변경됨.
     """
     user_id = fields.Str(required=True, dump_only=True)
     nickname = fields.Str(required=True)
-    profile_image_url = fields.URL(allow_none=True)
     post_count = fields.Int(required=True)
 
 class FCMTokenSchema(Schema):
@@ -29,16 +29,4 @@ class NotificationPreferencesSchema(Schema):
     types = fields.Dict(keys=fields.Str(), values=fields.Bool(), required=False)
 
 
-class SelectedPetUpdateSchema(Schema):
-    """
-    PATCH /api/users/me/selected-pet 요청 본문 검증 스키마.
-    pet_id는 UUID 형식 문자열이어야 합니다.
-    """
-    pet_id = fields.Str(required=True)
-
-    @validates("pet_id")
-    def validate_uuid(self, value: str):
-        try:
-            uuid.UUID(str(value))
-        except Exception:
-            raise ValidationError("유효한 UUID가 아닙니다.")
+## Deprecated schema removed: SelectedPetUpdateSchema

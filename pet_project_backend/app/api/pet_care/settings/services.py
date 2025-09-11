@@ -24,15 +24,9 @@ class PetCareSettingService:
             ideal_weight = self.breed_service.get_breed_ideal_weight(breed, gender)
             goal_weight = ideal_weight if ideal_weight is not None else current_weight
 
-            # 2. 제안서 요구사항에 따른 값 계산
-            water_bowl_capacity = round(current_weight * 60)
-            water_increment = max(1, round(water_bowl_capacity * 0.2)) # 최소 1 보장
-
             settings_data = {
                 "pet_id": pet_id,
                 "goalWeight": goal_weight,
-                "waterBowlCapacity": water_bowl_capacity,
-                "waterIncrementAmount": water_increment,
                 "goalActivityMinutes": 30,
                 "activityIncrementMinutes": 10,
                 "goalMealCount": 3,

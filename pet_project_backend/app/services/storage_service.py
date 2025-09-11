@@ -48,7 +48,7 @@ class StorageService:
 
         # 'upload_type'에 따라 파일이 저장될 폴더 경로를 매핑합니다.
         path_map = {
-            "user_profile": f"user_profiles/{user_id}",
+            "pet_profile": f"pet_profiles/{user_id}",  # Pet 프로필 이미지용 (User 프로필은 Pet에서 관리)
             "pet_nose_print": f"nose_prints_staging/{user_id}",
             "eye_analysis": f"eye_analysis_images/{user_id}",
             "post_image": f"posts/{user_id}",

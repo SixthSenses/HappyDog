@@ -211,36 +211,4 @@ class BreedService:
             logger.error(f"품종 이상 체중 조회 실패 ({breed_name}, {gender}): {e}")
             return None
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """
-        품종 데이터베이스 통계 정보를 조회합니다.
-        
-        Returns:
-            통계 정보 딕셔너리
-        """
-        try:
-            all_breeds, total_count = self.get_all_breeds()
-            
-            if not all_breeds:
-                return {
-                    'total_breeds': 0,
-                    'avg_life_expectancy': 0,
-                    'min_life_expectancy': 0,
-                    'max_life_expectancy': 0
-                }
-            
-            life_expectancies = [breed['life_expectancy'] for breed in all_breeds if breed.get('life_expectancy')]
-            
-            stats = {
-                'total_breeds': total_count,
-                'avg_life_expectancy': sum(life_expectancies) / len(life_expectancies) if life_expectancies else 0,
-                'min_life_expectancy': min(life_expectancies) if life_expectancies else 0,
-                'max_life_expectancy': max(life_expectancies) if life_expectancies else 0
-            }
-            
-            logger.info(f"품종 통계 정보 조회 완료: {stats}")
-            return stats
-            
-        except Exception as e:
-            logger.error(f"품종 통계 정보 조회 실패: {e}")
-            raise
+    # 통계 관련 기능은 폐지됨 (UI 정책에 따라 모든 요약/통계 제거)

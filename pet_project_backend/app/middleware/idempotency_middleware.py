@@ -32,8 +32,8 @@ def idempotent_endpoint(apply_when_methods=('POST', 'PUT', 'PATCH')):
                     body, status = resp[0], resp[1]
                 else:
                     body, status = resp, 200
-                # jsonify 객체면 .get_json() 사용 불가 -> 원래 body가 dict여야 저장 의미 명확
-                if hasattr(body, 'json') and callable(getattr(body, 'get_json', None)):
+                # Flask Response라면 get_json() 지원 시 파싱 시도
+                if callable(getattr(body, 'get_json', None)):
                     try:
                         body_data = body.get_json()
                     except Exception:

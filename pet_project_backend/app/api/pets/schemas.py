@@ -15,15 +15,17 @@ class PetRegistrationSchema(Schema):
     gender = fields.Str(required=True, validate=validate.OneOf([e.value for e in PetGender]))
     breed = fields.Str(required=True, validate=[validate.Length(min=1, max=30), validate_breed_exists])
     birthdate = fields.Date(required=True, format="%Y-%m-%d")
-    current_weight = fields.Float(required=True, validate=validate.Range(min=0.1, max=200.0))
+    current_weight = fields.Float(required=False, validate=validate.Range(min=0.1, max=200.0))
     fur_color = fields.Str(required=False, allow_none=True)
     health_concerns = fields.List(fields.Str(), required=False, allow_none=True)
+    profile_image_url = fields.Str(required=False, allow_none=True)  # 프로필 이미지 URL
 
 class PetUpdateSchema(Schema):
     """PATCH /api/pets/<pet_id> 정보 수정을 위한 스키마 (부분 업데이트용)."""
     name = fields.Str(validate=validate.Length(min=1, max=20))
     fur_color = fields.Str()
     health_concerns = fields.List(fields.Str())
+    profile_image_url = fields.Str(allow_none=True)  # 프로필 이미지 URL
 
 class BiometricAnalysisRequestSchema(Schema):
     """비문 및 안구 분석 요청을 위한 공통 스키마."""
@@ -41,7 +43,8 @@ class PetProfileResponseSchema(Schema):
     fur_color = fields.Str(allow_none=True)
     health_concerns = fields.List(fields.Str())
     is_verified = fields.Bool()
-    nose_print_url = fields.URL(allow_none=True)
+    profile_image_url = fields.Str(allow_none=True)  # 프로필 이미지 URL
+    nose_print_url = fields.URL(allow_none=True)     # 비문 인증용 URL
     faiss_id = fields.Int(allow_none=True)
 
 class PetPublicProfileResponseSchema(Schema):
@@ -53,7 +56,25 @@ class PetPublicProfileResponseSchema(Schema):
     birthdate = fields.Date()
     initial_weight = fields.Float()
     fur_color = fields.Str(allow_none=True)
+    profile_image_url = fields.Str(allow_none=True)  # 프로필 이미지 URL
     is_verified = fields.Bool()
+
+class PetViewBasedResponseSchema(Schema):
+    """뷰 기반 필터링이 적용된 Pet 프로필 응답 스키마."""
+    # 기본 정보 (모든 뷰에서 사용)
+    pet_id = fields.Str(dump_only=True)
+    name = fields.Str(required=True)
+    profile_image_url = fields.Str(allow_none=True)
+    is_verified = fields.Bool(required=True)
+    
+    # 마이페이지/멍스타그램 전용
+    birthdate = fields.Date(allow_none=True)
+    gender = fields.Str(allow_none=True) 
+    breed = fields.Str(allow_none=True)
+    
+    # 멍스타그램 전용 (나이 계산된 값)
+    age_months = fields.Int(allow_none=True)
+    post_count = fields.Int(allow_none=True)
 
 class EyeAnalysisResponseSchema(Schema):
     """안구 분석 결과 응답 스키마."""

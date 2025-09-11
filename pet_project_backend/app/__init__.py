@@ -10,6 +10,7 @@ load_dotenv()
 # 2. 모듈 임포트 (Module Imports)
 # =====================================================================================
 import os
+import importlib
 import logging
 from flask import Flask, jsonify
 from marshmallow import ValidationError
@@ -22,6 +23,7 @@ from app.core.config import config_by_name
 
 # - API 블루프린트
 from app.api.auth.routes import auth_bp
+from app.api.auth.services import AuthService
 from app.api.uploads.routes import uploads_bp
 from app.api.users.routes import users_bp
 from app.api.posts.routes import posts_bp
@@ -38,22 +40,175 @@ from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
 from app.services import openai_service as openai_service_module
 from app.api.auth import services as auth_service_module
-from app.api.users import services as user_service_module
-from app.api.posts import services as post_service_module
-from app.api.comments import services as comment_service_module
-from app.api.cartoon_jobs import services as cartoon_job_service_module
+from app.api.users.services import UserProfileService, UserStatsService, UserService
+from app.api.posts.services import PostService, PostLikeService, PostEventService, PostStorageService
+from app.api.comments.services import CommentService, CommentMentionService, CommentEventService, CommentNotificationService
+from app.api.cartoon_jobs.services import CartoonJobService, CartoonJobProcessor, CartoonJobEventService, CartoonJobIntegrationService
 from app.api.breeds.services import BreedService
-from app.api.pets.services import PetService
+from app.api.pets.services.pet_profile_service import PetProfileService
+from app.api.pets.services.pet_biometric_service import PetBiometricService
 from app.api.pet_care.settings.services import PetCareSettingService
+from app.api.pet_care.records.record_integration_service import PetCareRecordIntegration
 from app.api.pet_care.records.services import PetCareRecordService
 from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
 from app.middleware.rate_limit_middleware import install_rate_limit
 from app.utils import metrics as metrics_module
 
-# - ML 모델 파이프라인
-from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
-from eyes_models.eyes_lib.inference import EyeAnalyzer
+# - ML 모델 파이프라인 (지연 임포트: 환경에 없으면 건너뜀)
+NosePrintPipeline = None
+EyeAnalyzer = None
+
+def _init_core_services(app):
+    """
+    Initialize core services with no dependencies or minimal dependencies.
+    These services are foundational and used by other services.
+    """
+    # Storage service - foundational for file operations
+    try:
+        storage_instance = storage_service_module.StorageService()
+        storage_instance.init_app(app)
+        app.services['storage'] = storage_instance
+        logging.info("Storage service initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize storage service: {e}")
+        raise
+    
+    # OpenAI service - external API integration
+    try:
+        openai_instance = openai_service_module.OpenAIService()
+        openai_instance.init_app(app)
+        app.services['openai'] = openai_instance
+        logging.info("OpenAI service initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize OpenAI service: {e}")
+        raise
+
+    # Notification service - foundational for async messaging
+    app.services['notifications'] = notification_service_module.NotificationService()
+    
+    # Notification presentation service
+    from app.api.notifications.services import NotificationPresentationService
+    app.services['notification_presentation'] = NotificationPresentationService()
+    
+    # Utility services with no dependencies
+    app.services['idempotency'] = IdempotencyService()
+    app.services['breeds'] = BreedService()
+    
+    # Auth service - foundational for security
+    app.services['auth'] = AuthService()
+    app.services['auth'].init_app(app)
+    logging.info("Auth service initialized successfully in DI container")
+    
+    # ML Pipeline services - optional external components
+    _init_ml_services(app)
+
+def _init_ml_services(app):
+    """Initialize ML services separately due to optional nature and heavy dependencies."""
+    # Nose print pipeline initialization (optional)
+    try:
+        # Dynamic import: handle ImportError if package missing
+        if NosePrintPipeline is None:
+            _nose_module = importlib.import_module('nose_lib.pipelines.nose_print_pipeline')
+            _NosePrintPipeline = getattr(_nose_module, 'NosePrintPipeline')
+        else:
+            _NosePrintPipeline = NosePrintPipeline
+        app.services['nose_pipeline'] = _NosePrintPipeline(
+            yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
+            config_path=os.getenv('ML_CONFIG_PATH'),
+            extractor_weights_path=os.getenv('EXTRACTOR_WEIGHTS_PATH'),
+            faiss_index_path=os.getenv('FAISS_INDEX_PATH')
+        )
+        logging.info("Nose print pipeline initialized successfully")
+    except Exception as e:
+        logging.warning(f"Failed to initialize nose pipeline: {e}")
+        app.services['nose_pipeline'] = None
+    
+    # Eye analyzer initialization (optional)
+    try:
+        if EyeAnalyzer is None:
+            _eye_module = importlib.import_module('eyes_models.eyes_lib.inference')
+            _EyeAnalyzer = getattr(_eye_module, 'EyeAnalyzer')
+        else:
+            _EyeAnalyzer = EyeAnalyzer
+        app.services['eye_analyzer'] = _EyeAnalyzer()
+        logging.info("Eye analyzer initialized successfully")
+    except Exception as e:
+        logging.warning(f"Failed to initialize eye analyzer: {e}")
+        app.services['eye_analyzer'] = None
+
+def _init_dependent_services(app):
+    """
+    Initialize services that depend on core services.
+    Must be called after _init_core_services().
+    """
+    # Pet Care Domain - depends on breeds and notifications
+    app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'])
+    app.services['pet_care_records'] = PetCareRecordService()
+    
+    # Pet Care Integration Service - depends on multiple services
+    app.services['pet_care_integration'] = PetCareRecordIntegration(
+        crud_service=app.services['pet_care_records'],
+        query_service=app.services['pet_care_records'],  # Same service for now
+        cache_service=None,  # Cache service not implemented yet
+        settings_service=app.services['pet_care_settings'],
+        notification_service=app.services['notifications']
+    )
+
+    # Pets Domain - depends on storage, pet_care_settings, and ML services
+    pet_profile_service = PetProfileService(
+        pet_care_setting_service=app.services['pet_care_settings'],
+        storage_service=app.services['storage']
+    )
+    
+    pet_biometric_service = PetBiometricService(
+        storage_service=app.services['storage'],
+        nose_pipeline=app.services['nose_pipeline'],
+        eye_analyzer=app.services['eye_analyzer']
+    )
+    
+    # Use profile service as main pets service
+    app.services['pets'] = pet_profile_service
+    logging.info("Pet service initialized successfully")
+    
+    # User Services - depends on storage
+    app.services['user_profile'] = UserProfileService(app.services['storage'])
+    app.services['user_stats'] = UserStatsService()
+    app.services['users'] = UserService()  # Lightweight, no dependencies
+    
+    # Posts Domain - depends on storage
+    app.services['posts'] = PostService()
+    app.services['post_likes'] = PostLikeService()
+    app.services['post_events'] = PostEventService()
+    app.services['post_storage'] = PostStorageService(app.services['storage'])
+    
+    # Initialize post services with app context
+    app.services['post_events'].init_app(app)
+    app.services['post_storage'].init_app(app)
+    
+    # Comments Domain - basic services first
+    app.services['comments'] = CommentService()
+    app.services['comment_mentions'] = CommentMentionService()
+    app.services['comment_events'] = CommentEventService()
+    app.services['comment_notifications'] = CommentNotificationService()
+    
+    # Initialize comment event service with app context
+    app.services['comment_events'].init_app(app)
+    
+    # Cartoon Jobs Domain - depends on posts and notifications
+    app.services['cartoon_jobs'] = CartoonJobService()
+    app.services['job_processor'] = CartoonJobProcessor()
+    app.services['job_events'] = CartoonJobEventService()
+    app.services['job_integration'] = CartoonJobIntegrationService(
+        post_service=app.services['posts'],
+        notification_service=app.services['notifications']
+    )
+    
+    # Initialize cartoon job services with app context
+    app.services['cartoon_jobs'].init_app(app)
+    app.services['job_processor'].init_app(app)
+    app.services['job_events'].init_app(app)
+    app.services['job_integration'].init_app(app)
 
 def create_app():
     """
@@ -78,6 +233,11 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
     app.json.ensure_ascii = False
+    # Google OAuth Redirect URI 확인 로그 (Playground 테스트 편의)
+    try:
+        logging.info(f"Google OAuth Redirect URI: {app.config.get('GOOGLE_OAUTH_REDIRECT_URI')}")
+    except Exception:
+        pass
 
     # =====================================================================================
     # 4. 확장 기능 및 외부 서비스 초기화
@@ -97,79 +257,13 @@ def create_app():
     # 5. 서비스 인스턴스 생성 및 'app.services'에 저장 (의존성 주입)
     # =====================================================================================
     app.services = {}
-
-    # 5-1. 의존성이 없거나 다른 서비스의 기반이 되는 공용/핵심 서비스 먼저 생성
-    try:
-        storage_instance = storage_service_module.StorageService()
-        storage_instance.init_app(app)
-        app.services['storage'] = storage_instance
-        logging.info("Storage service initialized successfully")
-    except Exception as e:
-        logging.error(f"Failed to initialize storage service: {e}")
-        raise
     
-    try:
-        openai_instance = openai_service_module.OpenAIService()
-        openai_instance.init_app(app)
-        app.services['openai'] = openai_instance
-        logging.info("OpenAI service initialized successfully")
-    except Exception as e:
-        logging.error(f"Failed to initialize OpenAI service: {e}")
-        raise
-
-    app.services['notifications'] = notification_service_module.NotificationService()
-    app.services['idempotency'] = IdempotencyService()
-    app.services['breeds'] = BreedService()
+    # Initialize services in dependency order to prevent circular dependencies
+    _init_core_services(app)
+    _init_dependent_services(app)
     
-    # ML 파이프라인 초기화 (선택적)
-    try:
-        app.services['nose_pipeline'] = NosePrintPipeline(
-            yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
-            config_path=os.getenv('ML_CONFIG_PATH'),
-            extractor_weights_path=os.getenv('EXTRACTOR_WEIGHTS_PATH'),
-            faiss_index_path=os.getenv('FAISS_INDEX_PATH')
-        )
-        logging.info("Nose print pipeline initialized successfully")
-    except Exception as e:
-        logging.warning(f"Failed to initialize nose pipeline: {e}")
-        app.services['nose_pipeline'] = None
-    
-    try:
-        app.services['eye_analyzer'] = EyeAnalyzer()
-        logging.info("Eye analyzer initialized successfully")
-    except Exception as e:
-        logging.warning(f"Failed to initialize eye analyzer: {e}")
-        app.services['eye_analyzer'] = None
-
-    # 5-2. 다른 서비스를 주입받아야 하는 도메인 서비스 생성
-    # - pet_care 도메인
-    app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'])
-    app.services['pet_care_records'] = PetCareRecordService()
-
-    # - pets 도메인
-    app.services['pets'] = PetService(
-        pet_care_setting_service=app.services['pet_care_settings'],
-        storage_service=app.services['storage'],
-        nose_pipeline=app.services['nose_pipeline'],
-        eye_analyzer=app.services['eye_analyzer']
-    )
-    logging.info("Pet service initialized successfully")
-    
-    # - 나머지 도메인
-    post_service_instance = post_service_module.PostService()
-    app.services['posts'] = post_service_instance
-    app.services['comments'] = comment_service_module.CommentService()
-    app.services['users'] = user_service_module.UserService(
-        storage_service=app.services['storage'],
-        post_service=app.services['posts']
-    )
-    app.services['cartoon_jobs'] = cartoon_job_service_module.CartoonJobService(
-        post_service=app.services['posts'],
-        notification_service=app.services['notifications']
-    )
-    
-    # - 인증 서비스 (앱 컨텍스트 필요)
-    auth_service_module.auth_service.init_app(app)
+    # - 인증 서비스는 이미 DI 컨테이너에서 초기화됨 (auth service already initialized above)
+    # auth_service_module.auth_service.init_app(app)  # ❌ Removed singleton pattern
 
     # =====================================================================================
     # 6. 블루프린트 등록
@@ -212,7 +306,8 @@ def create_app():
     # 8. 로깅 및 앱 반환
     # 미들웨어 설치 (request_id, rate_limit)
     install_request_id(app)
-    install_rate_limit(app, capacity=300, window_seconds=60)  # 분당 300 요청 기본
+    # Rate limit 미들웨어 설치(기본 구성 사용; 필요 시 RateLimitConfig으로 조정 가능)
+    install_rate_limit(app)
     # =====================================================================================
     if not app.debug:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')

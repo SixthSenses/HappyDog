@@ -1,6 +1,6 @@
 # app/api/comments/schemas.py
 from marshmallow import Schema, fields, validate
-from app.api.posts.schemas import AuthorSchema # 작성자 정보는 게시글 스키마의 것을 재사용
+from app.api.posts.schemas import AuthorSchema, PetInfoSchema # 작성자 정보와 반려동물 정보 스키마 재사용
 
 class CommentCreateSchema(Schema):
     """
@@ -15,7 +15,8 @@ class CommentResponseSchema(Schema):
     """
     comment_id = fields.Str(required=True)
     post_id = fields.Str(required=True)
-    author = fields.Nested(AuthorSchema, required=True)
+    author = fields.Nested(AuthorSchema, required=True)  # user_id, nickname만 포함
+    pet = fields.Nested(PetInfoSchema, required=True)  # pet_id, name, breed, profile_image_url 포함
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
     created_at = fields.DateTime(required=True)

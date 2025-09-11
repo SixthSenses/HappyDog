@@ -6,7 +6,7 @@ class AuthorSchema(Schema):
     """게시물 응답에 포함될 작성자 정보 스키마."""
     user_id = fields.Str(required=True)
     nickname = fields.Str(required=True)
-    profile_image_url = fields.URL(allow_none=True)
+    # profile_image_url는 Pet 정보에서 가져오도록 변경됨
 
 class PetInfoSchema(Schema):
     """게시물 응답에 포함될 반려동물 정보 스키마."""
@@ -14,6 +14,7 @@ class PetInfoSchema(Schema):
     name = fields.Str(required=True)
     breed = fields.Str(required=True)
     birthdate = fields.DateTime(required=True)
+    profile_image_url = fields.URL(allow_none=True)  # Pet 프로필 이미지 추가
 
 # --- API 요청/응답 스키마 ---
 

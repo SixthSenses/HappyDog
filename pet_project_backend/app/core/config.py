@@ -9,6 +9,9 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     # Google OAuth 인증에 필요한 클라이언트 시크릿 파일의 경로를 환경 변수에서 가져옵니다.
     GOOGLE_CLIENT_SECRETS_PATH = os.getenv('GOOGLE_CLIENT_SECRETS_PATH')
+    # Google OAuth Playground 등에서 발급한 코드로 교환 시 사용할 redirect URI
+    # 기본값은 Google OAuth Playground 콜백으로 설정합니다.
+    GOOGLE_OAUTH_REDIRECT_URI = os.getenv('GOOGLE_OAUTH_REDIRECT_URI', 'https://developers.google.com/oauthplayground')
 
     FIREBASE_STORAGE_BUCKET = os.getenv('FIREBASE_STORAGE_BUCKET')
     

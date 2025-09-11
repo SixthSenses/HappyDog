@@ -9,6 +9,10 @@ from .schemas import (
     BreedSearchSchema, ErrorResponseSchema
 )
 from .services import BreedService
+from app.utils.api_documentation import (
+    api_doc, error_responses, request_examples, response_examples,
+    CommonErrors, BreedErrors, RequestExamples, ResponseExamples
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,32 @@ def get_breed_service():
     return current_app.services.get('breeds')
 
 @breeds_bp.route('/', methods=['GET'])
+@api_doc(
+    summary="품종 목록 조회",
+    description="모든 품종 목록을 조회합니다. 페이지네이션과 요약 정보 옵션을 지원합니다.",
+    tags=["breeds"]
+)
+@error_responses(
+    CommonErrors.VALIDATION_ERROR,
+    CommonErrors.INTERNAL_SERVER_ERROR
+)
+@request_examples(RequestExamples.PAGINATION_QUERY)
+@response_examples({
+    "name": "breeds_list",
+    "summary": "품종 목록 응답",
+    "description": "페이지네이션된 품종 목록",
+    "value": {
+        "breeds": [
+            {
+                "breed_id": "golden_retriever",
+                "name": "골든 리트리버",
+                "origin": "스코틀랜드",
+                "size": "대형"
+            }
+        ],
+        "total_count": 150
+    }
+})
 def get_all_breeds():
     """
     모든 품종 목록을 조회합니다.
@@ -78,6 +108,28 @@ def get_all_breeds():
         }), 500
 
 @breeds_bp.route('/<breed_name>', methods=['GET'])
+@api_doc(
+    summary="특정 품종 정보 조회",
+    description="품종명으로 특정 품종의 상세 정보를 조회합니다. 한글 품종명도 지원합니다.",
+    tags=["breeds"]
+)
+@error_responses(
+    BreedErrors.BREED_NOT_FOUND,
+    CommonErrors.INTERNAL_SERVER_ERROR
+)
+@response_examples({
+    "name": "breed_detail",
+    "summary": "품종 상세 정보",
+    "description": "특정 품종의 상세 정보",
+    "value": {
+        "breed_id": "golden_retriever",
+        "name": "골든 리트리버",
+        "origin": "스코틀랜드",
+        "size": "대형",
+        "temperament": "친화적, 지능적, 활발함",
+        "life_expectancy": "10-12년"
+    }
+})
 def get_breed_by_name(breed_name: str):
     """
     특정 품종 정보를 조회합니다.
@@ -111,6 +163,33 @@ def get_breed_by_name(breed_name: str):
         }), 500
 
 @breeds_bp.route('/search', methods=['GET'])
+@api_doc(
+    summary="품종 검색",
+    description="품종명으로 검색하여 일치하는 품종들을 찾습니다. 부분 일치 검색을 지원합니다.",
+    tags=["breeds"]
+)
+@error_responses(
+    CommonErrors.VALIDATION_ERROR,
+    CommonErrors.INTERNAL_SERVER_ERROR
+)
+@request_examples({
+    "name": "breed_search_query",
+    "summary": "품종 검색 쿼리",
+    "description": "품종 검색을 위한 쿼리 파라미터",
+    "value": {"q": "리트리버", "limit": 10, "offset": 0}
+})
+@response_examples({
+    "name": "breed_search_results",
+    "summary": "품종 검색 결과",
+    "description": "검색 쿼리와 일치하는 품종 목록",
+    "value": {
+        "breeds": [
+            {"breed_id": "golden_retriever", "name": "골든 리트리버"},
+            {"breed_id": "labrador_retriever", "name": "라브라도 리트리버"}
+        ],
+        "total_count": 2
+    }
+})
 def search_breeds():
     """
     품종명으로 검색합니다.
@@ -167,6 +246,23 @@ def search_breeds():
         }), 500
 
 @breeds_bp.route('/exists/<breed_name>', methods=['GET'])
+@api_doc(
+    summary="품종 존재 여부 확인",
+    description="특정 품종이 데이터베이스에 존재하는지 확인합니다.",
+    tags=["breeds"]
+)
+@error_responses(
+    CommonErrors.INTERNAL_SERVER_ERROR
+)
+@response_examples({
+    "name": "breed_exists_check",
+    "summary": "품종 존재 여부 응답",
+    "description": "품종 존재 여부 확인 결과",
+    "value": {
+        "breed_name": "골든 리트리버",
+        "exists": True
+    }
+})
 def check_breed_exists(breed_name: str):
     """
     특정 품종이 존재하는지 확인합니다.
@@ -198,24 +294,7 @@ def check_breed_exists(breed_name: str):
             "message": f"품종 존재 확인 중 오류가 발생했습니다: {breed_name}"
         }), 500
 
-@breeds_bp.route('/statistics', methods=['GET'])
-def get_breed_statistics():
-    """
-    품종 데이터베이스 통계 정보를 조회합니다.
-    """
-    try:
-        breed_service = get_breed_service()
-        stats = breed_service.get_statistics()
-        
-        logger.info("품종 통계 정보 조회 성공")
-        return jsonify(stats), 200
-        
-    except Exception as e:
-        logger.error(f"품종 통계 정보 조회 실패: {e}", exc_info=True)
-        return jsonify({
-            "error_code": "STATS_FETCH_FAILED",
-            "message": "통계 정보를 조회하는 중 오류가 발생했습니다."
-        }), 500
+    
 
 @breeds_bp.errorhandler(ValidationError)
 def handle_validation_error(error):
