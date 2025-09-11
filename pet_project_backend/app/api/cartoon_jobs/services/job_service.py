@@ -202,25 +202,41 @@ class CartoonJobService:
             if current_status not in [CartoonJobStatus.PENDING.value, CartoonJobStatus.PROCESSING.value]:
                 raise ValueError(f"현재 '{current_status}' 상태의 작업은 취소할 수 없습니다.")
             
-            # 상태를 CANCELING으로 업데이트
-            update_data = {
-                "status": CartoonJobStatus.CANCELING.value,
-                "updated_at": datetime.now(timezone.utc)
-            }
-            job_ref.update(update_data)
-            
-            updated_job = job_ref.get().to_dict()
-            logging.info(f"만화 생성 작업 취소 요청됨 (Job ID: {job_id})")
-            
-            # 이벤트 처리를 위한 데이터 반환
-            return {
-                'job': updated_job,
-                'event_type': 'job_cancelled',
-                'job_id': job_id,
-                'user_id': user_id,
-                'old_status': current_status,
-                'new_status': CartoonJobStatus.CANCELING.value
-            }
+            # 즉시 처리 가능한 초기 상태(PENDING) 취소는 바로 CANCELLED 로 전환 (워커 진입 전)
+            if current_status == CartoonJobStatus.PENDING.value:
+                update_data = {
+                    "status": CartoonJobStatus.CANCELLED.value,
+                    "updated_at": datetime.now(timezone.utc),
+                    "error_message": "사용자가 작업을 취소했습니다"
+                }
+                job_ref.update(update_data)
+                updated_job = job_ref.get().to_dict()
+                logging.info(f"작업 즉시 취소 완료 (Job ID: {job_id}, status=CANCELLED)")
+                return {
+                    'job': updated_job,
+                    'event_type': 'job_cancelled',
+                    'job_id': job_id,
+                    'user_id': user_id,
+                    'old_status': current_status,
+                    'new_status': CartoonJobStatus.CANCELLED.value
+                }
+            else:
+                # PROCESSING 진입 가능성이 있는 경우 전이 상태로 먼저 변경
+                update_data = {
+                    "status": CartoonJobStatus.CANCELING.value,
+                    "updated_at": datetime.now(timezone.utc)
+                }
+                job_ref.update(update_data)
+                updated_job = job_ref.get().to_dict()
+                logging.info(f"만화 생성 작업 취소 요청됨 (Job ID: {job_id})")
+                return {
+                    'job': updated_job,
+                    'event_type': 'job_cancelled',
+                    'job_id': job_id,
+                    'user_id': user_id,
+                    'old_status': current_status,
+                    'new_status': CartoonJobStatus.CANCELING.value
+                }
             
         except Exception as e:
             logging.error(f"작업 취소 실패 (job_id: {job_id}): {e}", exc_info=True)

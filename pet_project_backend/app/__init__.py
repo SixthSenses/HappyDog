@@ -169,6 +169,8 @@ def _init_dependent_services(app):
     
     # Use profile service as main pets service
     app.services['pets'] = pet_profile_service
+    # Expose biometric service separately (profile service intentionally does not include ML concerns)
+    app.services['pet_biometrics'] = pet_biometric_service
     logging.info("Pet service initialized successfully")
     
     # User Services - depends on storage

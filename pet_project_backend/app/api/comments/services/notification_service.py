@@ -9,6 +9,7 @@
 import logging
 import re
 from typing import Dict, Any, List, Optional
+from app.utils.text_utils import truncate_summary
 from flask import current_app
 
 from app.models.notification import NotificationType
@@ -24,14 +25,7 @@ class CommentNotificationService:
     def init_app(self, app):
         self.app = app
 
-    def _sanitize_summary(self, summary: Optional[str]) -> Optional[str]:
-        """알림용 요약 텍스트를 정리합니다."""
-        if summary is None:
-            return None
-        cleaned = re.sub(r"[\r\n\t]+", " ", summary).strip()
-        if len(cleaned) > 80:
-            cleaned = cleaned[:79].rstrip() + '…'
-        return cleaned
+    # _sanitize_summary 제거: truncate_summary 사용
 
     def notify_post_author(self, notification_data: Dict[str, Any]) -> None:
         """
@@ -55,7 +49,7 @@ class CommentNotificationService:
                     sender_id=comment_author_id,
                     n_type=NotificationType.COMMENT,
                     target_id=post_id,
-                    target_summary=self._sanitize_summary(comment_text)
+                    target_summary=truncate_summary(comment_text)
                 )
                 logging.debug(f"게시글 작성자 알림 생성 완료 (post_author: {post_author_id}, comment: {comment_id})")
 
@@ -90,7 +84,7 @@ class CommentNotificationService:
                         sender_id=comment_author_id,
                         n_type=NotificationType.MENTION,
                         target_id=post_id,
-                        target_summary=self._sanitize_summary(comment_text)
+                        target_summary=truncate_summary(comment_text)
                     )
                     created_count += 1
                 except Exception as e:
@@ -122,7 +116,7 @@ class CommentNotificationService:
                     sender_id=liker_id,
                     n_type=NotificationType.COMMENT_LIKE,
                     target_id=comment_id,
-                    target_summary=self._sanitize_summary(comment_text)
+                    target_summary=truncate_summary(comment_text)
                 )
                 logging.debug(f"댓글 좋아요 알림 생성 완료 (comment: {comment_id}, recipient: {comment_author_id})")
 

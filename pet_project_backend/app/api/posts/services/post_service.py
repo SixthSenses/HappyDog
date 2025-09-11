@@ -27,7 +27,14 @@ class PostService:
         self.pets_ref = self.db.collection('pets')
 
     def create_post(self, user_id: str, text: str, file_paths: List[str]) -> Optional[Dict[str, Any]]:
-        """새로운 게시글을 생성하고 Firestore에 저장합니다."""
+        """새로운 게시글을 생성하고 Firestore에 저장합니다.
+
+        Snapshot Policy (PR4 문서화):
+        - 게시글 작성 시 작성자의 첫 번째 펫 문서를 조회하여 author.pet 정보를(snapshot 형태) 게시글에 내장합니다.
+        - 이 스냅샷은 이후 펫 프로필(닉네임/품종/이미지) 변경 시 과거 게시글을 소급 업데이트하지 않습니다 (stale 허용).
+        - 허용 이유: 게시글 타임라인 무결성 + 비용(대량 update fan-out) 절감. UI는 최신 프로필 필요 시 별도 lookup / lazy merge 전략 가능.
+        - 향후 변경 여지: Verified 변경(예: is_verified)만 실시간 반영 요구 시 projection 레이어(PostPresenter)에서 merge hook 추가.
+        """
         try:
             user_doc = self.users_ref.document(user_id).get()
             if not user_doc.exists: 

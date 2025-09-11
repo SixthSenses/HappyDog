@@ -3,7 +3,8 @@
 import logging
 from flask import request, jsonify, Blueprint, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import ValidationError
+from app.utils.error_catalog import build_error
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, UploadErrors, RequestExamples, ResponseExamples
@@ -13,9 +14,13 @@ from app.utils.api_documentation import (
 # 이 블루프린트에 속한 모든 API는 '/api/uploads' 라는 접두사 URL을 갖게 됩니다.
 uploads_bp = Blueprint('uploads', __name__)
 
-class FilePathSchema(Schema):
-    """파일 경로 유효성 검사를 위한 스키마"""
-    file_path = fields.Str(required=True, error_messages={"required": "파일 경로는 필수입니다."})
+# 새로 분리된 스키마 import
+from .schemas import (
+    UploadUrlRequestSchema,
+    FinalizeCartoonRequestSchema,
+    ALLOWED_UPLOAD_TYPES,
+    DEPRECATED_UPLOAD_TYPE_ALIASES,
+)
 
 
 @uploads_bp.route('/url', methods=['POST'])
@@ -62,43 +67,40 @@ def get_upload_url():
     
     # 요청 본문이 JSON 형식인지 확인하고 데이터를 파싱합니다.
     try:
-        data = request.get_json()
-        if not data:
-            raise ValidationError("요청 본문이 비어있거나 JSON 형식이 아닙니다.")
-        
-        # 클라이언트로부터 어떤 종류의 파일을 올릴지(upload_type)와
-        # 원본 파일명(filename), 파일 타입(content_type)을 받습니다.
-        upload_type = data['upload_type']
-        filename = data['filename']
-        content_type = data['content_type']
-
-    except (ValidationError, KeyError) as e:
-        # 필수 파라미터가 누락되었거나 형식이 잘못된 경우 400 에러를 반환합니다.
-        logging.warning(f"URL 발급 요청 실패 (잘못된 파라미터): {e}")
-        return jsonify({
-            "error_code": "INVALID_PARAMETERS", 
-            "message": "필수 파라미터가 누락되었거나 형식이 올바르지 않습니다: 'upload_type', 'filename', 'content_type'가 필요합니다."
-        }), 400
+        raw = request.get_json() or {}
+        # Alias → Canonical 변환 (유예용). 변환 발생 시 로그 남김.
+        ut = raw.get('upload_type')
+        if ut in DEPRECATED_UPLOAD_TYPE_ALIASES:
+            canonical = DEPRECATED_UPLOAD_TYPE_ALIASES[ut]
+            logging.info(f"Deprecated upload_type alias '{ut}' -> '{canonical}' 변환")
+            raw['upload_type'] = canonical
+            # 프론트 교정 유도 위해 응답 metadata 로도 내려줄 수 있으나 scope 밖 → TODO 주석
+        payload = UploadUrlRequestSchema().load(raw)
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
 
     # Flask 앱에 등록된 StorageService 인스턴스를 가져옵니다.
     storage_service = current_app.services['storage']
     
     try:
-        # StorageService를 호출하여 Pre-signed URL을 생성합니다.
-        url_info = storage_service.generate_upload_url(user_id, upload_type, filename, content_type)
-        
-        # 성공적으로 생성된 URL 정보를 클라이언트에 반환합니다.
+        url_info = storage_service.generate_upload_url(
+            user_id,
+            payload['upload_type'],
+            payload['filename'],
+            payload['content_type']
+        )
+        # (선택) deprecated 사용 시 metadata 추가 가능
         return jsonify(url_info), 200
-    
     except ValueError as e:
-        # 'upload_type'이 유효하지 않은 경우(service에 정의되지 않은 경우) 400 에러를 반환합니다.
-        logging.warning(f"URL 발급 요청 실패 (잘못된 업로드 타입): {e}")
-        return jsonify({"error_code": "INVALID_UPLOAD_TYPE", "message": str(e)}), 400
-    
+        # storage 서비스에서 지원하지 않는 타입 등
+        logging.warning(f"URL 발급 실패 (INVALID_UPLOAD_TYPE): {e}")
+        status, body = build_error('VALIDATION_ERROR', message=str(e))  # 에러 카탈로그에 INVALID_UPLOAD_TYPE 없음 → VALIDATION_ERROR 유지
+        return jsonify(body), status
     except Exception as e:
-        # 그 외 예측하지 못한 서버 내부 오류 발생 시 500 에러를 반환합니다.
-        logging.error(f"Pre-signed URL 생성 중 서버 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "URL_GENERATION_FAILED", "message": "URL 생성 중 서버 오류가 발생했습니다."}), 500
+        logging.error(f"Pre-signed URL 생성 중 서버 오류: {e}", exc_info=True)
+        status, body = build_error('RECORD_CREATION_FAILED', message="URL 생성 실패")
+        return jsonify(body), status
 
 
 @uploads_bp.route('/finalize-cartoon', methods=['POST'])
@@ -134,18 +136,16 @@ def finalize_cartoon_upload():
     storage_service = current_app.services['storage']
     
     try:
-        data = FilePathSchema().load(request.get_json())
-        file_path = data['file_path']
-        
-        # 파일을 공개로 전환하고 URL 가져오기
-        public_url = storage_service.make_public_and_get_url(file_path)
-        
+        data = FinalizeCartoonRequestSchema().load(request.get_json() or {})
+        public_url = storage_service.make_public_and_get_url(data['file_path'])
         return jsonify({"public_url": public_url}), 200
-        
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except FileNotFoundError as e:
-        return jsonify({"error_code": "FILE_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))  # FILE_NOT_FOUND 별도 카탈로그 미존재 → NOT_FOUND
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"파일 공개 전환 중 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "파일 처리 중 오류가 발생했습니다."}), 500
+        logging.error(f"파일 공개 전환 오류: {e}", exc_info=True)
+        status, body = build_error('UPDATE_FAILED', message="공개 전환 실패")
+        return jsonify(body), status

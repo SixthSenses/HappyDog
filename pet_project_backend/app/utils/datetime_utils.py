@@ -146,6 +146,15 @@ class DateTimeUtils:
         except Exception as e:
             logger.error(f"날짜 문자열 변환 실패: {d} - {e}")
             raise ValueError(f"date 객체를 문자열로 변환할 수 없습니다: {d}")
+
+    # Backward compatibility alias (legacy code referenced to_date_str)
+    @staticmethod
+    def to_date_str(d: date) -> str:  # pragma: no cover - simple alias
+        """Deprecated alias for to_date_string (남은 레거시 호출 지원).
+
+        향후 직접 호출부를 to_date_string 으로 교체 후 이 alias 제거 가능.
+        """
+        return DateTimeUtils.to_date_string(d)
     
     @staticmethod
     def for_firestore(obj: Any) -> Any:

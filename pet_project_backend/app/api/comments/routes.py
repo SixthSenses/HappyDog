@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 from app.api.comments.schemas import CommentCreateSchema, CommentResponseSchema
+from app.utils.error_catalog import build_error
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, CommentErrors, RequestExamples, ResponseExamples
@@ -49,26 +50,39 @@ def create_comment(post_id: str):
     """
     comment_service = current_app.services['comments']
     comment_events = current_app.services['comment_events']
+    mention_service = current_app.services.get('comment_mentions')  # 멘션 서비스 (없으면 None)
     
     user_id = get_jwt_identity()
+
+    # 1차: 입력 검증
     try:
         data = CommentCreateSchema().load(request.get_json())
-        
-        # 1. 댓글 생성 (순수한 CRUD, 이벤트 데이터 반환)
-        comment_data = comment_service.create_comment(post_id, user_id, data['text'])
-        
-        # 2. 이벤트 처리 (알림 및 멘션 처리)
-        comment_events.handle_comment_created(comment_data)
-        
-        return jsonify(CommentResponseSchema().dump(comment_data['comment'])), 201
-        
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
-    except ValueError as e:  # 게시물이 없거나 작성자 정보가 없는 경우
-        return jsonify({"error_code": "RESOURCE_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+
+    text = data['text']
+
+    # 2차: 댓글 생성 + 멘션 + 이벤트 처리
+    try:
+        comment_data = comment_service.create_comment(post_id, user_id, text)
+
+        mention_data = {'mentioned_user_ids': []}
+        if mention_service:
+            try:
+                mention_data = mention_service.resolve_mentions_from_text(text, user_id)
+            except Exception as me:
+                logging.warning(f"멘션 해석 실패(무시): {me}")
+
+        comment_events.handle_comment_created(comment_data, mention_data)
+        return jsonify(CommentResponseSchema().dump(comment_data)), 201
+    except ValueError as e:  # 게시물 없음 등
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"댓글 생성 중 오류 발생 (post_id: {post_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "COMMENT_CREATION_FAILED", "message": "댓글 생성 중 오류가 발생했습니다."}), 500
+        status, body = build_error('RECORD_CREATION_FAILED', message="댓글 생성 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 @comments_bp.route('/posts/<string:post_id>/comments', methods=['GET'])
 @jwt_required(optional=True)
@@ -93,14 +107,26 @@ def get_comments(post_id: str):
     cursor = request.args.get('cursor', None, type=str)
     
     try:
-        comments, next_cursor = comment_service.get_comments_for_post(post_id, user_id, limit, cursor)
+        comments, next_cursor = comment_service.get_comments_for_post(post_id, limit, cursor)
+
+        # is_liked enrichment (batch) if user authenticated
+        if user_id:
+            try:
+                comment_ids = [c.get('comment_id') for c in comments]
+                liked_ids = comment_service.check_likes_for_comments(user_id, comment_ids)
+                for c in comments:
+                    c['is_liked'] = c.get('comment_id') in liked_ids
+            except Exception as like_err:
+                logging.warning(f"Failed to enrich comments with like info: {like_err}")
+
         return jsonify({
             "comments": CommentResponseSchema(many=True).dump(comments),
             "next_cursor": next_cursor
         }), 200
     except Exception as e:
         logging.error(f"댓글 목록 조회 중 오류 발생 (post_id: {post_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "댓글 목록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="댓글 목록 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @comments_bp.route('/comments/<string:comment_id>', methods=['DELETE'])
@@ -129,9 +155,11 @@ def delete_comment(comment_id: str):
         comment_service.delete_comment(comment_id, user_id)
         return Response(status=204)
     except PermissionError as e:
-        return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except ValueError as e:
-        return jsonify({"error_code": "NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
 
 
 @comments_bp.route('/comments/<string:comment_id>/like', methods=['POST'])
@@ -164,15 +192,24 @@ def toggle_comment_like(comment_id: str):
     try:
         # 1. 좋아요 토글 (순수한 CRUD, 이벤트 데이터 반환)
         like_data = comment_service.toggle_comment_like(user_id, comment_id)
-        
-        # 2. 좋아요 이벤트 처리 (알림 생성)
-        if like_data['liked']:  # 좋아요를 누른 경우만 알림
+        if not like_data:
+            raise Exception("LIKE_TOGGLE_INTERNAL_ERROR")
+
+        # 2. 좋아요 이벤트 처리 (알림 생성) - action 필드 사용
+        liked_now = (like_data.get('action') == 'liked')
+        if liked_now:
             comment_events.handle_comment_liked(like_data)
-        
-        return jsonify({"message": "좋아요 상태가 변경되었습니다."}), 200
+
+        return jsonify({
+            "message": "좋아요 상태가 변경되었습니다.",
+            "liked": liked_now,
+            "comment_id": comment_id
+        }), 200
         
     except ValueError as e:
-        return jsonify({"error_code": "COMMENT_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"댓글 좋아요 처리 중 오류 발생 (comment_id: {comment_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "LIKE_TOGGLE_FAILED", "message": "좋아요 처리 중 오류가 발생했습니다."}), 500
+        status, body = build_error('UPDATE_FAILED', message="좋아요 처리 중 오류가 발생했습니다.")
+        return jsonify(body), status

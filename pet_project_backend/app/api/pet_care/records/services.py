@@ -32,27 +32,28 @@ class PetCareRecordService:
             
             # 기록 객체 생성
             record = PetCareLog(
-                id=log_id,
+                log_id=log_id,
                 pet_id=pet_id,
-                user_id=record_data.get('user_id', 'system'),  # JWT에서 추출해야 함
                 record_type=record_data['record_type'],
+                timestamp=timestamp_dt,
+                searchDate=search_date,
                 data=record_data['data'],
                 memo=record_data.get('memo', ''),
-                timestamp=timestamp_dt,
-                search_date=search_date
+                user_id=record_data.get('user_id', 'system')
             )
             
             # Firestore에 저장
             doc_data = asdict(record)
             doc_data['timestamp'] = DateTimeUtils.for_firestore(record.timestamp)
-            doc_data['searchDate'] = record.search_date
+            doc_data['searchDate'] = record.searchDate
             
             self.logs_ref.document(log_id).set(doc_data)
             
             # 응답 데이터 구성
             result = asdict(record)
-            result['log_id'] = log_id
+            # timestamp / timestamp_ms 는 둘 다 ms 정수값으로 응답 (스키마 예시 준수)
             result['timestamp_ms'] = timestamp_ms
+            result['timestamp'] = timestamp_ms  # Marshmallow Int 필드 직렬화 오류 방지 (datetime → int)
             
             logging.info(f"펫케어 기록 생성됨: pet_id={pet_id}, type={record_data['record_type']}")
             return result
@@ -93,9 +94,11 @@ class PetCareRecordService:
             
             # 타임스탬프 변환
             if 'timestamp' in result:
-                timestamp = result['timestamp']
-                if hasattr(timestamp, 'timestamp'):
-                    result['timestamp_ms'] = int(timestamp.timestamp() * 1000)
+                timestamp_val = result['timestamp']
+                if hasattr(timestamp_val, 'timestamp'):
+                    ts_ms = int(timestamp_val.timestamp() * 1000)
+                    result['timestamp_ms'] = ts_ms
+                    result['timestamp'] = ts_ms  # 응답 일관성 (Int)
             
             logging.info(f"펫케어 기록 수정됨: pet_id={pet_id}, log_id={log_id}")
             return result
@@ -146,9 +149,11 @@ class PetCareRecordService:
                 
                 # 타임스탬프 변환
                 if 'timestamp' in doc_data:
-                    timestamp = doc_data['timestamp']
-                    if hasattr(timestamp, 'timestamp'):
-                        doc_data['timestamp_ms'] = int(timestamp.timestamp() * 1000)
+                    timestamp_val = doc_data['timestamp']
+                    if hasattr(timestamp_val, 'timestamp'):
+                        ts_ms = int(timestamp_val.timestamp() * 1000)
+                        doc_data['timestamp_ms'] = ts_ms
+                        doc_data['timestamp'] = ts_ms  # 직렬화 호환
                 
                 records.append(doc_data)
                 

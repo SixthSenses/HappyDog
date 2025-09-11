@@ -5,6 +5,7 @@ import re
 from dataclasses import asdict
 from firebase_admin import firestore, messaging
 from typing import Optional, Tuple
+from app.utils.text_utils import truncate_summary
 
 from app.models.notification import Notification, NotificationType
 from app.utils import metrics
@@ -68,8 +69,8 @@ class NotificationService:
             logging.error(f"발신자 정보 로드 실패(sender_id={sender_id}): {e}")
             return
 
-        # 3) 요약 정규화
-        sanitized_summary = self._sanitize_summary(target_summary)
+    # 3) 요약 정규화
+        sanitized_summary = truncate_summary(target_summary) if target_summary else None
 
         # 4) Notification 객체 & 저장
         notification = Notification(
@@ -208,14 +209,7 @@ class NotificationService:
             return False, reason
 
     # ---------------- 내부 유틸 ----------------
-    def _sanitize_summary(self, summary: Optional[str]) -> Optional[str]:
-        if summary is None:
-            return None
-        # 제어문자 제거 & 공백 정리
-        cleaned = re.sub(r"[\r\n\t]+", " ", summary).strip()
-        if len(cleaned) > self.SUMMARY_MAX_LEN:
-            cleaned = cleaned[: self.SUMMARY_MAX_LEN - 1].rstrip() + '…'
-        return cleaned
+    # _sanitize_summary 제거: truncate_summary 유틸 사용
 
     def _classify_push_error(self, exc: Exception) -> str:
         msg = str(exc).lower()

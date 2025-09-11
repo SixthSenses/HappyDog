@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 from app.api.posts.schemas import PostCreateSchema, PostUpdateSchema, PostResponseSchema
+from app.utils.error_catalog import build_error
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, PostErrors, RequestExamples, ResponseExamples
@@ -63,12 +64,15 @@ def create_post():
         
         return jsonify(PostResponseSchema().dump(new_post)), 201
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except ValueError as e:
-        return jsonify({"error_code": "RESOURCE_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"게시글 생성 중 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "POST_CREATION_FAILED", "message": "게시글 생성 중 오류가 발생했습니다."}), 500
+        status, body = build_error('RECORD_CREATION_FAILED', message="게시글 생성 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 @posts_bp.route('/', methods=['GET'])
 @jwt_required(optional=True) # 비로그인 사용자도 피드는 볼 수 있도록 허용
@@ -109,7 +113,8 @@ def get_posts():
         }), 200
     except Exception as e:
         logging.error(f"게시글 목록 조회 중 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "게시물 목록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="게시물 목록 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @posts_bp.route('/<string:post_id>', methods=['GET'])
@@ -147,7 +152,8 @@ def get_post(post_id: str):
     
     post = post_service.get_post_by_id(post_id)
     if not post:
-        return jsonify({"error_code": "POST_NOT_FOUND", "message": "게시물을 찾을 수 없습니다."}), 404
+        status, body = build_error('NOT_FOUND', message="게시물을 찾을 수 없습니다.")
+        return jsonify(body), status
     
     # 좋아요 정보 추가
     post['is_liked'] = post_like_service.is_user_liked_post(user_id, post_id)
@@ -183,11 +189,14 @@ def update_post(post_id: str):
         updated_post = post_service.update_post(post_id, user_id, data['text'])
         return jsonify(PostResponseSchema().dump(updated_post)), 200
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except PermissionError as e:
-        return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except ValueError as e: # 게시물이 없는 경우
-        return jsonify({"error_code": "POST_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
 
 
 @posts_bp.route('/<string:post_id>', methods=['DELETE'])
@@ -227,9 +236,11 @@ def delete_post(post_id: str):
         
         return Response(status=204) # 성공 시 내용 없이 204 No Content 반환
     except PermissionError as e:
-        return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except ValueError as e: # 게시물이 없는 경우
-        return jsonify({"error_code": "POST_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
 
 
 @posts_bp.route('/<string:post_id>/like', methods=['POST'])
@@ -262,7 +273,8 @@ def toggle_post_like(post_id: str):
         like_event_data = post_like_service.toggle_post_like(user_id, post_id)
         if not like_event_data:
             # 서비스 계층에서 None을 반환하는 경우는 일반적인 오류 상황
-            return jsonify({"error_code": "LIKE_TOGGLE_FAILED", "message": "좋아요 처리 중 오류가 발생했습니다."}), 500
+            status, body = build_error('UPDATE_FAILED', message="좋아요 처리 중 오류가 발생했습니다.")
+            return jsonify(body), status
         
         # 좋아요 이벤트 처리 (알림 생성)
         if like_event_data.get('action') == 'liked':
@@ -270,8 +282,8 @@ def toggle_post_like(post_id: str):
         
         return jsonify({"message": "좋아요 상태가 변경되었습니다."}), 200
     except ValueError as e:
-        # 서비스 계층에서 게시글을 찾지 못해 발생시킨 예외 처리
-        return jsonify({"error_code": "POST_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('NOT_FOUND', message=str(e))
+        return jsonify(body), status
     
     
 @posts_bp.route('/users/<string:author_id>/posts', methods=['GET'])
@@ -314,4 +326,5 @@ def get_user_posts(author_id: str):
         }), 200
     except Exception as e:
         logging.error(f"사용자 게시물 목록 조회 중 오류 발생 (author_id: {author_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "게시물 목록 조회 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="게시물 목록 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status

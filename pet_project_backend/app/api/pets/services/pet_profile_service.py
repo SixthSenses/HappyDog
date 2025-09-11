@@ -206,7 +206,6 @@ class PetProfileService:
                 gender=PetGender(pet_data['gender']),
                 breed=pet_data['breed'], 
                 birthdate=pet_data['birthdate'],
-                initial_weight=pet_data['current_weight'],
                 fur_color=pet_data.get('fur_color'),
                 health_concerns=pet_data.get('health_concerns', [])
             )
@@ -224,9 +223,10 @@ class PetProfileService:
             })
             
             # Create initial pet care settings
+            # 초기 펫케어 설정 생성: weight 제거로 goalWeight는 품종 이상 체중 or 기본값 처리 (서비스 내부 수정 예정)
             self.pet_care_setting_service.create_initial_settings_transactional(
                 transaction, pet_id=pet_id, gender=new_pet.gender.value,
-                breed=new_pet.breed, current_weight=new_pet.initial_weight
+                breed=new_pet.breed, current_weight=0.0
             )
             
             return new_pet
@@ -295,25 +295,7 @@ class PetProfileService:
             logging.error(f"Single pet policy check failed for user {user_id}: {e}", exc_info=True)
             return False
 
-    def calculate_profile_completion(self, pet: Pet) -> float:
-        """Calculate profile completion percentage.
-        
-        Args:
-            pet: Pet object
-            
-        Returns:
-            Completion percentage (0.0 - 1.0)
-        """
-        required_fields = ['name', 'gender', 'breed', 'birthdate', 'initial_weight']
-        optional_fields = ['fur_color', 'health_concerns']
-        
-        completed_required = sum(1 for field in required_fields if getattr(pet, field, None))
-        completed_optional = sum(1 for field in optional_fields if getattr(pet, field, None))
-        
-        total_fields = len(required_fields) + len(optional_fields)
-        completed_fields = completed_required + completed_optional
-        
-        return completed_fields / total_fields if total_fields > 0 else 0.0
+    # 제거: 사용되지 않는 프로필 완료도 계산 로직 (weight 제거와 함께 비활성화)
 
     # ============= Storage Integration =============
 

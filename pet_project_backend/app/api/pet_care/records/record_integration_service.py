@@ -44,15 +44,16 @@ class PetCareRecordIntegration:
             # Get pet settings for goal comparison
             settings = self.settings.get_settings(pet_id)
             
-            # Add goal analysis
-            if settings and record_data.get('search_date'):
-                goal_analysis = self._analyze_daily_goals(
-                    pet_id, 
-                    record_data['search_date'],
-                    settings
-                )
+            # record_service 는 'searchDate' 키로 반환하므로 내부 처리용 snake_case 필드 추가
+            search_date = result.get('searchDate')
+            if search_date:
+                record_data['search_date'] = search_date  # 후속 goal 분석 로직에서 사용
+
+            # Add goal analysis (settings 존재 + search_date 확보 시)
+            if settings and search_date:
+                goal_analysis = self._analyze_daily_goals(pet_id, search_date, settings)
                 result['goal_analysis'] = goal_analysis
-                
+
                 # Send achievement notifications if goals are met
                 self._send_achievement_notifications(pet_id, goal_analysis, record_data)
             
@@ -460,13 +461,11 @@ class PetCareRecordIntegration:
             # Import NotificationType enum
             from app.models.notification import NotificationType
             
-            # Use the notification service's create_notification method
-            # Since this is a pet care achievement, we'll use a custom notification type
-            # or use a general system notification type
+            # Use PET_CARE_GOAL_REACHED for achievement events
             self.notification_service.create_notification(
                 recipient_id=user_id,
-                sender_id='system',  # System-generated notification
-                n_type=NotificationType.SYSTEM,  # Assuming there's a SYSTEM type
+                sender_id='system',
+                n_type=NotificationType.PET_CARE_GOAL_REACHED,
                 target_id=pet_id,
                 target_summary=message
             )

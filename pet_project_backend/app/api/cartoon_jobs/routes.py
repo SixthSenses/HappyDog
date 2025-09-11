@@ -6,6 +6,7 @@ from marshmallow import ValidationError
 
 from app.api.cartoon_jobs.schemas import CartoonJobCreateSchema, CartoonJobResponseSchema
 from app.middleware.idempotency_middleware import idempotent_endpoint
+from app.utils.error_catalog import build_error
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, CartoonJobErrors, RequestExamples, ResponseExamples
@@ -59,29 +60,28 @@ def create_cartoon_job():
     user_id = get_jwt_identity()
     try:
         data = CartoonJobCreateSchema().load(request.get_json())
-        
+
         # 1. 작업 생성 (순수한 CRUD, 이벤트 데이터 반환)
         image_url = data['file_paths'][0]  # 첫 번째(유일한) 이미지 URL
         job_data = cartoon_job_service.create_job(
-            user_id=user_id, 
-            image_url=image_url, 
+            user_id=user_id,
+            image_url=image_url,
             user_text=data.get('user_text', '')
         )
-        
+
         # 2. 이벤트 처리 (백그라운드 처리 시작)
         job_events.handle_job_created(job_data)
-        
+
         # 3. 작업 정보 반환
         return jsonify(CartoonJobResponseSchema().dump(job_data['job'])), 202
         
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"만화 작업 생성 실패 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({
-            "error_code": "JOB_CREATION_FAILED", 
-            "message": "만화 작업 생성 중 오류가 발생했습니다."
-        }), 500
+        status, body = build_error('RECORD_CREATION_FAILED', message="만화 작업 생성 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @cartoon_jobs_bp.route('/<string:job_id>', methods=['GET'])
@@ -120,19 +120,15 @@ def get_cartoon_job_status(job_id: str):
     try:
         job = cartoon_job_service.get_job_status(job_id, user_id)
         if not job:
-            return jsonify({
-                "error_code": "JOB_NOT_FOUND_OR_FORBIDDEN", 
-                "message": "작업을 찾을 수 없거나 조회 권한이 없습니다."
-            }), 404
+            status, body = build_error('NOT_FOUND', message="작업을 찾을 수 없거나 조회 권한이 없습니다.")
+            return jsonify(body), status
             
         return jsonify(CartoonJobResponseSchema().dump(job)), 200
         
     except Exception as e:
         logging.error(f"만화 작업 조회 중 오류 발생 (job_id: {job_id}): {e}", exc_info=True)
-        return jsonify({
-            "error_code": "INTERNAL_SERVER_ERROR", 
-            "message": "작업 조회 중 오류가 발생했습니다."
-        }), 500
+        status, body = build_error('FETCH_FAILED', message="작업 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @cartoon_jobs_bp.route('/<string:job_id>', methods=['DELETE'])
@@ -172,17 +168,16 @@ def cancel_cartoon_job(job_id: str):
     try:
         cancel_data = cartoon_job_service.cancel_job(job_id, user_id)
         return jsonify(CartoonJobResponseSchema().dump(cancel_data['job'])), 200
-        
     except PermissionError as e:
-        return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except ValueError as e:  # 상태가 취소 가능하지 않은 경우
-        return jsonify({"error_code": "INVALID_STATE_FOR_CANCEL", "message": str(e)}), 409  # Conflict
+        status, body = build_error('OUT_OF_RANGE', message=str(e))
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"만화 작업 취소 중 오류 발생 (job_id: {job_id}): {e}", exc_info=True)
-        return jsonify({
-            "error_code": "JOB_CANCEL_FAILED", 
-            "message": "작업 취소 중 오류가 발생했습니다."
-        }), 500
+        status, body = build_error('UPDATE_FAILED', message="작업 취소 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @cartoon_jobs_bp.route('/health', methods=['GET'])
@@ -224,10 +219,7 @@ def job_health():
         }
         
         return jsonify(health_data), 200
-        
     except Exception as e:
         logging.error(f"작업 건강 상태 조회 실패: {e}", exc_info=True)
-        return jsonify({
-            "error_code": "HEALTH_CHECK_FAILED",
-            "message": "건강 상태 조회 중 오류가 발생했습니다."
-        }), 500
+        status, body = build_error('SERVICE_UNAVAILABLE', message="건강 상태 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status

@@ -14,6 +14,7 @@ from flask_jwt_extended import (
 from marshmallow import ValidationError
 
 from app.api.auth.schemas import SocialLoginSchema, LogoutRequestSchema
+from app.utils.error_catalog import build_error
 from app.services.google_auth_service import GoogleAuthService
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
@@ -85,7 +86,8 @@ def google_authorize():
         }), 200
     except Exception as e:
         logging.error(f"인증 URL 생성 중 오류: {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "인증 URL 생성 중 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="인증 URL 생성 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 @auth_bp.route('/social', methods=['POST'])
 @api_doc(
@@ -137,7 +139,8 @@ def social_login():
         )
 
         if not google_user_info:
-            return jsonify({"error_code": "INVALID_AUTH_CODE", "message": "유효하지 않은 인증 코드이거나 사용자 정보 조회에 실패했습니다."}), 401
+            status, body = build_error('FORBIDDEN', message="유효하지 않은 인증 코드이거나 사용자 정보 조회에 실패했습니다.")
+            return jsonify(body), status
 
         # Use DI container pattern for consistent service access
         auth_service = current_app.services['auth']
@@ -160,7 +163,8 @@ def social_login():
         }), 200
     except Exception as e:
         logging.error(f"소셜 로그인 중 예외 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "서버 내부 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="서버 내부 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 # 브라우저 콜백용: GET /api/auth/social?code=...
@@ -197,7 +201,8 @@ def social_login_callback():
     try:
         code = request.args.get('code')
         if not code:
-            return jsonify({"error_code": "INVALID_REQUEST", "message": "code 파라미터가 필요합니다."}), 400
+            status, body = build_error('VALIDATION_ERROR', message="code 파라미터가 필요합니다.")
+            return jsonify(body), status
 
         client_secrets_path = current_app.config['GOOGLE_CLIENT_SECRETS_PATH']
         if not client_secrets_path:
@@ -211,7 +216,8 @@ def social_login_callback():
         )
 
         if not google_user_info:
-            return jsonify({"error_code": "INVALID_AUTH_CODE", "message": "유효하지 않은 인증 코드이거나 사용자 정보 조회에 실패했습니다."}), 401
+            status, body = build_error('FORBIDDEN', message="유효하지 않은 인증 코드이거나 사용자 정보 조회에 실패했습니다.")
+            return jsonify(body), status
 
         # Use DI container pattern for consistent service access
         auth_service = current_app.services['auth']
@@ -234,7 +240,8 @@ def social_login_callback():
         }), 200
     except Exception as e:
         logging.error(f"소셜 로그인 콜백 처리 중 예외 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "서버 내부 오류가 발생했습니다."}), 500
+        status, body = build_error('FETCH_FAILED', message="서버 내부 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 # --- 토큰 재발급 엔드포인트 ---
@@ -325,11 +332,13 @@ def logout():
         return jsonify({"message": "로그아웃 되었습니다."}), 200
 
     except ValidationError as e:
-         return jsonify({"error_code": "VALIDATION_ERROR", "details": e.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=e.messages)
+        return jsonify(body), status
     except jwt.PyJWTError as e:
-        # JWT 해독 자체에서 오류가 발생한 경우 (예: 토큰 형식이 잘못됨)
         logging.error(f"JWT 해독 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "INVALID_TOKEN", "message": "유효하지 않은 토큰입니다."}), 422
+        status, body = build_error('FORBIDDEN', message="유효하지 않은 토큰입니다.")
+        return jsonify(body), status
     except Exception as e:
         logging.error(f"로그아웃 처리 중 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "LOGOUT_FAILED", "message": "로그아웃 처리 중 오류가 발생했습니다."}), 500
+        status, body = build_error('UPDATE_FAILED', message="로그아웃 처리 중 오류가 발생했습니다.")
+        return jsonify(body), status

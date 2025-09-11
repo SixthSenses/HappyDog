@@ -8,6 +8,7 @@
 import logging
 import re
 from typing import Dict, Any, List, Optional
+from app.utils.text_utils import truncate_summary
 from flask import current_app
 
 
@@ -21,14 +22,7 @@ class CommentEventService:
     def init_app(self, app):
         self.app = app
 
-    def _sanitize_summary(self, summary: Optional[str]) -> Optional[str]:
-        """알림용 요약 텍스트를 정리합니다 (기존 로직 유지)."""
-        if summary is None:
-            return None
-        cleaned = re.sub(r"[\r\n\t]+", " ", summary).strip()
-        if len(cleaned) > 80:
-            cleaned = cleaned[:79].rstrip() + '…'
-        return cleaned
+    # _sanitize_summary 제거: truncate_summary 사용
 
     def handle_comment_created(self, comment_data: Dict[str, Any], mention_data: Dict[str, Any]) -> None:
         """

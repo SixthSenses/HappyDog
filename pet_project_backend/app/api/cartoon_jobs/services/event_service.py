@@ -1,7 +1,7 @@
 # app/api/cartoon_jobs/services/event_service.py
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from flask import Flask
 
 
@@ -121,39 +121,34 @@ class CartoonJobEventService:
             logging.error(f"작업 실패 이벤트 처리 실패 (job_id: {update_data.get('job_id')}): {e}", exc_info=True)
 
     def handle_job_cancelled(self, job_data: Dict[str, Any]):
-        """
-        작업이 취소되었을 때 처리합니다.
-        
-        Args:
-            job_data: 취소된 작업 정보
+        """전이 상태(CANCELING)를 거쳐 최종적으로 취소가 확정된 경우 처리.
+
+        PR3: FAILED 로 뭉뚱그렸던 과거 로직을 분리하여 CANCELLED 상태를 명확히 함.
         """
         try:
             from flask import current_app
-            
+            from app.models.cartoon_job import CartoonJobStatus
+
             job_id = job_data['job_id']
             user_id = job_data['user_id']
-            
             logging.info(f"작업 취소 이벤트 처리 시작: {job_id}")
-            
-            # 1. 백그라운드 프로세서에서 작업 취소 시도
-            job_processor = current_app.services['job_processor']
-            cancelled = job_processor.cancel_job(job_id)
-            
-            # 2. 작업 상태를 FAILED로 최종 변경 (취소도 일종의 실패)
+
             job_service = current_app.services['cartoon_jobs']
-            from app.models.cartoon_job import CartoonJobStatus
-            
-            result_data = {
-                'error_message': '사용자가 작업을 취소했습니다'
-            }
-            job_service.update_job_status(job_id, CartoonJobStatus.FAILED, result_data)
-            
-            # 3. 취소 알림 발송
+            job_processor = current_app.services['job_processor']
             job_integration = current_app.services['job_integration']
+
+            # 워커가 아직 실행중이면 취소 시도 (best-effort)
+            cancelled = job_processor.cancel_job(job_id)
+
+            # 이미 CANCELING 상태여야 함 → 최종 CANCELLED 로 전환
+            result_data = { 'error_message': '사용자가 작업을 취소했습니다' }
+            update_data = job_service.update_job_status(job_id, CartoonJobStatus.CANCELLED, result_data)
+
+            # 취소 전용 알림 (기존 실패 알림 재사용 가능하나 UX 분리를 위해 전용 메소드 고려)
+            # 현재 통합 서비스에 전용 메소드 없으므로 failure_notification 재사용
             job_integration.send_failure_notification(user_id, job_id, "작업이 취소되었습니다")
-            
-            logging.info(f"작업 취소 처리 완료: {job_id} (백그라운드 취소: {cancelled})")
-            
+
+            logging.info(f"작업 취소 처리 완료: {job_id} (executor_cancel={cancelled})")
         except Exception as e:
             logging.error(f"작업 취소 이벤트 처리 실패 (job_id: {job_data.get('job_id')}): {e}", exc_info=True)
 

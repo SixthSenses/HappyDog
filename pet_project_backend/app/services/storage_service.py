@@ -120,3 +120,21 @@ class StorageService:
         except Exception as e:
             logging.error(f"파일 공개 전환 실패: {e}", exc_info=True)
             raise
+
+    def promote_object(self, source_path: str, dest_path: str, delete_source: bool = True) -> None:
+        """Copy a blob to a new destination (promotion) and optionally delete source.
+
+        Used for promoting biometric artifacts from staging to verified.
+        """
+        if not self.bucket:
+            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
+        source_blob = self.bucket.blob(source_path)
+        if not source_blob.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {source_path}")
+        dest_blob = self.bucket.blob(dest_path)
+        self.bucket.copy_blob(source_blob, self.bucket, new_name=dest_path)
+        if delete_source:
+            try:
+                source_blob.delete()
+            except Exception as e:  # non-fatal
+                logging.warning(f"원본 삭제 실패(무시): {e}")

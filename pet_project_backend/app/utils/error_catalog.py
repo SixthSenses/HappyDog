@@ -23,6 +23,12 @@ class ErrorSpec:
     retriable: bool = False
     default_message: Optional[str] = None
 
+    # Backward compatibility: legacy code references .message
+    # New code should prefer .default_message or build_error.
+    @property
+    def message(self) -> Optional[str]:  # pragma: no cover - thin accessor
+        return self.default_message
+
 
 ERRORS: Dict[str, ErrorSpec] = {
     # Validation & Permission
@@ -45,6 +51,22 @@ ERRORS: Dict[str, ErrorSpec] = {
     'RECORD_CREATION_FAILED': ErrorSpec('RECORD_CREATION_FAILED', 'INTERNAL', 500, True, '생성 중 오류 발생'),
     'UPDATE_FAILED': ErrorSpec('UPDATE_FAILED', 'INTERNAL', 500, True, '수정 중 오류 발생'),
     'DELETE_FAILED': ErrorSpec('DELETE_FAILED', 'INTERNAL', 500, True, '삭제 중 오류 발생'),
+    'SERVICE_UNAVAILABLE': ErrorSpec('SERVICE_UNAVAILABLE', 'SERVICE', 503, True, '서비스를 현재 사용할 수 없습니다.'),
+
+    # Biometric domain (PR2B)
+    'BIO_IMAGE_MISSING': ErrorSpec('BIO_IMAGE_MISSING', 'BIOMETRIC', 400, False, 'Required biometric image file is missing.'),
+    'BIO_INVALID_IMAGE': ErrorSpec('BIO_INVALID_IMAGE', 'BIOMETRIC', 400, False, 'Uploaded image format is invalid or unreadable.'),
+    'BIO_ALREADY_VERIFIED': ErrorSpec('BIO_ALREADY_VERIFIED', 'BIOMETRIC', 409, False, 'Biometric already verified for this pet.'),
+    'BIO_DUPLICATE_CANDIDATE': ErrorSpec('BIO_DUPLICATE_CANDIDATE', 'BIOMETRIC', 409, False, 'A similar biometric candidate already exists in staging.'),
+    'BIO_PROCESSING_FAILED': ErrorSpec('BIO_PROCESSING_FAILED', 'BIOMETRIC', 500, False, 'Biometric image processing failed.'),
+    'BIO_ALREADY_PROCESSED': ErrorSpec('BIO_ALREADY_PROCESSED', 'BIOMETRIC', 409, False, 'This biometric image has already been processed.'),
+
+    # Cartoon job domain (PR3)
+    'JOB_CREATION_FAILED': ErrorSpec('JOB_CREATION_FAILED', 'INTERNAL', 500, True, '만화 작업 생성 중 오류가 발생했습니다.'),
+    'JOB_CANCEL_FAILED': ErrorSpec('JOB_CANCEL_FAILED', 'INTERNAL', 500, True, '작업 취소 중 오류가 발생했습니다.'),
+    'INVALID_STATE_FOR_CANCEL': ErrorSpec('INVALID_STATE_FOR_CANCEL', 'VALIDATION', 409, False, '현재 상태에서는 작업을 취소할 수 없습니다.'),
+    'HEALTH_CHECK_FAILED': ErrorSpec('HEALTH_CHECK_FAILED', 'SERVICE', 503, True, '건강 상태 조회 중 오류가 발생했습니다.'),
+    'JOB_NOT_FOUND_OR_FORBIDDEN': ErrorSpec('JOB_NOT_FOUND_OR_FORBIDDEN', 'NOT_FOUND', 404, False, '작업을 찾을 수 없거나 권한이 없습니다.'),
 }
 
 

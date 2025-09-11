@@ -89,9 +89,10 @@ class CartoonJobProcessor:
                     logging.error(f"작업을 찾을 수 없음: {job_id}")
                     return {"success": False, "error": "작업을 찾을 수 없습니다"}
                 
-                if job_data.get('status') == CartoonJobStatus.CANCELING.value:
-                    logging.info(f"취소 요청으로 작업 중단: {job_id}")
-                    job_events.handle_job_cancelled(job_data)
+                if job_data.get('status') in (CartoonJobStatus.CANCELING.value, CartoonJobStatus.CANCELLED.value):
+                    logging.info(f"작업이 취소 단계이므로 처리 중단: {job_id}")
+                    if job_data.get('status') == CartoonJobStatus.CANCELING.value:
+                        job_events.handle_job_cancelled(job_data)
                     return {"success": False, "error": "작업이 취소되었습니다"}
                 
                 # 상태를 PROCESSING으로 변경
@@ -108,9 +109,10 @@ class CartoonJobProcessor:
                     logging.error(f"작업을 찾을 수 없음(완료 전): {job_id}")
                     return {"success": False, "error": "작업을 찾을 수 없습니다"}
                     
-                if job_data.get('status') == CartoonJobStatus.CANCELING.value:
-                    logging.info(f"취소 요청으로 작업 중단(완료 전): {job_id}")
-                    job_events.handle_job_cancelled(job_data)
+                if job_data.get('status') in (CartoonJobStatus.CANCELING.value, CartoonJobStatus.CANCELLED.value):
+                    logging.info(f"취소 단계 감지(완료 직전): {job_id}")
+                    if job_data.get('status') == CartoonJobStatus.CANCELING.value:
+                        job_events.handle_job_cancelled(job_data)
                     return {"success": False, "error": "작업이 취소되었습니다"}
                 
                 # 4. 결과 처리

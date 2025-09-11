@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import request, current_app, jsonify
 from marshmallow import ValidationError
+from app.utils.error_catalog import build_error
 
 # 적용 대상: 멱등이 요구되는 POST/PATCH 업서트 계열
 
@@ -53,24 +54,15 @@ def idempotent_endpoint(apply_when_methods=('POST', 'PUT', 'PATCH')):
                     handler=handler
                 )
             except ValidationError as ve:
-                return jsonify({"error_code": "VALIDATION_ERROR", "details": ve.messages}), 400
+                status, body = build_error('VALIDATION_ERROR', details=ve.messages)
+                return jsonify(body), status
             except Exception as e:
                 from werkzeug.exceptions import Conflict
                 if isinstance(e, Conflict):
-                    # 충돌 세분화: 다른 payload 재사용
-                    return jsonify({
-                        "error_code": "IDEMPOTENCY_KEY_REUSED_DIFFERENT_BODY",
-                        "category": "CONFLICT",
-                        "retriable": False,
-                        "message": "동일한 Idempotency Key로 다른 요청을 시도했습니다.",
-                        "details": {"path": request.path}
-                    }), 409
-                return jsonify({
-                    "error_code": "IDEMPOTENCY_FAILED",
-                    "category": "INTERNAL",
-                    "retriable": True,
-                    "message": "멱등 처리 중 오류"
-                }), 500
+                    status, body = build_error('IDEMPOTENCY_KEY_REUSED_DIFFERENT_BODY', details={"path": request.path})
+                    return jsonify(body), status
+                status, body = build_error('FETCH_FAILED', message="멱등 처리 중 오류")
+                return jsonify(body), status
 
             resp = jsonify(response_body)
             resp.status_code = status_code

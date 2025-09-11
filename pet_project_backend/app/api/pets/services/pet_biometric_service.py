@@ -18,9 +18,22 @@ from firebase_admin import firestore
 from firebase_admin.firestore import Transaction
 
 from app.services.storage_service import StorageService
+from app.core.constants import (
+    NOSE_STAGING_PREFIX,
+    NOSE_VERIFIED_PREFIX,
+    EYE_ANALYSIS_PREFIX,
+)
+from app.utils.image_validation import validate_image_bytes
+from app.utils.error_catalog import build_error, ERRORS
 from app.services.firestore_service import save_analysis_result
-from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline
-from eyes_models.eyes_lib.inference import EyeAnalyzer
+try:  # Optional heavy deps guarded for environments lacking ML packages
+    from nose_lib.pipelines.nose_print_pipeline import NosePrintPipeline  # type: ignore
+except Exception:  # pragma: no cover
+    NosePrintPipeline = None  # type: ignore
+try:
+    from eyes_models.eyes_lib.inference import EyeAnalyzer  # type: ignore
+except Exception:  # pragma: no cover
+    EyeAnalyzer = None  # type: ignore
 
 
 @dataclass
@@ -29,7 +42,9 @@ class BiometricAnalysisResult:
     success: bool
     confidence: Optional[float] = None
     features: Optional[Dict[str, Any]] = None
+    # Prefer returning an error_code (aligned with central catalog). Keep error_message for backward compatibility.
     error_message: Optional[str] = None
+    error_code: Optional[str] = None
     analysis_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -38,8 +53,8 @@ class PetBiometricService:
     """Service for managing pet biometric analysis and ML pipeline integration."""
 
     def __init__(self, storage_service: StorageService, 
-                 nose_pipeline: Optional[NosePrintPipeline] = None,
-                 eye_analyzer: Optional[EyeAnalyzer] = None):
+                 nose_pipeline: Optional[Any] = None,
+                 eye_analyzer: Optional[Any] = None):
         self.db = firestore.client()
         self.pets_ref = self.db.collection('pets')
         self.storage_service = storage_service
@@ -99,17 +114,55 @@ class PetBiometricService:
             BiometricAnalysisResult with analysis outcome
         """
         if not self.nose_analysis_available:
-            return BiometricAnalysisResult(
-                success=False,
-                error_message="비문 분석 서비스를 사용할 수 없습니다. 나중에 다시 시도해주세요."
-            )
+            spec = ERRORS['SERVICE_UNAVAILABLE']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
         # Check if pet is already verified
         if pet_verification_status:
             logging.info(f"Pet {pet_id} is already verified. Skipping nose print registration.")
+            spec = ERRORS['BIO_ALREADY_VERIFIED']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
+
+        # Path sanity: allow legacy paths and adapt if possible
+        if not file_path.startswith(f"{NOSE_STAGING_PREFIX}{user_id}"):
+            if file_path.startswith("uploads/nose_prints/"):
+                logging.warning(f"Legacy nose path detected, adapting: {file_path}")
+                # 구 패턴: uploads/nose_prints/<...>  → staging/<user_id>/<original_filename>
+                original_name = file_path.split('/')[-1]
+                file_path = f"{NOSE_STAGING_PREFIX}{user_id}/{original_name}"  # 재매핑
+            else:
+                logging.warning(f"Nose print path invalid (unsupported prefix): {file_path}")
+                spec = ERRORS['BIO_IMAGE_MISSING']
+                return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message, metadata={"status": "INVALID_PREFIX"})
+
+        # Lightweight image validation (download bytes and check magic)
+        try:
+            img_bytes = self.storage_service.download_as_bytes(file_path)
+        except FileNotFoundError:
+            spec = ERRORS['BIO_IMAGE_MISSING']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
+        except Exception as e:  # treat as processing failure
+            logging.error(f"Download failed for nose print {file_path}: {e}")
+            spec = ERRORS['BIO_PROCESSING_FAILED']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
+
+        validation = validate_image_bytes(img_bytes)
+        if not validation.ok:
+            # More diagnostic metadata so 클라이언트가 원인(빈 파일 / 포맷 등)을 알 수 있도록 한다.
+            spec = ERRORS['BIO_INVALID_IMAGE']
+            size = len(img_bytes) if img_bytes is not None else 0
+            logging.warning(
+                f"Nose print image validation failed for pet {pet_id}: error={validation.error}, size={size} bytes, path={file_path}"
+            )
             return BiometricAnalysisResult(
-                success=True,
-                metadata={"status": "ALREADY_VERIFIED", "message": "이미 비문 인증이 완료된 반려동물입니다."}
+                success=False,
+                error_code=spec.code,
+                error_message=spec.default_message,
+                metadata={
+                    "status": "INVALID_IMAGE",
+                    "validation_error": validation.error,
+                    "size_bytes": size
+                }
             )
         
         logging.info(f"Starting nose print registration for pet {pet_id}")
@@ -119,6 +172,13 @@ class PetBiometricService:
             result = self.nose_pipeline.process_image(self.storage_service, file_path)
             status = result.get("status")
 
+            # 상태 → 에러코드/메타데이터 매핑 표
+            status_map = {
+                'DUPLICATE': ('BIO_DUPLICATE_CANDIDATE', '잠재적 중복 비문입니다.'),
+                'INVALID_IMAGE': ('BIO_INVALID_IMAGE', '유효한 비문 패턴이 아닙니다.'),
+                'ERROR': ('BIO_PROCESSING_FAILED', '비문 처리 오류'),
+            }
+
             if status == "SUCCESS":
                 logging.info(f"Nose print processing successful for pet {pet_id}. Updating database...")
                 
@@ -127,7 +187,14 @@ class PetBiometricService:
                 
                 @firestore.transactional
                 def _update_nose_print_transactional(transaction: Transaction):
-                    public_url = self.storage_service.make_public_and_get_url(file_path)
+                    # Promote to verified folder
+                    verified_path = file_path.replace(NOSE_STAGING_PREFIX, NOSE_VERIFIED_PREFIX, 1)
+                    try:
+                        self.storage_service.promote_object(file_path, verified_path)
+                        public_url = self.storage_service.make_public_and_get_url(verified_path)
+                    except Exception as e:
+                        logging.error(f"Promotion failed for {file_path} -> {verified_path}: {e}")
+                        raise
                     update_data = {
                         "is_verified": True,
                         "nose_print_url": public_url,
@@ -150,24 +217,24 @@ class PetBiometricService:
                     )
                 except Exception as e:
                     logging.error(f"Failed to update nose print data for pet {pet_id}: {e}")
-                    return BiometricAnalysisResult(
-                        success=False,
-                        error_message="비문 등록 중 데이터베이스 오류가 발생했습니다."
-                    )
+                    spec = ERRORS['BIO_PROCESSING_FAILED']
+                    return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
             else:
-                logging.warning(f"Nose print processing failed for pet {pet_id}. Status: {status}")
+                # 실패/중단 케이스 상세 매핑
+                code, msg = status_map.get(status, ('BIO_PROCESSING_FAILED', '비문 처리 실패'))
+                logging.warning(f"Nose print processing non-success for pet {pet_id}. Status: {status} -> {code}")
+                spec = ERRORS.get(code, ERRORS['BIO_PROCESSING_FAILED'])
                 return BiometricAnalysisResult(
                     success=False,
-                    error_message=result.get('message', '비문 분석에 실패했습니다.'),
+                    error_code=spec.code,
+                    error_message=msg,
                     metadata=result
                 )
                 
         except Exception as e:
             logging.error(f"Nose print analysis failed for pet {pet_id}: {e}", exc_info=True)
-            return BiometricAnalysisResult(
-                success=False,
-                error_message=f"비문 분석 중 오류가 발생했습니다: {str(e)}"
-            )
+            spec = ERRORS['BIO_PROCESSING_FAILED']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
     def verify_nose_print(self, pet_id: str, file_path: str) -> BiometricAnalysisResult:
         """Verify nose print against registered prints.
@@ -180,10 +247,8 @@ class PetBiometricService:
             BiometricAnalysisResult with verification outcome
         """
         if not self.nose_analysis_available:
-            return BiometricAnalysisResult(
-                success=False,
-                error_message="비문 검증 서비스를 사용할 수 없습니다."
-            )
+            spec = ERRORS['SERVICE_UNAVAILABLE']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
         try:
             # Process verification image
@@ -196,10 +261,8 @@ class PetBiometricService:
             )
         except Exception as e:
             logging.error(f"Nose print verification failed for pet {pet_id}: {e}", exc_info=True)
-            return BiometricAnalysisResult(
-                success=False,
-                error_message=f"비문 검증 중 오류가 발생했습니다: {str(e)}"
-            )
+            spec = ERRORS['BIO_PROCESSING_FAILED']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
     # ============= Eye Pattern Analysis =============
 
@@ -215,10 +278,8 @@ class PetBiometricService:
             BiometricAnalysisResult with analysis outcome
         """
         if not self.eye_analysis_available:
-            return BiometricAnalysisResult(
-                success=False,
-                error_message="안구 분석 서비스를 사용할 수 없습니다. 나중에 다시 시도해주세요."
-            )
+            spec = ERRORS['SERVICE_UNAVAILABLE']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
         logging.info(f"Starting eye analysis for pet {pet_id}")
         
@@ -229,16 +290,12 @@ class PetBiometricService:
                 logging.info(f"Image downloaded successfully for pet {pet_id}")
             except FileNotFoundError:
                 logging.error(f"Image file not found in GCS for pet {pet_id}: {file_path}")
-                return BiometricAnalysisResult(
-                    success=False,
-                    error_message="GCS에서 분석할 이미지를 찾을 수 없습니다."
-                )
+                spec = ERRORS['BIO_IMAGE_MISSING']
+                return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
             except Exception as e:
                 logging.error(f"Failed to download image for pet {pet_id}: {e}")
-                return BiometricAnalysisResult(
-                    success=False,
-                    error_message=f"이미지 다운로드 중 오류가 발생했습니다: {str(e)}"
-                )
+                spec = ERRORS['BIO_PROCESSING_FAILED']
+                return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
             # Run eye analysis
             try:
@@ -247,10 +304,8 @@ class PetBiometricService:
                 logging.info(f"Eye analysis completed for pet {pet_id}. Disease: {disease_name}, Probability: {probability}")
             except Exception as e:
                 logging.error(f"Eye analysis prediction failed for pet {pet_id}: {e}")
-                return BiometricAnalysisResult(
-                    success=False,
-                    error_message=f"안구 분석 중 오류가 발생했습니다: {str(e)}"
-                )
+                spec = ERRORS['BIO_PROCESSING_FAILED']
+                return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
             # Make image public (non-critical operation)
             try:
@@ -291,10 +346,8 @@ class PetBiometricService:
             
         except Exception as e:
             logging.error(f"Eye analysis failed for pet {pet_id}: {e}", exc_info=True)
-            return BiometricAnalysisResult(
-                success=False,
-                error_message=f"안구 분석 중 예상치 못한 오류가 발생했습니다: {str(e)}"
-            )
+            spec = ERRORS['BIO_PROCESSING_FAILED']
+            return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
     # ============= Batch Processing (Future Enhancement) =============
 
