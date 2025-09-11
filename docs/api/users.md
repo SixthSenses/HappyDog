@@ -1,38 +1,56 @@
 # users API
 
-사용자(users) 도메인 API 요약입니다.
+실제 코드(app/api/users/routes.py) 기준 최신 상태. 일부 기존 문서 엔드포인트는 Deprecated 혹은 제거됨.
 
-## 엔드포인트 요약
+## 엔드포인트
 
-| Method | Path | Auth | 역할/설명 | Status |
-|---|---|---|---|---|
-| GET | /api/users/{user_id} | optional | 공개 프로필 + post_count | 200 |
-| PATCH | /api/users/me/profile-image | jwt_required | file_path 기반 프로필 이미지 갱신 | 200, 401 |
-| DELETE | /api/users/me | jwt_required | 계정 삭제(Firebase Auth) | 204, 401, 500 |
-| GET | /api/users/me/notification-preferences | jwt_required | 알림 개인 설정 조회 | 200, 401 |
-| PATCH | /api/users/me/notification-preferences | jwt_required | 알림 개인 설정 업데이트 | 200, 400, 401, 500 |
-| POST | /api/users/me/fcm-token | jwt_required | FCM 토큰 등록/업데이트 | 200, 401 |
-| GET | /api/users/{user_id}/summary | optional | 공개 사용자 요약 + (pet_id) 반려견 요약 | 200, 500 |
-| GET | /api/users/me/summary | jwt_required | 내 프로필 + 단일 반려견 + 해당 케어 설정 요약 | 200, 500 |
-| GET | /api/users/me/profile | jwt_required | 내 프로필 요약(alias of /me/summary) | 200, 500 |
+| Method | Path | Auth | 설명 | 상태코드 (성공) | 비고 |
+|---|---|---|---|---|---|
+| GET | /api/users/{user_id}/public | 선택 | [DEPRECATED] 공개 사용자 기본 정보 | 200 | /api/pets/profile?view=social&user_id= 대체 |
+| GET | /api/users/me | JWT | 내 기본 정보 (user_id, nickname, email, has_pet, pet_id) | 200 | |
+| GET | /api/users/me/summary | JWT | 사용자 + 단일 펫 + 펫케어 설정 통합 | 200 | 마이페이지/프로필 공용 |
+| GET | /api/users/me/notification-preferences | JWT | 알림 설정 조회 | 200 | |
+| PUT | /api/users/me/notification-preferences | JWT | 알림 설정 갱신 | 200 | PATCH 아님 |
+| PUT | /api/users/me/fcm-token | JWT | FCM 토큰 업데이트 | 200 | POST 아님 |
 
-정책/비고
-- 1명=1펫 정책을 따릅니다. 서버가 사용자의 첫/유일 펫을 자동으로 해석하여 /me/summary 응답의 pet에 포함합니다.
-- 기존 selected-pet 개념/엔드포인트는 제거되었습니다. 클라이언트는 별도의 선택 저장 없이 /me/summary를 사용하세요.
+문서에 있었던 다음 엔드포인트는 현재 코드에 없음: PATCH /me/profile-image, DELETE /me, GET /{user_id}/summary, GET /me/profile (alias). 필요 시 별도 구현 후 문서화.
 
-## 스키마/데이터 타입
+## 알림 설정 스키마
+NotificationPreferencesSchema (요청/응답 동일):
+{
+	"push_enabled": bool,
+	"email_enabled": bool,
+	"marketing_enabled": bool
+}
+모두 boolean, 부분 업데이트 미지원(전체 payload 필요).
 
-| 스키마 | 필드 | 타입 | 비고 |
-|---|---|---|---|
-| UserPublicResponseSchema | user_id | UUID |  |
-|  | nickname | string |  |
-|  | post_count | int | profile_image_url은 Pet 정보에서 가져옴 |
-| FCMTokenSchema | fcm_token | string |  |
-| NotificationPreferencesSchema | mode | string|null | optional |
-|  | types | object{ [type:string]: boolean } | optional |
+## FCM 토큰
+PUT /api/users/me/fcm-token
+Request: { "fcm_token": "string" }
+성공 시 {"message": "FCM 토큰이 업데이트되었습니다."}
+이전 토큰(cleanup)은 notification 서비스가 주기적으로 정리.
 
-## Persistence & Services
+## 통합 요약 (/me/summary) 응답 예
+{
+	"user": { user_id, nickname, post_count? },
+	"pet": { pet_id, name, breed, profile_image_url, is_verified, ... },
+	"pet_care_settings": { daily_meal_count, target_daily_meal_count, target_daily_activity_minutes, target_weight }
+}
+pet 혹은 settings 없으면 null/생략될 수 있음.
 
-| 항목 | 내용 |
+## 오류 코드 (주요)
+| 상황 | error_code |
 |---|---|
-| users | 프로필, fcm_token, notification_preferences 저장 |
+| 사용자 미존재 | USER_NOT_FOUND |
+| 인증 누락/만료 | MISSING_JWT / INVALID_JWT |
+| 스키마 검증 실패(알림/FCM) | VALIDATION_ERROR |
+| 내부 조회 실패 | FETCH_FAILED |
+| 업데이트 실패(알림/FCM) | UPDATE_FAILED |
+
+## 데이터 저장
+| 컬렉션 | 내용 |
+|---|---|
+| users | 기본 프로필, fcm_token, notification_preferences |
+
+프로필 이미지 URL 노출은 Pet 프로필을 통해 통합(사용자 문서 단독 제공 X).
+

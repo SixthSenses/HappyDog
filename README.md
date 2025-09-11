@@ -1,24 +1,41 @@
-## HappyDog Backend
+# API Reference — Domain Index
 
-이 저장소는 Flask + Firebase(Firestore/Storage) 기반 백엔드입니다. 최신 API 문서는 도메인별로 분리되어 있습니다.
+문서가 길어 유지보수 불편이 커져, 도메인별 파일로 분리했습니다. 
 
-### 시작하기
-- 아나콘다 가상환경 'happydog-backend' 반드시 실행
-- 실행(Windows, cmd): `pet_project_backend/` 폴더에서 서버 실행. 세부는 `pet_project_backend/README_SETTING.md`와 환경 파일(`envs/`) 참고.
-- 환경 변수: `.github/copilot-instructions.md`와 `pet_project_backend/app/core/config.py` 설명 참조.
+## 공통 규약
 
-### API 문서 (도메인별)
-- 인덱스: `README.tables.md`
-- 세부 문서: `docs/api/` 폴더의 각 md 파일(auth, pets, pet_care, posts, comments, notifications, cartoon_jobs, uploads, breeds, users).
-- 최근 변경(2025-09): notifications summary 정규화/토큰 정리, 펫케어 goal 달성 알림 도입.
+| 항목 | 내용 |
+|---|---|
+| 시간/타임존 | UTC 고정. Firestore Timestamp는 DateTimeUtils.for_firestore로 저장. |
+| 에러 포맷 | { error_code, message?, details? } (전역 ValidationError 핸들러 존재) |
+| 인증 | flask_jwt_extended 기반. 대부분 엔드포인트에 @jwt_required 적용(명시된 optional 제외). |
 
-### 코드 가이드
-- 블루프린트/서비스/미들웨어/에러 규약: `.github/copilot-instructions.md` 요약 참조.
-- 표준 에러 응답: `app/utils/error_catalog.py` 기반.
-- 멱등 처리: `app/middleware/idempotency_middleware.py` 참고.
+### 자료형 표기 규칙
 
-### 참고
-- 이전 “Minimal Spec” 문서는 보관됨: `docs/archived/README.minimal-legacy.md`
+| 표기 | 의미 |
+|---|---|
+| string | 문자열 (UUID/URL/ISO8601는 별도 표기) |
+| int / float | 숫자형 |
+| boolean | 불리언 |
+| ISO8601 | UTC 날짜/시간 문자열("YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:mm:ssZ") |
+| timestamp(ms) | Unix epoch milliseconds (int) |
+| UUID | 문자열 UUID |
+| URL | 문자열 URL |
+| object | JSON 오브젝트 |
+| array<T> | T 타입 요소로 구성된 배열 |
 
+## 도메인별 문서
 
+- auth: docs/api/auth.md
+- breeds: docs/api/breeds.md
+- cartoon_jobs: docs/api/cartoon_jobs.md
+- comments: docs/api/comments.md
+- notifications: docs/api/notifications.md
+- pet_care/records: docs/api/pet_care.records.md
+- pet_care/settings: docs/api/pet_care.settings.md
+- pets: docs/api/pets.md
+- posts: docs/api/posts.md
+- uploads: docs/api/uploads.md
+- users: docs/api/users.md
 
+각 문서는 엔드포인트 표, 요청/응답 스키마, 오류 코드, 저장/비즈니스 로직을 포함합니다.
