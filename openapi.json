@@ -28,10 +28,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/social": {
@@ -57,10 +54,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       },
       "get": {
         "summary": "OAuth 동의 후 리디렉션되는 콜백. 쿼리스트링의 code로 토큰 교환 수행.",
@@ -84,10 +78,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/token/refresh": {
@@ -113,10 +104,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/logout": {
@@ -142,10 +130,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/uploads/url": {
@@ -171,10 +156,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "uploads"
-        ]
+        }
       }
     },
     "/api/uploads/finalize-cartoon": {
@@ -200,10 +182,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "uploads"
-        ]
+        }
       }
     },
     "/api/users/{user_id}/public": {
@@ -238,11 +217,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'user_id'"
+            "description": "Path parameter 'user_id' (converter: string)"
           }
         ],
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -270,8 +251,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -299,8 +282,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -328,8 +313,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "put": {
@@ -355,8 +342,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -384,8 +373,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "users"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -413,8 +404,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "get": {
@@ -440,8 +433,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -477,11 +472,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "patch": {
@@ -515,11 +512,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "delete": {
@@ -553,11 +552,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -593,11 +594,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -633,11 +636,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'author_id'"
+            "description": "Path parameter 'author_id' (converter: string)"
           }
         ],
-        "tags": [
-          "posts"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -673,11 +678,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "comments"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "get": {
@@ -711,11 +718,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'post_id'"
+            "description": "Path parameter 'post_id' (converter: string)"
           }
         ],
-        "tags": [
-          "comments"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -751,11 +760,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'comment_id'"
+            "description": "Path parameter 'comment_id' (converter: string)"
           }
         ],
-        "tags": [
-          "comments"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -791,11 +802,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'comment_id'"
+            "description": "Path parameter 'comment_id' (converter: string)"
           }
         ],
-        "tags": [
-          "comments"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -823,8 +836,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "cartoon-jobs"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -860,11 +875,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'job_id'"
+            "description": "Path parameter 'job_id' (converter: string)"
           }
         ],
-        "tags": [
-          "cartoon-jobs"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "delete": {
@@ -898,11 +915,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'job_id'"
+            "description": "Path parameter 'job_id' (converter: string)"
           }
         ],
-        "tags": [
-          "cartoon-jobs"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -930,8 +949,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "cartoon-jobs"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -959,8 +980,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "breeds"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -996,11 +1019,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'breed_name'"
+            "description": "Path parameter 'breed_name' (converter: string)"
           }
         ],
-        "tags": [
-          "breeds"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1028,8 +1053,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "breeds"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1065,11 +1092,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'breed_name'"
+            "description": "Path parameter 'breed_name' (converter: string)"
           }
         ],
-        "tags": [
-          "breeds"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1097,8 +1126,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1134,11 +1165,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "patch": {
@@ -1172,11 +1205,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1212,11 +1247,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1252,11 +1289,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1284,8 +1323,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "pets"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1321,11 +1362,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "put": {
@@ -1359,11 +1402,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1399,11 +1444,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1439,7 +1486,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           },
           {
             "name": "log_id",
@@ -1448,11 +1495,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'log_id'"
+            "description": "Path parameter 'log_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "delete": {
@@ -1486,7 +1535,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           },
           {
             "name": "log_id",
@@ -1495,11 +1544,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'log_id'"
+            "description": "Path parameter 'log_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1535,11 +1586,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'pet_id'"
+            "description": "Path parameter 'pet_id' (converter: string)"
           }
         ],
-        "tags": [
-          "pet-care"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1567,8 +1620,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "notifications"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1604,11 +1659,13 @@
             "schema": {
               "type": "string"
             },
-            "description": "Path parameter 'notification_id'"
+            "description": "Path parameter 'notification_id' (converter: string)"
           }
         ],
-        "tags": [
-          "notifications"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1636,8 +1693,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "notifications"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
@@ -1665,8 +1724,10 @@
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
         },
-        "tags": [
-          "health"
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     }
@@ -2428,41 +2489,14 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Provide the access token as: Bearer <token>"
+      }
     }
-  },
-  "tags": [
-    {
-      "name": "auth"
-    },
-    {
-      "name": "breeds"
-    },
-    {
-      "name": "cartoon-jobs"
-    },
-    {
-      "name": "comments"
-    },
-    {
-      "name": "health"
-    },
-    {
-      "name": "notifications"
-    },
-    {
-      "name": "pet-care"
-    },
-    {
-      "name": "pets"
-    },
-    {
-      "name": "posts"
-    },
-    {
-      "name": "uploads"
-    },
-    {
-      "name": "users"
-    }
-  ]
+  }
 }

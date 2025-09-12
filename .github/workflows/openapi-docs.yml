@@ -29,13 +29,15 @@ jobs:
           if [ -f pet_project_backend/requirements.txt ]; then pip install -r pet_project_backend/requirements.txt; fi
           pip install prance pyyaml
 
-      - name: Generate OpenAPI (docs mode)
+      - name: Generate OpenAPI (docs mode + security)
         working-directory: pet_project_backend
         run: |
           python scripts/swagger_build.py \
             --app pet_project_backend.app:create_app \
             --out openapi.json \
-            --docs-mode --validate --add-servers --add-tags
+            --docs-mode --validate --add-servers --add-tags --add-security \
+            --public-path '^/api/auth/' \
+            --public-path '^/api/uploads/'
 
       - name: Show spec summary
         run: |
@@ -51,7 +53,7 @@ jobs:
           BASE_SPEC=.base_openapi.json
           if git show origin/${{ github.base_ref }}:pet_project_backend/openapi.json > $BASE_SPEC 2>/dev/null; then
             echo 'Base spec found. Computing diff...'
-            if diff -u $BASE_SPEC pet_project_backend/openapi_docs_mode.json > spec.diff; then
+            if diff -u $BASE_SPEC pet_project_backend/openapi.json > spec.diff; then
               echo 'no_change=true' >> $GITHUB_OUTPUT
               echo 'Spec unchanged.'
             else
