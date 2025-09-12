@@ -15,7 +15,7 @@ class CartoonJobProcessor:
     ThreadPoolExecutor를 사용하여 만화 생성 작업을 비동기적으로 처리합니다.
     """
     
-    def __init__(self, max_workers: int = 3):
+    def __init__(self, max_workers: int = 3, executor: Optional[ThreadPoolExecutor] = None):
         """
         백그라운드 작업 프로세서를 초기화합니다.
         
@@ -23,10 +23,14 @@ class CartoonJobProcessor:
             max_workers: 동시 처리 가능한 최대 작업 수
         """
         self.max_workers = max_workers
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        # If an executor is explicitly provided use it; if None we treat as docs-mode (no background execution)
+        self.executor = executor if executor is not None else None
+        self.docs_mode = self.executor is None
         self.app = None
         self.active_jobs = {}  # job_id -> Future 매핑
         self._lock = threading.Lock()
+        if self.docs_mode:
+            logging.info("CartoonJobProcessor initialized in DOCS_MODE (background execution disabled)")
 
     def init_app(self, app: Flask):
         """Flask 앱과 연결합니다."""
@@ -45,6 +49,12 @@ class CartoonJobProcessor:
         Returns:
             Future 객체
         """
+        if self.docs_mode:
+            logging.info("DOCS_MODE: submit_job no-op returning dummy future result")
+            class _ImmediateFuture:
+                def result(self):
+                    return {"success": True, "skipped": True}
+            return _ImmediateFuture()
         with self._lock:
             if job_id in self.active_jobs:
                 logging.warning(f"이미 처리 중인 작업입니다: {job_id}")
@@ -72,6 +82,8 @@ class CartoonJobProcessor:
         Returns:
             처리 결과
         """
+        if self.docs_mode:
+            return {"success": True, "skipped": True}
         if not self.app:
             raise RuntimeError("Flask 앱이 초기화되지 않았습니다")
             
@@ -170,6 +182,8 @@ class CartoonJobProcessor:
 
     def _cleanup_job(self, job_id: str):
         """완료된 작업을 active_jobs에서 제거합니다."""
+        if self.docs_mode:
+            return
         with self._lock:
             self.active_jobs.pop(job_id, None)
             logging.debug(f"Active jobs에서 제거됨: {job_id}")
@@ -184,6 +198,8 @@ class CartoonJobProcessor:
         Returns:
             취소 성공 여부
         """
+        if self.docs_mode:
+            return False
         with self._lock:
             if job_id in self.active_jobs:
                 future = self.active_jobs[job_id]
@@ -199,12 +215,16 @@ class CartoonJobProcessor:
 
     def get_active_count(self) -> int:
         """현재 실행 중인 작업 수를 반환합니다."""
+        if self.docs_mode:
+            return 0
         with self._lock:
             return len(self.active_jobs)
 
     def get_queue_size(self) -> int:
         """대기 중인 작업 수를 반환합니다."""
         # ThreadPoolExecutor의 내부 큐 크기를 정확히 알기 어려우므로 근사치 반환
+        if self.docs_mode:
+            return 0
         return max(0, len(self.active_jobs) - self.max_workers)
 
     def shutdown(self, wait: bool = True):
@@ -214,6 +234,8 @@ class CartoonJobProcessor:
         Args:
             wait: 실행 중인 작업 완료를 기다릴지 여부
         """
+        if self.docs_mode:
+            return
         logging.info("CartoonJobProcessor 종료 중...")
         self.executor.shutdown(wait=wait)
         with self._lock:

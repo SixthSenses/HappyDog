@@ -31,7 +31,7 @@ pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    PetCareErrors.RECORD_CREATION_FAILED,
+    CommonErrors.RECORD_CREATION_FAILED,
     CommonErrors.INTERNAL_SERVER_ERROR
 )
 @request_examples({
@@ -122,7 +122,7 @@ def create_care_record(pet_id: str):
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
     CommonErrors.RESOURCE_NOT_FOUND,
-    PetCareErrors.RECORD_UPDATE_FAILED
+    CommonErrors.UPDATE_FAILED
 )
 @request_examples({
     "name": "update_record",
@@ -168,7 +168,7 @@ def update_care_record(pet_id: str, log_id: str):
         return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 수정 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
-        status, body = build_error('RECORD_UPDATE_FAILED')
+        status, body = build_error('UPDATE_FAILED')
         return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['DELETE'])
@@ -182,7 +182,7 @@ def update_care_record(pet_id: str, log_id: str):
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.RESOURCE_NOT_FOUND,
-    PetCareErrors.RECORD_DELETION_FAILED
+    CommonErrors.DELETE_FAILED
 )
 @response_examples({
     "name": "record_deleted",
@@ -210,7 +210,7 @@ def delete_care_record(pet_id: str, log_id: str):
         return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 삭제 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
-        status, body = build_error('RECORD_DELETION_FAILED')
+        status, body = build_error('DELETE_FAILED')
         return jsonify(body), status
 
 @pet_care_records_bp.route('/<string:pet_id>/records/daily', methods=['GET'])
@@ -224,7 +224,7 @@ def delete_care_record(pet_id: str, log_id: str):
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    PetCareErrors.FETCH_FAILED,
+    CommonErrors.FETCH_FAILED,
     CommonErrors.INTERNAL_SERVER_ERROR
 )
 @response_examples({

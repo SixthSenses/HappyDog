@@ -8,87 +8,79 @@
 import logging
 import uuid
 from datetime import datetime
-from firebase_admin import firestore
 from dataclasses import asdict
 from typing import Optional, Dict, Any, List, Tuple
+
+from firebase_admin import firestore
 
 from app.models.comment import Comment, CommentAuthor, CommentPetInfo
 from app.utils import metrics
 
 
 class CommentService:
+    """Core comment CRUD service.
+
+    Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE),
+    methods return placeholders or no-op values instead of touching Firestore.
     """
-    댓글 CRUD 작업을 담당하는 핵심 서비스
-    """
-    def __init__(self):
-        self.db = firestore.client()
-        self.comments_ref = self.db.collection('comments')
-        self.posts_ref = self.db.collection('posts')
-        self.users_ref = self.db.collection('users')
-        self.pets_ref = self.db.collection('pets')
-        self.likes_ref = self.db.collection('likes')
+    def __init__(self, db_client=None):
+        self.db = db_client
+        if self.db is None:
+            self.comments_ref = None
+            self.posts_ref = None
+            self.users_ref = None
+            self.pets_ref = None
+            self.likes_ref = None
+            logging.info("CommentService initialized without Firestore client (dependency not provided)")
+        else:
+            self.comments_ref = self.db.collection('comments')
+            self.posts_ref = self.db.collection('posts')
+            self.users_ref = self.db.collection('users')
+            self.pets_ref = self.db.collection('pets')
+            self.likes_ref = self.db.collection('likes')
 
     def create_comment(self, post_id: str, author_id: str, text: str) -> Dict[str, Any]:
         """
         새로운 댓글을 생성합니다 (순수한 CRUD 로직만).
         알림이나 멘션 처리는 별도 서비스에서 처리합니다.
         """
+        if self.db is None:
+            comment_id = str(uuid.uuid4())
+            author = CommentAuthor(user_id=author_id, nickname="demo_user")
+            pet = CommentPetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", profile_image_url=None)
+            new_comment = Comment(comment_id=comment_id, post_id=post_id, author=author, pet=pet, text=text)
+            metrics.increment('comments.created')
+            comment_dict = asdict(new_comment)
+            comment_dict['post_data'] = {}
+            return comment_dict
         author_doc = self.users_ref.document(author_id).get()
         if not author_doc.exists:
             raise ValueError("댓글 작성자를 찾을 수 없습니다.")
-
-        # 작성자의 반려동물 정보도 가져오기
         pet_docs = self.pets_ref.where('user_id', '==', author_id).limit(1).get()
         if not pet_docs:
             raise ValueError("댓글 작성자의 반려동물 정보를 찾을 수 없습니다.")
-
         author_info = author_doc.to_dict()
         pet_data = pet_docs[0].to_dict()
-        
-        # 레거시 문서 보완: pet_id 필드 누락 시 문서 ID로 주입
         if not pet_data.get("pet_id"):
             pet_data["pet_id"] = pet_docs[0].id
-
-        author = CommentAuthor(
-            user_id=author_id, 
-            nickname=author_info.get("nickname")
-            # profile_image_url는 pet 정보에서 가져오도록 변경됨
-        )
-        
-        pet = CommentPetInfo(
-            pet_id=pet_data.get("pet_id"),
-            name=pet_data.get("name"),
-            breed=pet_data.get("breed"),
-            profile_image_url=pet_data.get("profile_image_url")  # Pet 프로필 이미지 사용
-        )
-
+        author = CommentAuthor(user_id=author_id, nickname=author_info.get("nickname"))
+        pet = CommentPetInfo(pet_id=pet_data.get("pet_id"), name=pet_data.get("name"), breed=pet_data.get("breed"), profile_image_url=pet_data.get("profile_image_url"))
         transaction = self.db.transaction()
-        
         @firestore.transactional
         def _update_in_transaction(transaction, post_id, author, pet, text):
             post_ref = self.posts_ref.document(post_id)
             post_snapshot = post_ref.get(transaction=transaction)
             if not post_snapshot.exists:
                 raise ValueError("댓글을 작성할 게시물이 존재하지 않습니다.")
-
             comment_id = str(uuid.uuid4())
-            new_comment = Comment(
-                comment_id=comment_id, 
-                post_id=post_id, 
-                author=author,
-                pet=pet,
-                text=text
-            )
+            new_comment = Comment(comment_id=comment_id, post_id=post_id, author=author, pet=pet, text=text)
             transaction.set(self.comments_ref.document(comment_id), asdict(new_comment))
             transaction.update(post_ref, {'comment_count': firestore.Increment(1)})
             return new_comment, post_snapshot.to_dict()
-
         new_comment, post_data = _update_in_transaction(transaction, post_id, author, pet, text)
         metrics.increment('comments.created')
-        
-        # 이벤트 처리를 위해 댓글과 게시글 데이터를 함께 반환
         comment_dict = asdict(new_comment)
-        comment_dict['post_data'] = post_data  # 이벤트 서비스에서 사용
+        comment_dict['post_data'] = post_data
         return comment_dict
 
     def get_comments_for_post(self, post_id: str, limit: int, cursor: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
@@ -96,6 +88,8 @@ class CommentService:
         특정 게시글의 댓글 목록을 페이지네이션으로 조회합니다 (좋아요 정보 제외).
         좋아요 정보는 별도 서비스에서 추가됩니다.
         """
+        if self.db is None:
+            return [], None
         query = self.comments_ref.where('post_id', '==', post_id).order_by("created_at")
         if cursor:
             cursor_doc = self.comments_ref.document(cursor).get()
@@ -110,6 +104,8 @@ class CommentService:
 
     def get_comment_by_id(self, comment_id: str) -> Optional[Dict[str, Any]]:
         """특정 댓글의 정보를 조회합니다."""
+        if self.db is None:
+            return None
         doc = self.comments_ref.document(comment_id).get()
         if not doc.exists:
             return None
@@ -120,6 +116,8 @@ class CommentService:
         댓글을 삭제하고 삭제된 댓글 정보를 반환합니다.
         이벤트 처리를 위해 삭제된 댓글 데이터를 반환합니다.
         """
+        if self.db is None:
+            return None
         transaction = self.db.transaction()
         deleted_comment_data = None
 
@@ -154,6 +152,8 @@ class CommentService:
         댓글 내용을 수정합니다.
         이벤트 처리를 위해 수정된 댓글 데이터를 반환합니다.
         """
+        if self.db is None:
+            return None
         comment_ref = self.comments_ref.document(comment_id)
         doc = comment_ref.get()
         
@@ -179,6 +179,8 @@ class CommentService:
         댓글 좋아요를 토글하고 이벤트 데이터를 반환합니다.
         알림 생성은 별도 서비스에서 처리합니다.
         """
+        if self.db is None:
+            return None
         transaction = self.db.transaction()
 
         @firestore.transactional
@@ -229,7 +231,7 @@ class CommentService:
 
     def check_likes_for_comments(self, user_id: str, comment_ids: List[str]) -> set:
         """주어진 댓글 ID 목록에 대해 사용자의 좋아요 여부를 일괄 확인합니다."""
-        if not user_id or not comment_ids:
+        if not user_id or not comment_ids or self.db is None:
             return set()
             
         liked_comment_ids = set()

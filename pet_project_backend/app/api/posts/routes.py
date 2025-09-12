@@ -25,7 +25,7 @@ posts_bp = Blueprint('posts_bp', __name__)
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
     CommonErrors.RESOURCE_NOT_FOUND,
-    PostErrors.POST_CREATION_FAILED
+    CommonErrors.RECORD_CREATION_FAILED
 )
 @request_examples(RequestExamples.CREATE_POST)
 @response_examples({
@@ -125,7 +125,7 @@ def get_posts():
     tags=["posts"]
 )
 @error_responses(
-    PostErrors.POST_NOT_FOUND
+    CommonErrors.RESOURCE_NOT_FOUND
 )
 @response_examples({
     "name": "post_detail",
@@ -172,9 +172,9 @@ def get_post(post_id: str):
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    PostErrors.POST_NOT_OWNED,
-    PostErrors.POST_NOT_FOUND,
-    PostErrors.POST_UPDATE_FAILED
+    CommonErrors.PERMISSION_DENIED,
+    CommonErrors.RESOURCE_NOT_FOUND,
+    CommonErrors.UPDATE_FAILED
 )
 @request_examples(RequestExamples.UPDATE_POST)
 @response_examples(ResponseExamples.SUCCESS_UPDATED)
@@ -209,9 +209,9 @@ def update_post(post_id: str):
 @error_responses(
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
-    PostErrors.POST_NOT_OWNED,
-    PostErrors.POST_NOT_FOUND,
-    PostErrors.POST_DELETE_FAILED
+    CommonErrors.PERMISSION_DENIED,
+    CommonErrors.RESOURCE_NOT_FOUND,
+    CommonErrors.DELETE_FAILED
 )
 @response_examples(ResponseExamples.SUCCESS_DELETED)
 def delete_post(post_id: str):
@@ -253,8 +253,8 @@ def delete_post(post_id: str):
 @error_responses(
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
-    PostErrors.POST_NOT_FOUND,
-    PostErrors.LIKE_TOGGLE_FAILED
+    CommonErrors.RESOURCE_NOT_FOUND,
+    CommonErrors.UPDATE_FAILED
 )
 @response_examples({
     "name": "post_like_toggled",

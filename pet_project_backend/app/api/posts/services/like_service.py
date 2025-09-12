@@ -7,24 +7,31 @@
 """
 import logging
 from datetime import datetime
-from firebase_admin import firestore
 from typing import Optional, List, Tuple, Dict, Any
+
+from firebase_admin import firestore
 
 
 class PostLikeService:
+    """Post like management service.
+
+    In DOCS_MODE Firestore is not initialized; methods become no-ops returning
+    neutral placeholder values to allow application bootstrap.
     """
-    게시글 좋아요 관리를 담당하는 서비스
-    """
-    def __init__(self):
-        self.db = firestore.client()
-        self.posts_ref = self.db.collection('posts')
-        self.likes_ref = self.db.collection('likes')
+    def __init__(self, db_client=None):
+        self.db = db_client
+        self.posts_ref = self.db.collection('posts') if self.db else None
+        self.likes_ref = self.db.collection('likes') if self.db else None
+        if self.db is None:
+            logging.info("PostLikeService initialized without Firestore client (docs mode or disabled persistence)")
 
     def like_post(self, user_id: str, post_id: str) -> Optional[Dict[str, Any]]:
         """
         게시글에 좋아요를 추가합니다.
         반환값: 성공시 좋아요 이벤트 데이터, 실패시 None
         """
+        if self.db is None:
+            return None
         transaction = self.db.transaction()
 
         @firestore.transactional
@@ -68,6 +75,8 @@ class PostLikeService:
         게시글에서 좋아요를 제거합니다.
         반환값: 성공시 좋아요 취소 이벤트 데이터, 실패시 None
         """
+        if self.db is None:
+            return None
         transaction = self.db.transaction()
 
         @firestore.transactional
@@ -115,7 +124,7 @@ class PostLikeService:
 
     def is_user_liked_post(self, user_id: Optional[str], post_id: str) -> bool:
         """특정 게시물에 대한 사용자의 좋아요 여부를 확인합니다."""
-        if not user_id:
+        if not user_id or self.db is None:
             return False
         like_id = f"post_{user_id}_{post_id}"
         like_doc = self.likes_ref.document(like_id).get()
@@ -123,7 +132,7 @@ class PostLikeService:
 
     def check_likes_for_posts(self, user_id: Optional[str], post_ids: List[str]) -> set:
         """주어진 게시물 ID 목록에 대한 사용자의 좋아요 여부를 일괄 확인합니다."""
-        if not user_id or not post_ids:
+        if not user_id or not post_ids or self.db is None:
             return set()
         
         liked_post_ids = set()
@@ -139,6 +148,8 @@ class PostLikeService:
 
     def get_post_like_count(self, post_id: str) -> int:
         """특정 게시글의 좋아요 개수를 반환합니다."""
+        if self.db is None:
+            return 0
         try:
             post_doc = self.posts_ref.document(post_id).get()
             if not post_doc.exists:

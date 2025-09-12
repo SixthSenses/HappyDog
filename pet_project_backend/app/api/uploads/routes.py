@@ -33,9 +33,9 @@ from .schemas import (
 @error_responses(
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
-    UploadErrors.INVALID_PARAMETERS,
-    UploadErrors.INVALID_UPLOAD_TYPE,
-    UploadErrors.URL_GENERATION_FAILED
+    CommonErrors.VALIDATION_ERROR,
+    CommonErrors.VALIDATION_ERROR,
+    CommonErrors.RECORD_CREATION_FAILED
 )
 @request_examples({
     "name": "upload_url_request",
@@ -114,7 +114,7 @@ def get_upload_url():
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    UploadErrors.FILE_NOT_FOUND,
+    CommonErrors.RESOURCE_NOT_FOUND,
     CommonErrors.INTERNAL_SERVER_ERROR
 )
 @request_examples({

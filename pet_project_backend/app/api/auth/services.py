@@ -11,22 +11,24 @@ from dataclasses import fields as dataclass_fields
 from app.utils.datetime_utils import DateTimeUtils, for_firestore
 
 class AuthService:
-    def __init__(self):
-        self.db = None
-        self.users_ref = None
-        self.revoked_tokens_ref = None
+    def __init__(self, db_client=None):
+        self.db = db_client
+        if self.db is None:
+            self.users_ref = None
+            self.revoked_tokens_ref = None
+        else:
+            self.users_ref = self.db.collection('users')
+            self.revoked_tokens_ref = self.db.collection('revoked_tokens')
         self.app: Optional[Flask] = None
 
     def init_app(self, app: Flask):
-        """앱 초기화 과정에서 호출되어 DB 연결 및 앱 컨텍스트를 설정합니다."""
-        self.db = firestore.client()
-        self.users_ref = self.db.collection('users')
-        self.revoked_tokens_ref = self.db.collection('revoked_tokens')
+        """앱 초기화 과정에서 호출되어 JWT 콜백만 등록합니다 (DI된 db 사용)."""
         self.app = app
-        
-        # JWT token blocklist callback registration
-        self._register_jwt_callbacks(app)
-        logging.info("AuthService initialized successfully with JWT integration")
+        if self.db is not None:
+            self._register_jwt_callbacks(app)
+            logging.info("AuthService initialized with injected Firestore client and JWT integration")
+        else:
+            logging.info("AuthService initialized without Firestore client (no-op for persistence)")
 
     def _register_jwt_callbacks(self, app: Flask):
         """Register JWT token blocklist callbacks with Flask-JWT-Extended."""
@@ -48,7 +50,17 @@ class AuthService:
         google_id = google_user_info.get('sub')
         if not google_id:
             raise ValueError("Google user info must contain 'sub' (google_id).")
-
+        if self.users_ref is None:
+            # Return synthetic user (not persisted) in docs mode / no DB context
+            synthetic_user = User(
+                user_id=str(uuid.uuid4()),
+                google_id=google_id,
+                email=google_user_info.get('email'),
+                nickname=google_user_info.get('name'),
+                join_date=DateTimeUtils.now(),
+                notification_unread_count=0
+            )
+            return synthetic_user, True
         query = self.users_ref.where('google_id', '==', google_id).limit(1).stream()
         user_doc = next(query, None)
 
@@ -81,12 +93,13 @@ class AuthService:
     # --- Blocklist 관련 로직 ---
     def add_token_to_blocklist(self, jti: str, expires: datetime):
         """전달받은 토큰의 jti를 만료 시간과 함께 Firestore에 저장합니다."""
+        if self.revoked_tokens_ref is None:
+            return
         try:
             token_data = {
                 'revoked_at': DateTimeUtils.now(),
                 'expires_at': expires
             }
-            # Firestore 호환 변환 후 저장
             token_data = DateTimeUtils.for_firestore(token_data)
             self.revoked_tokens_ref.document(jti).set(token_data)
         except Exception as e:
@@ -96,6 +109,8 @@ class AuthService:
     def is_token_revoked(self, jwt_payload: dict) -> bool:
         """jti를 이용해 해당 토큰이 무효화 목록에 있는지 확인합니다."""
         jti = jwt_payload['jti']
+        if self.revoked_tokens_ref is None:
+            return False
         doc = self.revoked_tokens_ref.document(jti).get()
         return doc.exists
 

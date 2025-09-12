@@ -18,6 +18,16 @@ class CommonErrors(Enum):
     PERMISSION_DENIED = (403, "PERMISSION_DENIED", "Access to this resource is forbidden.")
     INTERNAL_SERVER_ERROR = (500, "INTERNAL_ERROR", "An unexpected error occurred on the server.")
     RATE_LIMITED = (429, "RATE_LIMITED", "Rate limit exceeded.")
+    # Generic CRUD + fetch codes (restored for backward compatibility with legacy decorators/routes)
+    RECORD_CREATION_FAILED = (500, "RECORD_CREATION_FAILED", "Failed to create record.")
+    RECORD_UPDATE_FAILED = (500, "RECORD_UPDATE_FAILED", "Failed to update record.")
+    RECORD_DELETION_FAILED = (500, "RECORD_DELETION_FAILED", "Failed to delete record.")
+    FETCH_FAILED = (500, "FETCH_FAILED", "Failed to fetch resource.")
+    UPDATE_FAILED = (500, "UPDATE_FAILED", "Failed to update resource.")
+    DELETE_FAILED = (500, "DELETE_FAILED", "Failed to delete resource.")
+    NOT_FOUND = (404, "NOT_FOUND", "Resource not found.")
+    FORBIDDEN = (403, "FORBIDDEN", "Access forbidden.")
+    SERVICE_UNAVAILABLE = (503, "SERVICE_UNAVAILABLE", "Service temporarily unavailable.")
 
 
 class AuthErrors(Enum):

@@ -25,7 +25,7 @@ comments_bp = Blueprint('comments_bp', __name__)
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
     CommonErrors.RESOURCE_NOT_FOUND,
-    CommentErrors.COMMENT_CREATION_FAILED
+    CommonErrors.RECORD_CREATION_FAILED
 )
 @request_examples(RequestExamples.CREATE_COMMENT)
 @response_examples({
@@ -172,8 +172,8 @@ def delete_comment(comment_id: str):
 @error_responses(
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
-    CommentErrors.COMMENT_NOT_FOUND,
-    CommentErrors.COMMENT_CREATION_FAILED
+    CommonErrors.RESOURCE_NOT_FOUND,
+    CommonErrors.UPDATE_FAILED
 )
 @response_examples({
     "name": "like_toggled",

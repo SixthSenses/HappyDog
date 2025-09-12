@@ -26,7 +26,7 @@ cartoon_jobs_bp = Blueprint('cartoon_jobs_bp', __name__)
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    CartoonJobErrors.JOB_CREATION_FAILED
+    CommonErrors.RECORD_CREATION_FAILED
 )
 @request_examples({
     "name": "create_cartoon_job",
@@ -143,7 +143,7 @@ def get_cartoon_job_status(job_id: str):
     CommonErrors.INVALID_JWT,
     CommonErrors.PERMISSION_DENIED,
     CartoonJobErrors.INVALID_STATE_FOR_CANCEL,
-    CartoonJobErrors.JOB_CANCEL_FAILED
+    CommonErrors.UPDATE_FAILED
 )
 @response_examples({
     "name": "job_cancelled",
@@ -187,7 +187,7 @@ def cancel_cartoon_job(job_id: str):
     tags=["cartoon_jobs"]
 )
 @error_responses(
-    CartoonJobErrors.HEALTH_CHECK_FAILED
+    CommonErrors.SERVICE_UNAVAILABLE
 )
 @response_examples({
     "name": "health_status",

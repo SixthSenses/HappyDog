@@ -7,18 +7,22 @@
 """
 import logging
 from typing import List, Dict, Any
+
 from firebase_admin import firestore
 
 from app.utils.mentions import extract_mention_nicknames
 
 
 class CommentMentionService:
+    """Mention extraction & resolution service.
+
+    In DOCS_MODE Firestore lookups are skipped and empty/placeholder results are returned.
     """
-    댓글 멘션 추출 및 해석을 담당하는 서비스
-    """
-    def __init__(self):
-        self.db = firestore.client()
-        self.users_ref = self.db.collection('users')
+    def __init__(self, db_client=None):
+        self.db = db_client
+        self.users_ref = self.db.collection('users') if self.db else None
+        if self.db is None:
+            logging.info("CommentMentionService initialized without Firestore client (docs mode or disabled persistence)")
 
     def extract_mentions(self, text: str) -> List[str]:
         """
@@ -36,12 +40,14 @@ class CommentMentionService:
         - 자기 자신에 대한 멘션은 제외
         - 중복 제거 및 순서 보장
         """
-        if not usernames:
+        if not usernames or self.db is None:
             return []
 
         mentioned_user_ids: List[str] = []
         for nickname in usernames:
             try:
+                if self.db is None:
+                    continue
                 query = self.users_ref.where('nickname', '==', nickname).limit(1).stream()
                 user_doc = next(query, None)
                 if user_doc and user_doc.id != sender_id:
@@ -77,13 +83,15 @@ class CommentMentionService:
 
         for nickname in mentioned_nicknames:
             try:
+                if self.db is None:
+                    failed_nicknames.append(nickname)
+                    continue
                 query = self.users_ref.where('nickname', '==', nickname).limit(1).stream()
                 user_doc = next(query, None)
                 if user_doc and user_doc.id != sender_id:
                     mentioned_user_ids.append(user_doc.id)
                 elif not user_doc:
                     failed_nicknames.append(nickname)
-                # user_doc.id == sender_id인 경우는 조용히 무시 (자기 멘션)
             except Exception as e:
                 logging.warning(f"닉네임 해석 실패 (nickname: {nickname}): {e}")
                 failed_nicknames.append(nickname)

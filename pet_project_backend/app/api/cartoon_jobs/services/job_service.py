@@ -3,10 +3,11 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from firebase_admin import firestore
 from dataclasses import asdict
 from typing import Optional, Dict, Any, List
 from enum import Enum
+
+from firebase_admin import firestore
 
 from app.models.cartoon_job import CartoonJob, CartoonJobStatus
 
@@ -17,10 +18,12 @@ class CartoonJobService:
     백그라운드 처리, 알림, 외부 서비스 통합과는 완전히 분리되어 있습니다.
     """
     
-    def __init__(self):
-        """기본 생성자. 외부 서비스 의존성 없음."""
-        self.db = firestore.client()
-        self.jobs_ref = self.db.collection('cartoon_jobs')
+    def __init__(self, db_client=None):
+        """Initialize service with optional injected Firestore client."""
+        self.db = db_client
+        self.jobs_ref = self.db.collection('cartoon_jobs') if self.db else None
+        if self.db is None:
+            logging.info("CartoonJobService initialized without Firestore client (docs mode or disabled persistence)")
 
     def init_app(self, app):
         """Flask 앱 초기화 (필요 시 설정 로드)."""
@@ -38,27 +41,19 @@ class CartoonJobService:
         Returns:
             생성된 작업 정보와 이벤트 데이터
         """
-        try:
+        if self.db is None:
             job_id = str(uuid.uuid4())
-            
             new_job = CartoonJob(
                 job_id=job_id,
                 user_id=user_id,
-                status=CartoonJobStatus.PENDING,  # 초기 상태는 PENDING
+                status=CartoonJobStatus.PENDING,
                 original_image_url=image_url,
                 user_text=user_text,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )
-            
             job_dict = asdict(new_job)
-            job_dict['status'] = new_job.status.value  # Enum을 문자열로 변환
-            
-            # Firestore에 저장
-            self.jobs_ref.document(job_id).set(job_dict)
-            logging.info(f"만화 생성 작업 생성됨 (Job ID: {job_id}) for user {user_id}")
-            
-            # 이벤트 처리를 위한 데이터 반환
+            job_dict['status'] = new_job.status.value
             return {
                 'job': job_dict,
                 'event_type': 'job_created',
@@ -67,7 +62,29 @@ class CartoonJobService:
                 'image_url': image_url,
                 'user_text': user_text
             }
-            
+        try:
+            job_id = str(uuid.uuid4())
+            new_job = CartoonJob(
+                job_id=job_id,
+                user_id=user_id,
+                status=CartoonJobStatus.PENDING,
+                original_image_url=image_url,
+                user_text=user_text,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            job_dict = asdict(new_job)
+            job_dict['status'] = new_job.status.value
+            self.jobs_ref.document(job_id).set(job_dict)
+            logging.info(f"만화 생성 작업 생성됨 (Job ID: {job_id}) for user {user_id}")
+            return {
+                'job': job_dict,
+                'event_type': 'job_created',
+                'user_id': user_id,
+                'job_id': job_id,
+                'image_url': image_url,
+                'user_text': user_text
+            }
         except Exception as e:
             logging.error(f"Firestore 작업 생성 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
@@ -83,6 +100,8 @@ class CartoonJobService:
         Returns:
             작업 정보 또는 None
         """
+        if self.db is None:
+            return None
         try:
             doc = self.jobs_ref.document(job_id).get()
             if doc.exists and doc.to_dict().get('user_id') == user_id:
@@ -105,34 +124,36 @@ class CartoonJobService:
         Returns:
             업데이트된 작업 정보와 이벤트 데이터
         """
+        if self.db is None:
+            return {
+                'job': {
+                    'job_id': job_id,
+                    'status': status.value,
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                },
+                'event_type': 'job_status_updated',
+                'job_id': job_id,
+                'user_id': None,
+                'old_status': None,
+                'new_status': status.value,
+                'result_data': result_data
+            }
         try:
             job_ref = self.jobs_ref.document(job_id)
             job_doc = job_ref.get()
-            
             if not job_doc.exists:
                 raise ValueError(f"작업을 찾을 수 없습니다: {job_id}")
-            
             job_data = job_doc.to_dict()
             current_status = job_data.get('status')
-            
-            # 상태 업데이트 데이터 준비
             update_data = {
                 "status": status.value,
                 "updated_at": datetime.now(timezone.utc)
             }
-            
-            # 추가 결과 데이터가 있으면 포함
             if result_data:
                 update_data.update(result_data)
-            
             job_ref.update(update_data)
-            
-            # 업데이트된 데이터 조회
             updated_job = job_ref.get().to_dict()
-            
             logging.info(f"작업 상태 업데이트: {job_id} ({current_status} -> {status.value})")
-            
-            # 이벤트 처리를 위한 데이터 반환
             return {
                 'job': updated_job,
                 'event_type': 'job_status_updated',
@@ -142,7 +163,6 @@ class CartoonJobService:
                 'new_status': status.value,
                 'result_data': result_data
             }
-            
         except Exception as e:
             logging.error(f"작업 상태 업데이트 실패 (job_id: {job_id}): {e}", exc_info=True)
             raise
@@ -160,18 +180,16 @@ class CartoonJobService:
         Returns:
             작업 목록
         """
+        if self.db is None:
+            return []
         try:
             query = self.jobs_ref.where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit)
-            
             if status_filter:
                 query = query.where('status', '==', status_filter)
-            
             docs = query.get()
             jobs = [doc.to_dict() for doc in docs]
-            
             logging.info(f"사용자 작업 조회 완료 (user_id: {user_id}, count: {len(jobs)})")
             return jobs
-            
         except Exception as e:
             logging.error(f"사용자 작업 조회 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
@@ -187,22 +205,31 @@ class CartoonJobService:
         Returns:
             업데이트된 작업 정보와 이벤트 데이터
         """
+        if self.db is None:
+            return {
+                'job': {
+                    'job_id': job_id,
+                    'status': CartoonJobStatus.CANCELLED.value,
+                    'updated_at': datetime.now(timezone.utc).isoformat(),
+                    'error_message': '사용자가 작업을 취소했습니다'
+                },
+                'event_type': 'job_cancelled',
+                'job_id': job_id,
+                'user_id': user_id,
+                'old_status': None,
+                'new_status': CartoonJobStatus.CANCELLED.value
+            }
         try:
             job_ref = self.jobs_ref.document(job_id)
             job_doc = job_ref.get()
-
             if not job_doc.exists:
                 raise ValueError("취소할 작업을 찾을 수 없습니다.")
-
             job_data = job_doc.to_dict()
             if job_data.get('user_id') != user_id:
                 raise PermissionError("작업을 취소할 권한이 없습니다.")
-
             current_status = job_data.get('status')
             if current_status not in [CartoonJobStatus.PENDING.value, CartoonJobStatus.PROCESSING.value]:
                 raise ValueError(f"현재 '{current_status}' 상태의 작업은 취소할 수 없습니다.")
-            
-            # 즉시 처리 가능한 초기 상태(PENDING) 취소는 바로 CANCELLED 로 전환 (워커 진입 전)
             if current_status == CartoonJobStatus.PENDING.value:
                 update_data = {
                     "status": CartoonJobStatus.CANCELLED.value,

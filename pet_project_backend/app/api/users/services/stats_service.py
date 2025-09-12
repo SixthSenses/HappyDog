@@ -11,11 +11,13 @@ class UserStatsService:
     PostService에 의존하지 않고 직접 Firestore 쿼리를 사용합니다.
     """
     
-    def __init__(self):
-        """서비스 초기화"""
-        self.db = firestore.client()
-        self.posts_ref = self.db.collection('posts')
-        self.users_ref = self.db.collection('users')
+    def __init__(self, db_client=None):
+        """Initialize service with optional injected Firestore client."""
+        self.db = db_client
+        self.posts_ref = self.db.collection('posts') if self.db else None
+        self.users_ref = self.db.collection('users') if self.db else None
+        if self.db is None:
+            logging.info("UserStatsService initialized without Firestore client (docs mode or disabled persistence)")
         
     def init_app(self, app):
         """Flask 앱 초기화"""
@@ -27,17 +29,12 @@ class UserStatsService:
         :param user_id: 통계를 조회할 사용자 ID
         :return: 사용자 통계 딕셔너리
         """
+        if self.posts_ref is None:
+            return {'post_count': 0}
         try:
             stats = {}
-            
-            # 게시물 수 직접 조회 (PostService 의존성 제거)
             post_count = self._count_posts_by_user_id(user_id)
             stats['post_count'] = post_count
-            
-            # 향후 다른 통계 정보 추가 가능
-            # stats['follower_count'] = self._count_followers(user_id)
-            # stats['following_count'] = self._count_following(user_id)
-            
             return stats
         except Exception as e:
             logging.error(f"사용자 통계 조회 실패 (user_id: {user_id}): {e}", exc_info=True)
@@ -48,6 +45,8 @@ class UserStatsService:
         특정 사용자가 작성한 게시물의 총 개수를 반환합니다.
         PostService의 count_posts_by_user_id와 동일한 로직을 직접 구현합니다.
         """
+        if self.posts_ref is None:
+            return 0
         try:
             query = self.posts_ref.where('author.user_id', '==', author_id)
             count_query = query.count()

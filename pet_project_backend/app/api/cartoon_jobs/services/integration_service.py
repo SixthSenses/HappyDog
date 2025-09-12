@@ -41,6 +41,9 @@ class CartoonJobIntegrationService:
         Returns:
             생성된 게시물 정보 또는 None (실패 시)
         """
+        if self.post_service is None:
+            # Treat absence of post_service as docs-mode / disabled integration
+            return {'job': job_data, 'event_type': 'job_created', 'skipped': True}
         if not self.post_service:
             logging.warning("PostService가 주입되지 않아 게시물 생성을 건너뜁니다")
             return None

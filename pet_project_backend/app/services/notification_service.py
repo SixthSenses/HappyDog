@@ -12,14 +12,20 @@ from app.models.notification import Notification, NotificationType
 from app.utils import metrics
 
 class NotificationService:
+    """알림 비즈니스 로직. Firestore 클라이언트는 DI로 주입.
+
+    db_client 가 None 이면(예: DOCS_MODE) 모든 메서드는 side-effect 없이 조용히 종료하거나
+    기본값을 반환하며 Firestore 호출을 수행하지 않습니다.
     """
-    알림 관련 비즈니스 로직을 담당하는 공용 서비스 클래스.
-    """
-    def __init__(self):
-        self.db = firestore.client()
-        self.notifications_ref = self.db.collection('notifications')
-        self.users_ref = self.db.collection('users')
-        # 기본 정책: 인앱+푸시 동시 제공
+    def __init__(self, db_client=None):
+        self.db = db_client
+        if self.db is None:
+            self.notifications_ref = None
+            self.users_ref = None
+            logging.info("NotificationService initialized without Firestore client (dependency not provided)")
+        else:
+            self.notifications_ref = self.db.collection('notifications')
+            self.users_ref = self.db.collection('users')
         self.default_delivery = "both"  # values: "inapp", "push", "both"
 
 
@@ -34,6 +40,8 @@ class NotificationService:
         :param target_id: 알림의 대상이 되는 객체 ID (post_id, comment_id 등)
         :param target_summary: 알림에 표시될 요약 텍스트 (예: 댓글 내용)
         """
+        if self.notifications_ref is None or self.users_ref is None:
+            return
         if recipient_id == sender_id:
             return  # 자기 자신 알림 차단
 
@@ -124,6 +132,8 @@ class NotificationService:
         사용자의 알림 목록을 커서 기반으로 조회합니다.
         반환: (items, next_cursor)
         """
+        if self.notifications_ref is None:
+            return [], None
         query = self.notifications_ref.where('recipient_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING)
         if cursor:
             cursor_doc = self.notifications_ref.document(cursor).get()
@@ -150,6 +160,8 @@ class NotificationService:
 
     def ack_notification(self, user_id: str, notification_id: str) -> bool:
         """알림을 읽음 처리합니다."""
+        if self.notifications_ref is None or self.users_ref is None:
+            return False
         ref = self.notifications_ref.document(notification_id)
         snap = ref.get()
         if not snap.exists:
@@ -175,6 +187,8 @@ class NotificationService:
     def get_unread_count(self, user_id: str) -> int:
         """미확인(in-app) 알림 개수를 반환합니다."""
         # Firestore에서 카운트 집계는 비용이 높아질 수 있음: 추후 집계 컬렉션 고려
+        if self.notifications_ref is None:
+            return 0
         query = self.notifications_ref.where('recipient_id', '==', user_id).where('is_read', '==', False)
         # 서버 사이드 count() 기능이 있다면 사용, 없으면 개수 stream
         try:

@@ -1,7 +1,6 @@
 import logging
 import datetime
 from typing import Callable, Tuple, Any, Dict
-from firebase_admin import firestore
 from google.api_core import exceptions as gexc
 
 from app.utils.canonical_json import compute_canonical_hash, canonical_json_dumps
@@ -22,9 +21,11 @@ class IdempotencyService:
 
     COLLECTION_NAME = 'idempotency_keys'
 
-    def __init__(self):
-        self.db = firestore.client()
-        self.col = self.db.collection(self.COLLECTION_NAME)
+    def __init__(self, db_client=None):
+        self.db = db_client
+        self.col = self.db.collection(self.COLLECTION_NAME) if self.db else None
+        if self.db is None:
+            logging.info("IdempotencyService initialized without Firestore client (docs mode or disabled persistence)")
 
     def execute(self, *, key: str, method: str, path: str, request_body: Any, handler: Callable[[], Tuple[Dict[str, Any], int]]) -> Tuple[Dict[str, Any], int, bool]:
         """핸들러를 멱등 실행.
@@ -35,6 +36,9 @@ class IdempotencyService:
         """
         if not key:
             raise ValueError("idempotency key required")
+        if self.col is None:  # DOCS_MODE fallback: execute handler directly, no persistence
+            response_body, status_code = handler()
+            return response_body, status_code, False
 
         body_hash = compute_canonical_hash(request_body) if request_body is not None else compute_canonical_hash({})
         doc_ref = self.col.document(key)

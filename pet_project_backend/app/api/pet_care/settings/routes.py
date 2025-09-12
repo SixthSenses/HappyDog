@@ -24,7 +24,7 @@ pet_care_settings_bp = Blueprint('pet_care_settings_bp', __name__)
 @error_responses(
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
-    PetCareErrors.SETTINGS_NOT_FOUND,
+    CommonErrors.RESOURCE_NOT_FOUND,
     CommonErrors.INTERNAL_SERVER_ERROR
 )
 @response_examples({
@@ -66,8 +66,8 @@ def get_pet_care_settings(pet_id: str):
     CommonErrors.MISSING_JWT,
     CommonErrors.INVALID_JWT,
     CommonErrors.VALIDATION_ERROR,
-    PetCareErrors.SETTINGS_NOT_FOUND,
-    PetCareErrors.UPDATE_FAILED
+    CommonErrors.RESOURCE_NOT_FOUND,
+    CommonErrors.UPDATE_FAILED
 )
 @request_examples({
     "name": "update_pet_care_settings",

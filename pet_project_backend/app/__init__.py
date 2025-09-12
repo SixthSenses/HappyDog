@@ -12,11 +12,13 @@ load_dotenv()
 import os
 import importlib
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import JWTManager
 import firebase_admin
 from firebase_admin import credentials
+from app.core.firestore import initialize_firestore, get_db
 
 # - 설정
 from app.core.config import config_by_name
@@ -39,6 +41,7 @@ from app.api.notifications.routes import notifications_bp
 from app.services import storage_service as storage_service_module
 from app.services import notification_service as notification_service_module
 from app.services import openai_service as openai_service_module
+from app.services.openai_service_stub import OpenAIServiceStub
 from app.api.auth import services as auth_service_module
 from app.api.users.services import UserProfileService, UserStatsService, UserService
 from app.api.posts.services import PostService, PostLikeService, PostEventService, PostStorageService
@@ -59,7 +62,7 @@ from app.utils import metrics as metrics_module
 NosePrintPipeline = None
 EyeAnalyzer = None
 
-def _init_core_services(app):
+def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
     """
     Initialize core services with no dependencies or minimal dependencies.
     These services are foundational and used by other services.
@@ -75,33 +78,42 @@ def _init_core_services(app):
         raise
     
     # OpenAI service - external API integration
-    try:
-        openai_instance = openai_service_module.OpenAIService()
-        openai_instance.init_app(app)
-        app.services['openai'] = openai_instance
-        logging.info("OpenAI service initialized successfully")
-    except Exception as e:
-        logging.error(f"Failed to initialize OpenAI service: {e}")
-        raise
+    if docs_mode:
+        app.services['openai'] = OpenAIServiceStub()
+        app.services['openai'].init_app(app)
+    else:
+        try:
+            openai_instance = openai_service_module.OpenAIService()
+            openai_instance.init_app(app)
+            app.services['openai'] = openai_instance
+            logging.info("OpenAI service initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize OpenAI service: {e}")
+            raise
 
-    # Notification service - foundational for async messaging
-    app.services['notifications'] = notification_service_module.NotificationService()
+    # Notification service - foundational for async messaging (DI with Firestore)
+    app.services['notifications'] = notification_service_module.NotificationService(app.firestore_client)
     
     # Notification presentation service
     from app.api.notifications.services import NotificationPresentationService
     app.services['notification_presentation'] = NotificationPresentationService()
     
     # Utility services with no dependencies
-    app.services['idempotency'] = IdempotencyService()
-    app.services['breeds'] = BreedService()
+    app.services['idempotency'] = IdempotencyService(app.firestore_client)
+    app.services['breeds'] = BreedService(app.firestore_client)
     
-    # Auth service - foundational for security
-    app.services['auth'] = AuthService()
+    # Auth service - foundational for security (DI with Firestore)
+    app.services['auth'] = AuthService(app.firestore_client)
     app.services['auth'].init_app(app)
     logging.info("Auth service initialized successfully in DI container")
     
     # ML Pipeline services - optional external components
-    _init_ml_services(app)
+    if not skip_ml:
+        _init_ml_services(app)
+    else:
+        app.services['nose_pipeline'] = None
+        app.services['eye_analyzer'] = None
+        logging.info("DOCS_MODE: ML pipelines skipped")
 
 def _init_ml_services(app):
     """Initialize ML services separately due to optional nature and heavy dependencies."""
@@ -143,8 +155,8 @@ def _init_dependent_services(app):
     Must be called after _init_core_services().
     """
     # Pet Care Domain - depends on breeds and notifications
-    app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'])
-    app.services['pet_care_records'] = PetCareRecordService()
+    app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'], db_client=app.firestore_client)
+    app.services['pet_care_records'] = PetCareRecordService(db_client=app.firestore_client)
     
     # Pet Care Integration Service - depends on multiple services
     app.services['pet_care_integration'] = PetCareRecordIntegration(
@@ -158,13 +170,15 @@ def _init_dependent_services(app):
     # Pets Domain - depends on storage, pet_care_settings, and ML services
     pet_profile_service = PetProfileService(
         pet_care_setting_service=app.services['pet_care_settings'],
-        storage_service=app.services['storage']
+        storage_service=app.services['storage'],
+        db_client=app.firestore_client
     )
     
     pet_biometric_service = PetBiometricService(
         storage_service=app.services['storage'],
         nose_pipeline=app.services['nose_pipeline'],
-        eye_analyzer=app.services['eye_analyzer']
+        eye_analyzer=app.services['eye_analyzer'],
+        db_client=app.firestore_client
     )
     
     # Use profile service as main pets service
@@ -174,13 +188,13 @@ def _init_dependent_services(app):
     logging.info("Pet service initialized successfully")
     
     # User Services - depends on storage
-    app.services['user_profile'] = UserProfileService(app.services['storage'])
-    app.services['user_stats'] = UserStatsService()
+    app.services['user_profile'] = UserProfileService(app.services['storage'], db_client=app.firestore_client)
+    app.services['user_stats'] = UserStatsService(app.firestore_client)
     app.services['users'] = UserService()  # Lightweight, no dependencies
     
-    # Posts Domain - depends on storage
-    app.services['posts'] = PostService()
-    app.services['post_likes'] = PostLikeService()
+    # Posts Domain - depends on storage (DI with Firestore)
+    app.services['posts'] = PostService(app.firestore_client)
+    app.services['post_likes'] = PostLikeService(app.firestore_client)
     app.services['post_events'] = PostEventService()
     app.services['post_storage'] = PostStorageService(app.services['storage'])
     
@@ -188,9 +202,9 @@ def _init_dependent_services(app):
     app.services['post_events'].init_app(app)
     app.services['post_storage'].init_app(app)
     
-    # Comments Domain - basic services first
-    app.services['comments'] = CommentService()
-    app.services['comment_mentions'] = CommentMentionService()
+    # Comments Domain - basic services first (DI with Firestore)
+    app.services['comments'] = CommentService(app.firestore_client)
+    app.services['comment_mentions'] = CommentMentionService(app.firestore_client)
     app.services['comment_events'] = CommentEventService()
     app.services['comment_notifications'] = CommentNotificationService()
     
@@ -198,8 +212,16 @@ def _init_dependent_services(app):
     app.services['comment_events'].init_app(app)
     
     # Cartoon Jobs Domain - depends on posts and notifications
-    app.services['cartoon_jobs'] = CartoonJobService()
-    app.services['job_processor'] = CartoonJobProcessor()
+    app.services['cartoon_jobs'] = CartoonJobService(app.firestore_client)
+    # docs_mode flag available in create_app scope; pass executor only when not docs_mode
+    from flask import current_app as _ca  # safe local import if context exists
+    exec_instance = None
+    try:
+        if not getattr(app, 'docs_mode_flag', False):
+            exec_instance = ThreadPoolExecutor(max_workers=3)
+    except Exception:
+        exec_instance = ThreadPoolExecutor(max_workers=3)
+    app.services['job_processor'] = CartoonJobProcessor(executor=exec_instance)
     app.services['job_events'] = CartoonJobEventService()
     app.services['job_integration'] = CartoonJobIntegrationService(
         post_service=app.services['posts'],
@@ -246,14 +268,42 @@ def create_app():
     # =====================================================================================
     JWTManager(app)
 
-    if not firebase_admin._apps:
-        cred_path = app.config['FIREBASE_CREDENTIALS_PATH']
-        if not os.path.exists(cred_path):
-            raise FileNotFoundError(f"Firebase 인증 파일을 찾을 수 없습니다: {cred_path}")
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred, {
-            'storageBucket': app.config['FIREBASE_STORAGE_BUCKET']
-        })
+    docs_mode = os.getenv('DOCS_MODE', '').lower() in ('1', 'true', 'yes')
+    # store flag for later conditional service initialization (e.g., background executors)
+    app.docs_mode_flag = docs_mode
+    if docs_mode:
+        logging.info("DOCS_MODE enabled: skipping heavy external initializations (Firebase, ML, network APIs)")
+
+    if not docs_mode and not firebase_admin._apps:
+        cred_path = app.config.get('FIREBASE_CREDENTIALS_PATH')
+        original = cred_path
+        if cred_path and not os.path.isabs(cred_path) and not os.path.exists(cred_path):
+            # Try resolve relative to pet_project_backend root
+            backend_root = os.path.dirname(os.path.dirname(__file__))
+            candidate = os.path.join(backend_root, cred_path)
+            if os.path.exists(candidate):
+                cred_path = candidate
+        if not cred_path or not os.path.exists(cred_path):
+            logging.warning(f"Firebase credentials not found (configured='{original}'). Skipping Firebase init.")
+        else:
+            try:
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred, {
+                    'storageBucket': app.config.get('FIREBASE_STORAGE_BUCKET')
+                })
+                logging.info("Firebase initialized successfully")
+            except Exception as fe:
+                logging.error(f"Firebase initialization failed: {fe}")
+
+    # Central Firestore client initialization (Dependency Inversion: single source)
+    app.firestore_client = initialize_firestore()
+    if app.firestore_client is None:
+        if docs_mode:
+            logging.info("DOCS_MODE: Firestore client not initialized (None)")
+        else:
+            logging.warning("Firestore client not initialized (returned None)")
+    else:
+        logging.info("Firestore client initialized (centralized)")
 
     # =====================================================================================
     # 5. 서비스 인스턴스 생성 및 'app.services'에 저장 (의존성 주입)
@@ -261,7 +311,7 @@ def create_app():
     app.services = {}
     
     # Initialize services in dependency order to prevent circular dependencies
-    _init_core_services(app)
+    _init_core_services(app, skip_ml=docs_mode, docs_mode=docs_mode)
     _init_dependent_services(app)
     
     # - 인증 서비스는 이미 DI 컨테이너에서 초기화됨 (auth service already initialized above)
@@ -301,8 +351,13 @@ def create_app():
     def handle_generic_exception(err):
         # 다른 핸들러에서 처리되지 않은 모든 예외를 여기서 처리
         logging.error(f"An unhandled exception occurred: {err}", exc_info=True)
-        response = {"error_code": "INTERNAL_SERVER_ERROR", "message": "서버 내부에서 예상치 못한 오류가 발생했습니다."}
-        return jsonify(response), 500
+        try:
+            from app.utils.error_catalog import build_error
+            status, body = build_error('INTERNAL_ERROR')
+            return jsonify(body), status
+        except Exception:  # fallback in case catalog import fails early in startup
+            fallback = {"error_code": "INTERNAL_ERROR", "message": "서버 내부 오류가 발생했습니다."}
+            return jsonify(fallback), 500
 
     # =====================================================================================
     # 8. 로깅 및 앱 반환

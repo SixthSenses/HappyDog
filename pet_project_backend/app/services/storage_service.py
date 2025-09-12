@@ -11,26 +11,26 @@ class StorageService:
     파일 업로드를 위한 Pre-signed URL 생성 등의 기능을 제공합니다.
     """
 
-    def __init__(self):
+    def __init__(self, bucket=None):
+        """Optionally inject an existing storage bucket. When bucket is None the
+        service operates in a no-op/docs mode and raises on operations that require storage.
         """
-        클래스 인스턴스 생성 시 버킷을 None으로 초기화합니다.
-        실제 버킷 객체는 init_app 메서드를 통해 주입됩니다.
-        """
-        self.bucket = None
+        self.bucket = bucket
 
     def init_app(self, app: Flask):
-        """
-        Flask 앱 초기화 과정에서 호출되어 Storage 버킷을 설정합니다.
-        이 메서드는 app/__init__.py에서 단 한 번만 호출됩니다.
-        
-        :param app: Flask 애플리케이션 객체
-        """
+        """Optionally initialize bucket from app config if not already injected."""
+        if self.bucket is not None:
+            return
         bucket_name = app.config.get('FIREBASE_STORAGE_BUCKET')
         if not bucket_name:
-            raise ValueError("FIREBASE_STORAGE_BUCKET 설정이 .env 또는 설정 파일에 필요합니다.")
-        
-        self.bucket = storage.bucket(bucket_name)
-        logging.info("StorageService: Firebase Storage 서비스가 성공적으로 초기화되었습니다.")
+            logging.info("StorageService: No bucket configured (treated as docs-mode/no-op).")
+            return
+        try:
+            self.bucket = storage.bucket(bucket_name)
+            logging.info("StorageService: Firebase Storage initialized (bucket acquired).")
+        except Exception as e:
+            logging.warning(f"StorageService: bucket initialization failed, operating in no-op mode: {e}")
+            self.bucket = None
 
     def generate_upload_url(self, user_id: str, upload_type: str, filename: str, content_type: str) -> dict:
         """

@@ -24,14 +24,20 @@ from app.api.pet_care.settings.services import PetCareSettingService
 
 
 class PetProfileService:
-    """Service for managing pet profile CRUD operations and storage integration."""
+    """Service for managing pet profile CRUD operations and storage integration.
 
-    def __init__(self, storage_service: StorageService, pet_care_setting_service: PetCareSettingService):
-        self.db = firestore.client()
-        self.pets_ref = self.db.collection('pets')
+    DOCS_MODE: Firestore access skipped, placeholder synthetic data returned.
+    """
+
+    def __init__(self, storage_service: StorageService, pet_care_setting_service: PetCareSettingService, db_client=None):
+        self.db = db_client
+        self.pets_ref = self.db.collection('pets') if self.db else None
         self.storage_service = storage_service
         self.pet_care_setting_service = pet_care_setting_service
-        logging.info("PetProfileService initialized with storage and settings services.")
+        if self.db is None:
+            logging.info("PetProfileService initialized without Firestore client (docs mode or disabled persistence)")
+        else:
+            logging.info("PetProfileService initialized with Firestore client, storage and settings services.")
 
     # ============= Core CRUD Operations =============
 
@@ -45,6 +51,8 @@ class PetProfileService:
         Returns:
             Pet object if found and owned by user, None otherwise
         """
+        if self.pets_ref is None:
+            return None
         doc = self.pets_ref.document(pet_id).get()
         if doc.exists:
             pet_data = doc.to_dict() or {}
@@ -64,30 +72,24 @@ class PetProfileService:
         Returns:
             Pet data as dict if found, None otherwise
         """
+        if self.pets_ref is None or self.db is None:
+            return None
         try:
-            # First check user document for pet_id (O(1) lookup)
             user_ref = self.db.collection('users').document(user_id)
             user_doc = user_ref.get()
             if not user_doc.exists:
                 return None
-            
             user_data = user_doc.to_dict() or {}
             pet_id = user_data.get('pet_id')
-            
             if not pet_id:
                 return None
-            
-            # Direct pet document lookup (O(1))
             pet_doc = self.pets_ref.document(pet_id).get()
             if not pet_doc.exists:
                 logging.warning(f"Inconsistent data: User {user_id} has pet_id {pet_id} but pet not found")
                 return None
-            
             data = pet_doc.to_dict() or {}
-            # Ensure pet_id is present for legacy compatibility
             if 'pet_id' not in data or not data.get('pet_id'):
                 data['pet_id'] = pet_doc.id
-            
             return data
         except Exception as e:
             logging.error(f"get_first_pet_by_owner failed (user_id={user_id}): {e}", exc_info=True)
@@ -102,12 +104,12 @@ class PetProfileService:
         Returns:
             Pet object if found, None otherwise
         """
+        if self.pets_ref is None:
+            return None
         try:
-            # Use optimized get_first_pet_by_owner method
             pet_data = self.get_first_pet_by_owner(user_id)
             if not pet_data:
                 return None
-            
             return Pet.from_dict(pet_data)
         except Exception as e:
             logging.error(f"get_user_pet_profile failed (user_id={user_id}): {e}", exc_info=True)
@@ -156,11 +158,21 @@ class PetProfileService:
         Raises:
             FileNotFoundError: If pet not found
         """
+        if self.pets_ref is None:
+            # Return synthetic placeholder
+            return {
+                'pet_id': pet_id,
+                'user_id': 'placeholder',
+                'name': 'ExamplePet',
+                'gender': 'MALE',
+                'breed': 'Unknown',
+                'birthdate': '2020-01-01',
+                'health_concerns': []
+            }
         doc = self.pets_ref.document(pet_id).get()
         if not doc.exists:
             raise FileNotFoundError("해당 ID의 반려동물을 찾을 수 없습니다.")
         data = doc.to_dict() or {}
-        # Legacy compatibility: fill pet_id if missing
         if 'pet_id' not in data or not data.get('pet_id'):
             data['pet_id'] = doc.id
         return data
@@ -182,6 +194,17 @@ class PetProfileService:
             ValueError: If user already has a pet or user not found
             RuntimeError: If registration transaction fails
         """
+        if self.pets_ref is None or self.db is None:
+            return Pet(
+                pet_id=str(uuid.uuid4()),
+                user_id=user_id,
+                name=pet_data['name'],
+                gender=PetGender(pet_data['gender']),
+                breed=pet_data['breed'],
+                birthdate=pet_data['birthdate'],
+                fur_color=pet_data.get('fur_color'),
+                health_concerns=pet_data.get('health_concerns', [])
+            )
         user_ref = self.db.collection('users').document(user_id)
         pet_id = str(uuid.uuid4())
         pet_ref = self.pets_ref.document(pet_id)
@@ -256,6 +279,17 @@ class PetProfileService:
             ValueError: If no update data provided
             RuntimeError: If unable to retrieve updated pet
         """
+        if self.pets_ref is None:
+            return Pet(
+                pet_id=pet_id,
+                user_id=user_id,
+                name=update_data.get('name', 'ExamplePet'),
+                gender=PetGender(update_data.get('gender', 'MALE')),
+                breed=update_data.get('breed', 'Unknown'),
+                birthdate=update_data.get('birthdate', '2020-01-01'),
+                fur_color=update_data.get('fur_color'),
+                health_concerns=update_data.get('health_concerns', [])
+            )
         pet_ref = self.pets_ref.document(pet_id)
         doc = pet_ref.get()
         if not doc.exists or doc.to_dict().get('user_id') != user_id:
@@ -283,12 +317,13 @@ class PetProfileService:
         Returns:
             True if user can register a pet, False otherwise
         """
+        if self.db is None:
+            return True
         try:
             user_ref = self.db.collection('users').document(user_id)
             user_doc = user_ref.get()
             if not user_doc.exists:
                 return False
-            
             user_data = user_doc.to_dict() or {}
             return not user_data.get('has_pet', False)
         except Exception as e:

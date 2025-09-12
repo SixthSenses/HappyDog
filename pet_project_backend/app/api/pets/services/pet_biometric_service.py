@@ -15,6 +15,7 @@ import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from firebase_admin import firestore
+from os import getenv
 from firebase_admin.firestore import Transaction
 
 from app.services.storage_service import StorageService
@@ -50,24 +51,27 @@ class BiometricAnalysisResult:
 
 
 class PetBiometricService:
-    """Service for managing pet biometric analysis and ML pipeline integration."""
+    """Service for managing pet biometric analysis and ML pipeline integration.
+
+    In DOCS_MODE, Firestore and ML pipelines are skipped and methods return synthetic placeholders.
+    """
 
     def __init__(self, storage_service: StorageService, 
                  nose_pipeline: Optional[Any] = None,
-                 eye_analyzer: Optional[Any] = None):
-        self.db = firestore.client()
-        self.pets_ref = self.db.collection('pets')
+                 eye_analyzer: Optional[Any] = None,
+                 db_client=None):
+        self.db = db_client
+        self.pets_ref = self.db.collection('pets') if self.db else None
         self.storage_service = storage_service
         self.nose_pipeline = nose_pipeline
         self.eye_analyzer = eye_analyzer
-        
-        # Service availability flags
+        # Availability flags depend solely on provided pipeline objects
         self.nose_analysis_available = nose_pipeline is not None
         self.eye_analysis_available = eye_analyzer is not None
-        
+        if self.db is None:
+            logging.info("PetBiometricService initialized without Firestore client (docs mode or disabled persistence)")
         logging.info(
-            f"PetBiometricService initialized. "
-            f"Nose analysis: {'available' if self.nose_analysis_available else 'unavailable'}, "
+            f"PetBiometricService ready. Nose analysis: {'available' if self.nose_analysis_available else 'unavailable'}, "
             f"Eye analysis: {'available' if self.eye_analysis_available else 'unavailable'}"
         )
 
@@ -327,7 +331,7 @@ class PetBiometricService:
             # Save analysis result (non-critical operation)
             analysis_id = None
             try:
-                analysis_id = save_analysis_result('analysis_history', user_id, result_data)
+                analysis_id = save_analysis_result('analysis_history', user_id, result_data, db_client=self.db)
                 logging.info(f"Analysis result saved with ID {analysis_id} for pet {pet_id}")
             except Exception as e:
                 logging.error(f"Failed to save analysis result for pet {pet_id}: {e}")
