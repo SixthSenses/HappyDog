@@ -1,6 +1,6 @@
 # app/api/posts/schemas.py
 from marshmallow import Schema, fields, validate
-from pet_project_backend.app.api.common.schemas import EmptyRequestSchema, NoContentSchema
+from app.api.common.schemas import EmptyRequestSchema, NoContentSchema
 
 # --- 재사용을 위한 중첩 스키마 ---
 class AuthorSchema(Schema):

@@ -57,6 +57,7 @@ from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
 from app.middleware.rate_limit_middleware import install_rate_limit
 from app.utils import metrics as metrics_module
+from app.utils.path_utils import resolve_ml_paths, as_bool
 
 # - ML 모델 파이프라인 (지연 임포트: 환경에 없으면 건너뜀)
 NosePrintPipeline = None
@@ -116,22 +117,44 @@ def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
         logging.info("DOCS_MODE: ML pipelines skipped")
 
 def _init_ml_services(app):
-    """Initialize ML services separately due to optional nature and heavy dependencies."""
+    """Initialize ML services with robust cross-machine path resolution and optional skipping.
+
+    Environment flags:
+      SKIP_ML=1 -> skip heavy model init
+      STRICT_ML_PATHS=1 -> raise if any required path missing; otherwise warn & skip that pipeline
+    """
+    if as_bool(os.getenv('SKIP_ML')):
+        logging.info("SKIP_ML enabled: ML pipelines not initialized")
+        app.services['nose_pipeline'] = None
+        app.services['eye_analyzer'] = None
+        return
+
+    paths = resolve_ml_paths({})
+    strict = as_bool(os.getenv('STRICT_ML_PATHS'))
     # Nose print pipeline initialization (optional)
     try:
-        # Dynamic import: handle ImportError if package missing
-        if NosePrintPipeline is None:
-            _nose_module = importlib.import_module('nose_lib.pipelines.nose_print_pipeline')
-            _NosePrintPipeline = getattr(_nose_module, 'NosePrintPipeline')
+        required_keys = ['YOLO_WEIGHTS_PATH','ML_CONFIG_PATH','EXTRACTOR_WEIGHTS_PATH','FAISS_INDEX_PATH']
+        missing = [k for k in required_keys if not paths.get(k) or not os.path.exists(paths[k])]
+        if missing:
+            msg = f"Nose pipeline assets missing or unresolved: {missing}"
+            if strict:
+                raise FileNotFoundError(msg)
+            logging.warning(msg + " (pipeline skipped)")
+            app.services['nose_pipeline'] = None
         else:
-            _NosePrintPipeline = NosePrintPipeline
-        app.services['nose_pipeline'] = _NosePrintPipeline(
-            yolo_weights_path=os.getenv('YOLO_WEIGHTS_PATH'),
-            config_path=os.getenv('ML_CONFIG_PATH'),
-            extractor_weights_path=os.getenv('EXTRACTOR_WEIGHTS_PATH'),
-            faiss_index_path=os.getenv('FAISS_INDEX_PATH')
-        )
-        logging.info("Nose print pipeline initialized successfully")
+            # Dynamic import only if assets present
+            if NosePrintPipeline is None:
+                _nose_module = importlib.import_module('nose_lib.pipelines.nose_print_pipeline')
+                _NosePrintPipeline = getattr(_nose_module, 'NosePrintPipeline')
+            else:
+                _NosePrintPipeline = NosePrintPipeline
+            app.services['nose_pipeline'] = _NosePrintPipeline(
+                yolo_weights_path=paths['YOLO_WEIGHTS_PATH'],
+                config_path=paths['ML_CONFIG_PATH'],
+                extractor_weights_path=paths['EXTRACTOR_WEIGHTS_PATH'],
+                faiss_index_path=paths['FAISS_INDEX_PATH']
+            )
+            logging.info("Nose print pipeline initialized successfully")
     except Exception as e:
         logging.warning(f"Failed to initialize nose pipeline: {e}")
         app.services['nose_pipeline'] = None
@@ -276,24 +299,26 @@ def create_app():
 
     if not docs_mode and not firebase_admin._apps:
         cred_path = app.config.get('FIREBASE_CREDENTIALS_PATH')
+        bucket = app.config.get('FIREBASE_STORAGE_BUCKET')
         original = cred_path
+        resolved = None
         if cred_path and not os.path.isabs(cred_path) and not os.path.exists(cred_path):
-            # Try resolve relative to pet_project_backend root
             backend_root = os.path.dirname(os.path.dirname(__file__))
             candidate = os.path.join(backend_root, cred_path)
             if os.path.exists(candidate):
                 cred_path = candidate
-        if not cred_path or not os.path.exists(cred_path):
-            logging.warning(f"Firebase credentials not found (configured='{original}'). Skipping Firebase init.")
+        if cred_path and os.path.exists(cred_path):
+            resolved = cred_path
+        logging.info(f"Firebase init attempt: original_path='{original}' resolved_path='{resolved}' bucket='{bucket}'")
+        if not resolved:
+            logging.warning("Firebase credentials file not found; skipping firebase_admin.initialize_app (Firestore fallback may still work via ADC if configured).")
         else:
             try:
-                cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred, {
-                    'storageBucket': app.config.get('FIREBASE_STORAGE_BUCKET')
-                })
-                logging.info("Firebase initialized successfully")
+                cred = credentials.Certificate(resolved)
+                firebase_admin.initialize_app(cred, {'storageBucket': bucket})
+                logging.info("Firebase initialized successfully (firebase_admin.initialize_app)")
             except Exception as fe:
-                logging.error(f"Firebase initialization failed: {fe}")
+                logging.error(f"Firebase initialization failed type={type(fe).__name__}: {fe}", exc_info=True)
 
     # Central Firestore client initialization (Dependency Inversion: single source)
     app.firestore_client = initialize_firestore()
@@ -302,8 +327,10 @@ def create_app():
             logging.info("DOCS_MODE: Firestore client not initialized (None)")
         else:
             logging.warning("Firestore client not initialized (returned None)")
+        app.config['FIRESTORE_AVAILABLE'] = False
     else:
         logging.info("Firestore client initialized (centralized)")
+        app.config['FIRESTORE_AVAILABLE'] = True
 
     # =====================================================================================
     # 5. 서비스 인스턴스 생성 및 'app.services'에 저장 (의존성 주입)
@@ -341,7 +368,11 @@ def create_app():
 
         ResponseSchema[200]: HealthStatusResponseSchema
         """
-        return {"status": "ok", "counters": metrics_module.get_counters()}, 200
+        return {
+            "status": "ok", 
+            "counters": metrics_module.get_counters(),
+            "firestore": "up" if app.config.get('FIRESTORE_AVAILABLE') else "down"
+        }, 200
 
     # =====================================================================================
     # 7. 전역 에러 핸들러 설정

@@ -57,6 +57,7 @@ ERRORS: Dict[str, ErrorSpec] = {
     'UPDATE_FAILED': ErrorSpec('UPDATE_FAILED', 'INTERNAL', 500, True, '수정 처리 중 오류가 발생했습니다.'),
     'DELETE_FAILED': ErrorSpec('DELETE_FAILED', 'INTERNAL', 500, True, '삭제 처리 중 오류가 발생했습니다.'),
     'SERVICE_UNAVAILABLE': ErrorSpec('SERVICE_UNAVAILABLE', 'SERVICE', 503, True, '서비스를 현재 사용할 수 없습니다.'),
+    'FIRESTORE_UNAVAILABLE': ErrorSpec('FIRESTORE_UNAVAILABLE', 'SERVICE', 503, True, '데이터베이스(Cloud Firestore)에 일시적으로 연결할 수 없습니다.'),
 
     # Biometric & Pet domain (selected domain-specific retained)
     'BIO_IMAGE_MISSING': ErrorSpec('BIO_IMAGE_MISSING', 'BIOMETRIC', 400, False, '필수 생체 이미지 파일이 누락되었습니다.'),
