@@ -1,6 +1,6 @@
 # app/api/pets/routes.py
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
@@ -10,47 +10,25 @@ from .schemas import (
     PetUpdateSchema,
     BiometricAnalysisRequestSchema,
     EyeAnalysisResponseSchema,
-    PetViewBasedResponseSchema
+    PetViewBasedResponseSchema,
+    NosePrintRegistrationResponseSchema
 )
 from .presenters import PetPresenter
 from .policy import PetAccessPolicy
-from app.utils.api_documentation import (
-    api_doc, error_responses, request_examples, response_examples,
-    CommonErrors, PetErrors, RequestExamples, ResponseExamples
-)
-from app.utils.error_catalog import build_error, ERRORS
+from app.utils.error_catalog import build_error
 
 pets_bp = Blueprint('pets_bp', __name__)
 
 @pets_bp.route('/', methods=['POST'])
 @jwt_required()
-@api_doc(
-    summary="반려동물 등록",
-    description="새로운 반려동물을 시스템에 등록합니다. 현재 사용자당 하나의 반려동물만 등록할 수 있습니다.",
-    tags=["pets"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    PetErrors.PET_LIMIT_REACHED,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples({
-    "name": "register_pet",
-    "summary": "반려동물 등록 요청",
-    "description": "반려동물 기본 정보를 포함한 등록 요청 (weight 필드 제거, birthdate/gender 정규화)",
-    "value": {
-        "name": "맥스",
-        "breed": "golden_retriever",
-        "birthdate": "2020-05-15",
-        "gender": "male",
-        "profile_image_url": "https://example.com/pet.jpg"
-    }
-})
-@response_examples(ResponseExamples.SUCCESS_CREATED)
 def register_pet():
-    """최초 반려동물 등록(Onboarding) API."""
+    """반려동물 등록
+
+    새로운 반려동물을 시스템에 등록합니다. 현재 사용자당 하나의 반려동물만 등록할 수 있습니다.
+
+    RequestSchema: PetRegistrationSchema
+    ResponseSchema[201]: PetProfileResponseSchema
+    """
     user_id = get_jwt_identity()
     pet_service = current_app.services['pets']
     try:
@@ -72,34 +50,13 @@ def register_pet():
 
 @pets_bp.route('/<string:pet_id>', methods=['GET'])
 @jwt_required()
-@api_doc(
-    summary="반려동물 프로필 조회 (소유자 전용)",
-    description="소유자만 접근할 수 있는 반려동물의 전체 프로필 정보를 조회합니다. 비공개 정보까지 포함됩니다.",
-    tags=["pets"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    PetErrors.PET_NOT_FOUND,
-    PetErrors.PET_NOT_OWNED,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "pet_profile",
-    "summary": "반려동물 프로필",
-    "description": "반려동물의 상세 프로필 정보 (weight 필드 제거)",
-    "value": {
-        "pet_id": "pet_123",
-        "name": "맥스",
-        "breed": "골든 리트리버",
-        "birthdate": "2020-05-15",
-        "age_months": 30,
-        "gender": "MALE",
-        "profile_image_url": "https://example.com/pet.jpg"
-    }
-})
 def get_pet_profile(pet_id: str):
-    """[소유자 전용] 특정 반려동물의 전체 프로필 정보를 조회합니다."""
+    """반려동물 프로필 조회 (소유자 전용)
+
+    소유자만 접근할 수 있는 반려동물의 전체 프로필 정보를 조회합니다. 비공개 정보까지 포함됩니다.
+
+    ResponseSchema[200]: PetProfileResponseSchema
+    """
     user_id = get_jwt_identity()
     pet_service = current_app.services['pets']
     try:
@@ -118,31 +75,14 @@ def get_pet_profile(pet_id: str):
 
 @pets_bp.route('/<string:pet_id>', methods=['PATCH'])
 @jwt_required()
-@api_doc(
-    summary="반려동물 프로필 수정",
-    description="소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.",
-    tags=["pets"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    PetErrors.PET_NOT_OWNED,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples({
-    "name": "update_pet",
-    "summary": "반려동물 정보 수정 요청",
-    "description": "수정할 반려동물 정보 (부분 업데이트)",
-    "value": {
-        "name": "맥시",
-        "weight": 26.0,
-        "profile_image_url": "https://example.com/new_pet.jpg"
-    }
-})
-@response_examples(ResponseExamples.SUCCESS_UPDATED)
 def update_pet_profile(pet_id: str):
-    """[소유자 전용] 특정 반려동물의 프로필 정보를 수정합니다 (부분 업데이트)."""
+    """반려동물 프로필 수정
+
+    소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.
+
+    RequestSchema: PetUpdateSchema
+    ResponseSchema[200]: PetProfileResponseSchema
+    """
     user_id = get_jwt_identity()
     pet_service = current_app.services['pets']
     try:
@@ -166,7 +106,13 @@ def update_pet_profile(pet_id: str):
 @pets_bp.route('/<string:pet_id>/nose-print', methods=['POST'])
 @jwt_required()
 def register_nose_print(pet_id: str):
-    """특정 반려동물의 비문 분석 및 등록/인증 API."""
+    """반려동물 비문 등록/인증
+
+    특정 반려동물의 비문(코) 이미지를 분석하여 등록/인증 처리합니다.
+
+    RequestSchema: BiometricAnalysisRequestSchema
+    ResponseSchema[200]: NosePrintRegistrationResponseSchema
+    """
     user_id = get_jwt_identity()
     pet_service = current_app.services['pets']
     biometric_service = current_app.services.get('pet_biometrics')
@@ -220,7 +166,13 @@ def register_nose_print(pet_id: str):
 @pets_bp.route('/<string:pet_id>/eye-analysis', methods=['POST'])
 @jwt_required()
 def request_eye_analysis(pet_id: str):
-    """특정 반려동물의 안구 이미지 분석 API."""
+    """반려동물 안구 이미지 분석
+
+    특정 반려동물의 안구 이미지를 분석합니다.
+
+    RequestSchema: BiometricAnalysisRequestSchema
+    ResponseSchema[200]: EyeAnalysisResponseSchema
+    """
     user_id = get_jwt_identity()
     pet_service = current_app.services['pets']
     biometric_service = current_app.services.get('pet_biometrics')
@@ -266,13 +218,13 @@ def request_eye_analysis(pet_id: str):
 
 @pets_bp.route('/profile', methods=['GET'])
 @jwt_required(optional=True)
-@api_doc(
-    summary="반려동물 프로필 조회 (뷰 기반 필터링 + 다른 사용자 지원)",
-    description="용도(view)에 맞게 필터링된 반려동물 프로필을 조회합니다. 정책은 PetAccessPolicy로 관리됩니다.",
-    tags=["pets"]
-)
 def get_pet_profile_by_view():
-    """뷰(view) 기반 필터링으로 반려동물 프로필을 조회 (Presenter + Policy 적용)."""
+    """뷰 기반 반려동물 프로필 조회
+
+    용도(view)에 맞게 필터링된 반려동물 프로필을 조회합니다. 정책은 PetAccessPolicy로 관리됩니다.
+
+    ResponseSchema[200]: PetViewBasedResponseSchema
+    """
     current_user_id = get_jwt_identity()
     target_user_id = request.args.get('user_id', current_user_id)
     view = request.args.get('view', 'mypage')

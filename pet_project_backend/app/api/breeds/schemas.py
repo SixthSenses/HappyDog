@@ -56,3 +56,9 @@ class ErrorResponseSchema(Schema):
     error_code = fields.Str(required=True)
     message = fields.Str(required=True)
     details = fields.Raw(required=False)
+
+
+class BreedExistsResponseSchema(Schema):
+    """품종 존재 여부 확인 응답."""
+    breed_name = fields.Str(required=True)
+    exists = fields.Boolean(required=True)

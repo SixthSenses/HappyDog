@@ -9,38 +9,21 @@ from app.api.users.schemas import (
     FCMTokenSchema,
     NotificationPreferencesSchema,
 )
-from app.utils.api_documentation import (
-    api_doc, error_responses, request_examples, response_examples,
-    CommonErrors, UserErrors
-)
+# Documentation decorators removed (replaced by docstring tags)
 from app.utils.error_catalog import build_error
 
 users_bp = Blueprint('users_bp', __name__)
 
 @users_bp.route('/<string:user_id>/public', methods=['GET'])
 @jwt_required(optional=True)
-@api_doc(
-    summary="[DEPRECATED] 사용자 공개 정보 조회",
-    description="[DEPRECATED] 이 엔드포인트는 더 이상 사용되지 않습니다. 대신 GET /api/pets/profile?view=social&user_id={user_id}를 사용하세요.",
-    tags=["users"]
-)
-@error_responses(
-    UserErrors.USER_NOT_FOUND,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "user_public_info_deprecated",
-    "summary": "[DEPRECATED] 사용자 공개 정보",
-    "description": "이 응답 형식은 더 이상 사용되지 않습니다. Pet profile API를 사용하세요.",
-    "value": {
-        "user_id": "user_123",
-        "nickname": "사용자",
-        # profile_image_url은 Pet 정보에서 가져오도록 변경됨
-        "post_count": 25
-    }
-})
 def get_user_public_info(user_id: str):
-    """[DEPRECATED] 다른 사용자의 공개 프로필 정보를 조회합니다."""
+    """[DEPRECATED] 다른 사용자의 공개 프로필 정보를 조회합니다.
+
+    더 이상 사용되지 않는 엔드포인트입니다. 신규 클라이언트는
+    GET /api/pets/profile?view=social&user_id={user_id} 사용으로 마이그레이션 해야 합니다.
+
+    ResponseSchema: UserPublicResponseSchema
+    """
     # 로그에 deprecation 경고 기록
     import warnings
     warnings.warn("GET /api/users/{user_id}/public is deprecated. Use GET /api/pets/profile?view=social&user_id={user_id} instead.", DeprecationWarning, stacklevel=2)
@@ -60,29 +43,11 @@ def get_user_public_info(user_id: str):
 
 @users_bp.route('/me', methods=['GET'])
 @jwt_required()
-@api_doc(
-    summary="내 기본 정보 조회",
-    description="현재 로그인한 사용자의 기본 정보를 조회합니다.",
-    tags=["users"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "my_info",
-    "summary": "내 기본 정보",
-    "description": "현재 사용자의 기본 정보",
-    "value": {
-        "user_id": "user_123",
-        "nickname": "내닉네임",
-        "email": "user@example.com"
-        # profile_image_url은 Pet 정보에서 가져오도록 변경됨
-    }
-})
 def get_my_info():
-    """현재 로그인한 사용자의 기본 정보를 조회합니다."""
+    """현재 로그인한 사용자의 기본 정보를 조회합니다.
+
+    ResponseSchema: UserMeResponseSchema
+    """
     user_profile_service = current_app.services['user_profile']
     try:
         current_user_id = get_jwt_identity()
@@ -109,44 +74,11 @@ def get_my_info():
 
 @users_bp.route('/me/summary', methods=['GET'])
 @jwt_required()
-@api_doc(
-    summary="내 통합 요약 정보 조회",
-    description="사용자 정보, 반려동물 정보, 펫케어 설정을 통합한 요약 정보를 조회합니다. 프로필 페이지와 마이페이지에서 사용합니다.",
-    tags=["users"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "my_summary",
-    "summary": "내 통합 요약 정보",
-    "description": "사용자, 반려동물, 펫케어 설정의 통합 정보",
-    "value": {
-        "user": {
-            "user_id": "user_123",
-            "nickname": "내닉네임",
-            # profile_image_url은 Pet 정보에서 가져오도록 변경됨
-            "post_count": 25
-        },
-        "pet": {
-            "pet_id": "pet_456",
-            "name": "맥스",
-            "breed": "골든 리트리버",
-            "profile_image_url": "https://example.com/pet.jpg",
-            "is_verified": True
-        },
-        "pet_care_settings": {
-            "daily_meal_count": 2,
-            "target_daily_meal_count": 3,
-            "target_daily_activity_minutes": 120,
-            "target_weight": 26.5
-        }
-    }
-})
 def get_my_summary():
-    """사용자, 반려동물, 펫케어 설정의 통합 요약 정보를 조회합니다."""
+    """사용자, 반려동물, 펫케어 설정의 통합 요약 정보를 조회합니다.
+
+    ResponseSchema: UserSummaryResponseSchema
+    """
     try:
         current_user_id = get_jwt_identity()
         
@@ -203,28 +135,11 @@ def get_my_summary():
 
 @users_bp.route('/me/notification-preferences', methods=['GET'])
 @jwt_required()
-@api_doc(
-    summary="알림 설정 조회",
-    description="현재 사용자의 알림 설정을 조회합니다.",
-    tags=["users"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "notification_preferences",
-    "summary": "알림 설정",
-    "description": "사용자의 알림 설정 정보",
-    "value": {
-        "push_enabled": True,
-        "email_enabled": False,
-        "marketing_enabled": True
-    }
-})
 def get_notification_preferences():
-    """현재 사용자의 알림 설정을 조회합니다."""
+    """현재 사용자의 알림 설정을 조회합니다.
+
+    ResponseSchema: NotificationPreferencesResponseSchema
+    """
     user_profile_service = current_app.services['user_profile']
     try:
         current_user_id = get_jwt_identity()
@@ -237,29 +152,12 @@ def get_notification_preferences():
 
 @users_bp.route('/me/notification-preferences', methods=['PUT'])
 @jwt_required()
-@api_doc(
-    summary="알림 설정 수정",
-    description="현재 사용자의 알림 설정을 수정합니다.",
-    tags=["users"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples({
-    "name": "update_notification_preferences",
-    "summary": "알림 설정 수정",
-    "description": "알림 설정 변경 요청",
-    "value": {
-        "push_enabled": False,
-        "email_enabled": True,
-        "marketing_enabled": False
-    }
-})
 def update_notification_preferences():
-    """현재 사용자의 알림 설정을 수정합니다."""
+    """현재 사용자의 알림 설정을 수정합니다.
+
+    RequestSchema: NotificationPreferencesSchema
+    ResponseSchema: NotificationPreferencesResponseSchema
+    """
     user_profile_service = current_app.services['user_profile']
     try:
         current_user_id = get_jwt_identity()
@@ -278,27 +176,12 @@ def update_notification_preferences():
 
 @users_bp.route('/me/fcm-token', methods=['PUT'])
 @jwt_required()
-@api_doc(
-    summary="FCM 토큰 업데이트",
-    description="푸시 알림을 위한 FCM 토큰을 업데이트합니다.",
-    tags=["users"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples({
-    "name": "update_fcm_token",
-    "summary": "FCM 토큰 업데이트",
-    "description": "새로운 FCM 토큰 설정",
-    "value": {
-        "fcm_token": "new_fcm_token_123"
-    }
-})
 def update_fcm_token():
-    """현재 사용자의 FCM 토큰을 업데이트합니다."""
+    """현재 사용자의 FCM 토큰을 업데이트합니다.
+
+    RequestSchema: FCMTokenSchema
+    ResponseSchema: FCMTokenUpdateResponseSchema
+    """
     user_profile_service = current_app.services['user_profile']
     try:
         current_user_id = get_jwt_identity()

@@ -93,3 +93,8 @@ notification_list_response_schema = NotificationListResponseSchema()
 notification_ack_request_schema = NotificationAckRequestSchema()
 notification_unread_count_response_schema = NotificationUnreadCountResponseSchema()
 error_response_schema = ErrorResponseSchema()
+
+class NotificationAckResponseSchema(Schema):
+    """알림 확인 처리 응답 스키마"""
+    status = fields.String(required=True)
+

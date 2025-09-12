@@ -4,53 +4,33 @@ from flask import Blueprint, request, jsonify, Response,current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
-from app.api.posts.schemas import PostCreateSchema, PostUpdateSchema, PostResponseSchema
-from app.utils.error_catalog import build_error
-from app.utils.api_documentation import (
-    api_doc, error_responses, request_examples, response_examples,
-    CommonErrors, PostErrors, RequestExamples, ResponseExamples
+from app.api.posts.schemas import (
+    PostCreateSchema,
+    PostUpdateSchema,
+    PostResponseSchema,
+    PostsFeedResponseSchema,  # 새 목록/피드 응답 스키마
+    PostLikeToggleResponseSchema,
+    EmptyRequestSchema,
+    NoContentSchema,
 )
+from app.utils.error_catalog import build_error
+from app.utils.api_documentation import CommonErrors
 
 posts_bp = Blueprint('posts_bp', __name__)
 
 @posts_bp.route('/', methods=['POST'])
 @jwt_required()
-@api_doc(
-    summary="게시글 생성",
-    description="새로운 게시글을 생성합니다. 텍스트 내용과 이미지 파일들을 포함할 수 있으며, 생성 후 관련 이벤트가 처리됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.RECORD_CREATION_FAILED
-)
-@request_examples(RequestExamples.CREATE_POST)
-@response_examples({
-    "name": "post_created",
-    "summary": "게시글 생성 성공",
-    "description": "새로 생성된 게시글 정보",
-    "value": {
-        "post_id": "post_123",
-        "user_id": "user_456",
-        "text": "새로운 게시글 내용입니다.",
-        "image_urls": ["https://example.com/image1.jpg"],
-        "created_at": "2023-12-10T12:00:00Z",
-        "like_count": 0,
-        "comment_count": 0,
-        "is_liked": False
-    }
-})
 def create_post():
+    """게시글을 생성합니다.
+
+    클라이언트는 텍스트(`text`)와 업로드 완료된 파일 경로 리스트(`file_paths`)를 전달합니다.
+    성공 시 생성된 게시글의 전체 정보를 201 응답으로 반환하며, 생성 이벤트 후속 처리(post_events_service)가 비동기/후속 로직을 트리거합니다.
+
+    RequestSchema: PostCreateSchema
+    ResponseSchema[201]: PostResponseSchema
+    """
     post_service = current_app.services['posts']
     post_events_service = current_app.services['post_events']
-    """
-    새로운 게시글을 생성합니다.
-    - 요청 본문은 PostCreateSchema에 따라 유효성을 검사합니다.
-    - 성공 시, 생성된 게시글 정보를 201 Created 상태 코드와 함께 반환합니다.
-    """
     user_id = get_jwt_identity()
     try:
         data = PostCreateSchema().load(request.get_json())
@@ -75,23 +55,17 @@ def create_post():
         return jsonify(body), status
 
 @posts_bp.route('/', methods=['GET'])
-@jwt_required(optional=True) # 비로그인 사용자도 피드는 볼 수 있도록 허용
-@api_doc(
-    summary="게시글 피드 조회",
-    description="게시글 피드 목록을 페이지네이션으로 조회합니다. 로그인된 사용자의 경우 좋아요 상태도 함께 반환됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples(RequestExamples.PAGINATION_QUERY)
-@response_examples(ResponseExamples.PAGINATED_LIST)
+@jwt_required(optional=True)  # 비로그인 사용자도 피드를 볼 수 있도록 허용
 def get_posts():
+    """게시글 피드 목록을 페이지네이션으로 조회합니다.
+
+    로그인 사용자는 각 게시글의 `is_liked` 상태가 채워집니다.
+    커서 기반 페이지네이션(`limit`, `cursor`)을 지원합니다.
+
+    ResponseSchema[200]: PostsFeedResponseSchema
+    """
     post_service = current_app.services['posts']
     post_like_service = current_app.services['post_likes']
-    """
-    게시글 피드 목록을 페이지네이션으로 조회합니다.
-    """
     user_id = get_jwt_identity() # 로그인 시 좋아요 여부 확인, 비로그인 시 None
     limit = request.args.get('limit', 10, type=int)
     cursor = request.args.get('cursor', None, type=str)
@@ -119,32 +93,12 @@ def get_posts():
 
 @posts_bp.route('/<string:post_id>', methods=['GET'])
 @jwt_required(optional=True)
-@api_doc(
-    summary="특정 게시글 조회",
-    description="게시글 ID로 특정 게시글의 상세 정보를 조회합니다. 로그인된 사용자의 경우 좋아요 상태도 함께 반환됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.RESOURCE_NOT_FOUND
-)
-@response_examples({
-    "name": "post_detail",
-    "summary": "게시글 상세 정보",
-    "description": "특정 게시글의 상세 정보",
-    "value": {
-        "post_id": "post_123",
-        "user_id": "user_456",
-        "text": "게시글 내용입니다.",
-        "image_urls": ["https://example.com/image1.jpg"],
-        "created_at": "2023-12-10T12:00:00Z",
-        "like_count": 10,
-        "comment_count": 5,
-        "is_liked": True
-    }
-})
 def get_post(post_id: str):
-    """
-    특정 게시글의 상세 정보를 조회합니다.
+    """특정 게시글의 상세 정보를 조회합니다.
+
+    로그인 사용자의 경우 해당 게시글 좋아요 여부(`is_liked`)가 포함됩니다.
+
+    ResponseSchema[200]: PostResponseSchema
     """
     post_service = current_app.services['posts']
     post_like_service = current_app.services['post_likes']
@@ -163,24 +117,11 @@ def get_post(post_id: str):
 
 @posts_bp.route('/<string:post_id>', methods=['PATCH'])
 @jwt_required()
-@api_doc(
-    summary="게시글 수정",
-    description="특정 게시글의 내용을 수정합니다. 작성자 본인만 수정할 수 있습니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.PERMISSION_DENIED,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.UPDATE_FAILED
-)
-@request_examples(RequestExamples.UPDATE_POST)
-@response_examples(ResponseExamples.SUCCESS_UPDATED)
 def update_post(post_id: str):
-    """
-    특정 게시글의 내용을 수정합니다. (작성자 본인만 가능)
+    """특정 게시글의 내용을 수정합니다. (작성자 본인만 가능)
+
+    RequestSchema: PostUpdateSchema
+    ResponseSchema[200]: PostResponseSchema
     """
     post_service = current_app.services['posts']
     user_id = get_jwt_identity()
@@ -201,22 +142,10 @@ def update_post(post_id: str):
 
 @posts_bp.route('/<string:post_id>', methods=['DELETE'])
 @jwt_required()
-@api_doc(
-    summary="게시글 삭제",
-    description="특정 게시글을 삭제합니다. 작성자 본인만 삭제할 수 있으며, 관련된 이미지 파일과 이벤트도 함께 처리됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.PERMISSION_DENIED,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.DELETE_FAILED
-)
-@response_examples(ResponseExamples.SUCCESS_DELETED)
 def delete_post(post_id: str):
-    """
-    특정 게시글을 삭제합니다. (작성자 본인만 가능)
+    """특정 게시글을 삭제합니다. (작성자 본인만 가능)
+
+    ResponseSchema[204]: NoContentSchema
     """
     post_service = current_app.services['posts']
     post_storage_service = current_app.services['post_storage']
@@ -245,26 +174,11 @@ def delete_post(post_id: str):
 
 @posts_bp.route('/<string:post_id>/like', methods=['POST'])
 @jwt_required()
-@api_doc(
-    summary="게시글 좋아요 토글",
-    description="게시글의 좋아요를 누르거나 취소합니다. 좋아요를 누른 경우에만 게시글 작성자에게 알림이 생성됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.UPDATE_FAILED
-)
-@response_examples({
-    "name": "post_like_toggled",
-    "summary": "좋아요 상태 변경 성공",
-    "description": "게시글 좋아요 상태가 성공적으로 변경됨",
-    "value": {"message": "좋아요 상태가 변경되었습니다."}
-})
 def toggle_post_like(post_id: str):
-    """
-    게시글의 좋아요를 누르거나 취소합니다.
+    """게시글의 좋아요를 누르거나 취소합니다.
+
+    RequestSchema: EmptyRequestSchema
+    ResponseSchema[200]: PostLikeToggleResponseSchema
     """
     post_like_service = current_app.services['post_likes']
     post_events_service = current_app.services['post_events']
@@ -288,20 +202,12 @@ def toggle_post_like(post_id: str):
     
 @posts_bp.route('/users/<string:author_id>/posts', methods=['GET'])
 @jwt_required(optional=True)
-@api_doc(
-    summary="사용자별 게시글 조회",
-    description="특정 사용자가 작성한 게시물 피드를 페이지네이션으로 조회합니다. 멍스타그램 프로필 화면에서 사용됩니다.",
-    tags=["posts"]
-)
-@error_responses(
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples(RequestExamples.PAGINATION_QUERY)
-@response_examples(ResponseExamples.PAGINATED_LIST)
 def get_user_posts(author_id: str):
-    """
-    특정 사용자가 작성한 게시물 피드를 페이지네이션으로 조회합니다.
-    (멍스타그램 전용 프로필 화면의 게시물 목록)
+    """특정 사용자가 작성한 게시물 피드를 페이지네이션으로 조회합니다.
+
+    멍스타그램 프로필 전용 엔드포인트이며 구조는 일반 피드와 동일합니다.
+
+    ResponseSchema[200]: PostsFeedResponseSchema
     """
     post_service = current_app.services['posts']
     post_like_service = current_app.services['post_likes']

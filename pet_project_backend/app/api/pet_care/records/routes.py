@@ -1,6 +1,6 @@
 # app/api/pet_care/records/routes.py
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 from app.utils.error_catalog import build_error
@@ -22,66 +22,14 @@ pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
 
 @pet_care_records_bp.route('/<string:pet_id>/records', methods=['POST'])
 @jwt_required()
-@api_doc(
-    summary="펫케어 기록 생성",
-    description="개별 펫케어 기록을 생성합니다. 각 기록 타입(식사횟수, 활동량, BCS, 체중, 대변, 구토)을 개별적으로 기록할 수 있습니다.",
-    tags=["pet_care"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.RECORD_CREATION_FAILED,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@request_examples({
-    "name": "create_meal_count_record",
-    "summary": "식사 횟수 기록",
-    "description": "하루 식사 횟수를 기록합니다",
-    "value": {
-        "record_type": "meal_count",
-        "timestamp": 1704067200000,
-        "data": 3,
-        "memo": "오늘 3회 식사"
-    }
-}, {
-    "name": "create_activity_record",
-    "summary": "활동량 기록",
-    "description": "활동량을 분 단위로 기록합니다",
-    "value": {
-        "record_type": "activity",
-        "timestamp": 1704070800000,
-        "data": 60,
-        "memo": "산책 1시간"
-    }
-}, {
-    "name": "create_weight_record",
-    "summary": "체중 기록",
-    "description": "반려동물의 체중을 기록합니다",
-    "value": {
-        "record_type": "weight",
-        "timestamp": 1704074400000,
-        "data": 26.5,
-        "memo": "정기 체중 측정"
-    }
-})
-@response_examples({
-    "name": "record_created",
-    "summary": "기록 생성 성공",
-    "description": "생성된 펫케어 기록 정보",
-    "value": {
-        "log_id": "rec_123",
-        "pet_id": "pet_123",
-        "record_type": "meal_count",
-        "timestamp": 1704067200000,
-        "timestamp_ms": 1704067200000,
-        "data": 3,
-        "memo": "오늘 3회 식사",
-        "searchDate": "2024-01-01"
-    }
-})
 def create_care_record(pet_id: str):
-    """개별 펫케어 기록을 생성합니다."""
+    """펫케어 기록 생성
+
+    개별 펫케어 기록을 생성합니다. 각 기록 타입(식사횟수, 활동량, BCS, 체중, 대변, 구토)을 개별적으로 기록할 수 있습니다.
+
+    RequestSchema: CareRecordCreateSchema
+    ResponseSchema[201]: RecordResponseSchema
+    """
     service = current_app.services['pet_care_records']
     integration_service = current_app.services.get('pet_care_integration')
     
@@ -112,44 +60,14 @@ def create_care_record(pet_id: str):
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['PATCH'])
 @jwt_required()
-@api_doc(
-    summary="펫케어 기록 수정",
-    description="기존 펫케어 기록을 수정합니다.",
-    tags=["pet_care"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.UPDATE_FAILED
-)
-@request_examples({
-    "name": "update_record",
-    "summary": "기록 수정",
-    "description": "기록 데이터나 메모를 수정합니다",
-    "value": {
-        "data": 4,
-        "memo": "수정된 식사 횟수"
-    }
-})
-@response_examples({
-    "name": "record_updated",
-    "summary": "기록 수정 성공",
-    "description": "수정된 펫케어 기록 정보",
-    "value": {
-        "log_id": "rec_123",
-        "pet_id": "pet_123",
-        "record_type": "meal_count",
-        "timestamp": 1704067200000,
-        "timestamp_ms": 1704067200000,
-        "data": 4,
-        "memo": "수정된 식사 횟수",
-        "searchDate": "2024-01-01"
-    }
-})
 def update_care_record(pet_id: str, log_id: str):
-    """기존 펫케어 기록을 수정합니다."""
+    """펫케어 기록 수정
+
+    기존 펫케어 기록을 수정합니다.
+
+    RequestSchema: CareRecordUpdateSchema
+    ResponseSchema[200]: RecordResponseSchema
+    """
     service = current_app.services['pet_care_records']
     try:
         # 요청 데이터 검증
@@ -173,28 +91,13 @@ def update_care_record(pet_id: str, log_id: str):
 
 @pet_care_records_bp.route('/<string:pet_id>/records/<string:log_id>', methods=['DELETE'])
 @jwt_required()
-@api_doc(
-    summary="펫케어 기록 삭제",
-    description="기존 펫케어 기록을 삭제합니다.",
-    tags=["pet_care"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.RESOURCE_NOT_FOUND,
-    CommonErrors.DELETE_FAILED
-)
-@response_examples({
-    "name": "record_deleted",
-    "summary": "기록 삭제 성공",
-    "description": "삭제 완료 응답",
-    "value": {
-        "message": "기록이 성공적으로 삭제되었습니다.",
-        "deleted_id": "rec_123"
-    }
-})
 def delete_care_record(pet_id: str, log_id: str):
-    """기존 펫케어 기록을 삭제합니다."""
+    """펫케어 기록 삭제
+
+    기존 펫케어 기록을 삭제합니다.
+
+    ResponseSchema[204]: NoContentSchema
+    """
     service = current_app.services['pet_care_records']
     try:
         # 기록 삭제
@@ -215,68 +118,13 @@ def delete_care_record(pet_id: str, log_id: str):
 
 @pet_care_records_bp.route('/<string:pet_id>/records/daily', methods=['GET'])
 @jwt_required()
-@api_doc(
-    summary="특정 날짜의 모든 펫케어 기록 조회",
-    description="특정 날짜에 기록된 모든 펫케어 데이터를 조회합니다. 과거 기록 조회 시 각각의 기록을 추가할 수 있습니다.",
-    tags=["pet_care"]
-)
-@error_responses(
-    CommonErrors.MISSING_JWT,
-    CommonErrors.INVALID_JWT,
-    CommonErrors.VALIDATION_ERROR,
-    CommonErrors.FETCH_FAILED,
-    CommonErrors.INTERNAL_SERVER_ERROR
-)
-@response_examples({
-    "name": "daily_records",
-    "summary": "특정 날짜 기록 조회 성공",
-    "description": "특정 날짜의 모든 펫케어 기록",
-    "value": {
-        "date": "2024-01-01",
-        "records": [
-            {
-                "log_id": "rec_123",
-                "pet_id": "pet_123",
-                "record_type": "meal_count",
-                "timestamp": 1704067200000,
-                "timestamp_ms": 1704067200000,
-                "data": 3,
-                "memo": "오늘 3회 식사",
-                "searchDate": "2024-01-01"
-            },
-            {
-                "log_id": "rec_124",
-                "pet_id": "pet_123",
-                "record_type": "activity",
-                "timestamp": 1704070800000,
-                "timestamp_ms": 1704070800000,
-                "data": 60,
-                "memo": "산책 1시간",
-                "searchDate": "2024-01-01"
-            },
-            {
-                "log_id": "rec_125",
-                "pet_id": "pet_123",
-                "record_type": "weight",
-                "timestamp": 1704074400000,
-                "timestamp_ms": 1704074400000,
-                "data": 26.5,
-                "memo": "정기 체중 측정",
-                "searchDate": "2024-01-01"
-            }
-        ],
-        "summary": {
-            "meal_count": 3,
-            "activity_minutes": 60,
-            "weight": 26.5,
-            "bcs": None,
-            "stool": None,
-            "vomit": None
-        }
-    }
-})
 def get_daily_records(pet_id: str):
-    """특정 날짜의 모든 펫케어 기록을 조회합니다."""
+    """특정 날짜 펫케어 기록 조회
+
+    특정 날짜에 기록된 모든 펫케어 데이터를 조회합니다.
+
+    ResponseSchema[200]: DailyRecordsResponseSchema
+    """
     service = current_app.services['pet_care_records']
     try:
         # 쿼리 파라미터에서 날짜 추출

@@ -337,6 +337,10 @@ def create_app():
     # Health & metrics (lightweight JSON; Prometheus 미도입 상태)
     @app.route('/health', methods=['GET'])
     def health_check():
+        """시스템 헬스 체크
+
+        ResponseSchema[200]: HealthStatusResponseSchema
+        """
         return {"status": "ok", "counters": metrics_module.get_counters()}, 200
 
     # =====================================================================================

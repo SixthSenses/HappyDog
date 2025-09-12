@@ -33,3 +33,11 @@ class CartoonJobResponseSchema(Schema):
     error_message = fields.Str(allow_none=True)
     created_at = fields.DateTime(required=True)
     updated_at = fields.DateTime(required=True)
+
+
+class CartoonJobHealthResponseSchema(Schema):
+    """Cartoon job processor health 응답."""
+    active_jobs = fields.Int(required=True)
+    queue_size = fields.Int(required=True)
+    max_workers = fields.Int(required=True)
+    integration_health = fields.Dict(required=True)

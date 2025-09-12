@@ -1,5 +1,6 @@
 # app/api/posts/schemas.py
 from marshmallow import Schema, fields, validate
+from pet_project_backend.app.api.common.schemas import EmptyRequestSchema, NoContentSchema
 
 # --- 재사용을 위한 중첩 스키마 ---
 class AuthorSchema(Schema):
@@ -39,3 +40,22 @@ class PostResponseSchema(Schema):
     created_at = fields.DateTime(required=True)
     updated_at = fields.DateTime(required=True)
     is_liked = fields.Bool(dump_only=True, dump_default=False)
+
+
+class PostsFeedResponseSchema(Schema):
+    """피드/사용자별 게시글 목록 응답 래퍼.
+
+    GET /api/posts, GET /api/posts/users/{author_id}/posts 에서 사용.
+    posts 배열과 다음 페이지 커서가 포함됩니다.
+    """
+    posts = fields.List(fields.Nested(PostResponseSchema), required=True)
+    next_cursor = fields.Str(allow_none=True)
+
+
+class PostLikeToggleResponseSchema(Schema):
+    """POST /api/posts/{post_id}/like 좋아요 토글 결과.
+
+    단순 메시지 필드만을 포함합니다.
+    """
+    message = fields.Str(required=True)
+

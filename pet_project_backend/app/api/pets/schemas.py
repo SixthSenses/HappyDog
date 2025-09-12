@@ -98,3 +98,13 @@ class EyeAnalysisResponseSchema(Schema):
     analysis_id = fields.Str(required=True)
     disease_name = fields.Str(required=True)
     probability = fields.Float(required=True)
+    image_url = fields.Str(allow_none=True)
+
+class NosePrintRegistrationResponseSchema(Schema):
+    """비문(코) 등록/인증 결과 응답 스키마."""
+    success = fields.Bool(required=True)
+    confidence = fields.Float(allow_none=True)
+    features = fields.Raw(allow_none=True)
+    analysis_id = fields.Str(allow_none=True)
+    metadata = fields.Dict(allow_none=True)
+    status = fields.Str(allow_none=True)

@@ -30,3 +30,53 @@ class NotificationPreferencesSchema(Schema):
 
 
 ## Deprecated schema removed: SelectedPetUpdateSchema
+
+
+class UserMeResponseSchema(Schema):
+    """GET /api/users/me 응답.
+
+    내 기본 정보 (민감정보 제외) 및 보조 상태(has_pet/pet_id) 포함.
+    """
+    user_id = fields.Str(required=True)
+    nickname = fields.Str(required=True)
+    email = fields.Email(required=True)
+    has_pet = fields.Bool(required=False)
+    pet_id = fields.Str(required=False, allow_none=True)
+
+
+class UserSummaryUserSchema(Schema):
+    """요약 응답 중 user 부분 (post_count 등 추가 필드 포함 가능)."""
+    user_id = fields.Str(required=True)
+    nickname = fields.Str(required=True)
+    post_count = fields.Int(required=False)
+
+
+class UserSummaryPetSchema(Schema):
+    """요약 응답 중 pet 부분 (단일 반려동물 정책)."""
+    pet_id = fields.Str(required=True)
+    name = fields.Str(required=True)
+    breed = fields.Str(required=True)
+    profile_image_url = fields.URL(required=False, allow_none=True)
+    is_verified = fields.Bool(required=False)
+
+
+class UserSummaryResponseSchema(Schema):
+    """GET /api/users/me/summary 응답.
+
+    user / pet / pet_care_settings (옵셔널) 통합 구조.
+    pet_care_settings는 동적 dict 로 덤프.
+    """
+    user = fields.Nested(UserSummaryUserSchema, required=True)
+    pet = fields.Nested(UserSummaryPetSchema, required=False, allow_none=True)
+    pet_care_settings = fields.Dict(required=False, allow_none=True)
+
+
+class NotificationPreferencesResponseSchema(Schema):
+    """알림 설정 조회/수정 결과 응답 스키마 (GET/PUT 공용)."""
+    mode = fields.Str(required=False, allow_none=True)
+    types = fields.Dict(keys=fields.Str(), values=fields.Bool(), required=False)
+
+
+class FCMTokenUpdateResponseSchema(Schema):
+    """FCM 토큰 업데이트 결과 메시지."""
+    message = fields.Str(required=True)
