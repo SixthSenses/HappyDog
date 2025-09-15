@@ -28,6 +28,37 @@ class DateTimeUtils:
     def now() -> datetime:
         """현재 시간을 UTC timezone-aware datetime으로 반환"""
         return datetime.now(timezone.utc)
+
+    @staticmethod
+    def validate_clock_skew(client_ts_ms: int, max_skew_seconds: int = 300) -> None:
+        """클라이언트 제공 timestamp(ms)가 허용 편차(±max_skew_seconds)를 벗어나면 ValidationError.
+        Sprint A: ±300s 정책 적용.
+        """
+        try:
+            from marshmallow import ValidationError
+            server_now = DateTimeUtils.now()
+            client_dt = DateTimeUtils.from_timestamp_ms(client_ts_ms)
+            diff = abs((server_now - client_dt).total_seconds())
+            # 경고 임계값 (예: 250~300초 구간)
+            warn_threshold = max_skew_seconds - 50  # 250s (300 기준)
+            if diff > max_skew_seconds:
+                # V2 표준화: details.timestamp_skew 구조
+                raise ValidationError({
+                    "timestamp_skew": {
+                        "diff_seconds": int(diff),
+                        "max_seconds": max_skew_seconds,
+                        "error": "CLOCK_SKEW_EXCEEDED"
+                    }
+                })
+            elif diff >= warn_threshold:
+                # 경고(메트릭 증가 placeholder)
+                logger.warning(f"clock skew warn window diff={diff:.1f}s (threshold={warn_threshold}s, max={max_skew_seconds}s)")
+                # 메트릭 시스템 연동 시: metrics.increment('clock_skew_warn_total')
+        except ValidationError:
+            raise
+        except Exception as e:
+            # 예기치 오류는 검증 실패로 간주하지 않고 로그만
+            logger.warning(f"clock skew validation error fallback: {e}")
     
     @staticmethod
     def today() -> date:
@@ -115,6 +146,15 @@ class DateTimeUtils:
         except Exception as e:
             logger.error(f"날짜 문자열 변환 실패: {d} - {e}")
             raise ValueError(f"date 객체를 문자열로 변환할 수 없습니다: {d}")
+
+    # Backward compatibility alias (legacy code referenced to_date_str)
+    @staticmethod
+    def to_date_str(d: date) -> str:  # pragma: no cover - simple alias
+        """Deprecated alias for to_date_string (남은 레거시 호출 지원).
+
+        향후 직접 호출부를 to_date_string 으로 교체 후 이 alias 제거 가능.
+        """
+        return DateTimeUtils.to_date_string(d)
     
     @staticmethod
     def for_firestore(obj: Any) -> Any:
@@ -361,21 +401,23 @@ class DateTimeUtils:
             Unix timestamp in milliseconds
         """
         try:
-            # Firestore timestamp 객체 처리
-            if hasattr(dt, 'timestamp'):
-                return int(dt.timestamp() * 1000)
-            
+            # 이미 ms 정수 값인 경우 (V2 서비스 내 재호출 시) 그대로 반환
+            if isinstance(dt, int):
+                return dt
+            # Firestore timestamp 객체 처리 (datetime 유사 인터페이스)
+            if hasattr(dt, 'timestamp') and not isinstance(dt, datetime):
+                try:
+                    return int(dt.timestamp() * 1000)  # type: ignore[attr-defined]
+                except Exception:
+                    pass  # fallback 아래 분기
             # datetime 객체 처리
-            elif isinstance(dt, datetime):
+            if isinstance(dt, datetime):
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
                 else:
                     dt = dt.astimezone(timezone.utc)
                 return int(dt.timestamp() * 1000)
-            
-            else:
-                raise ValueError(f"datetime 객체 또는 Firestore timestamp여야 합니다: {type(dt)}")
-                
+            raise ValueError(f"datetime/int(ms) 또는 Firestore timestamp여야 합니다: {type(dt)}")
         except Exception as e:
             logger.error(f"timestamp_ms 변환 실패: {dt} - {e}")
             raise ValueError(f"timestamp로 변환할 수 없습니다: {dt}")

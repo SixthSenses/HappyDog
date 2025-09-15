@@ -1,7 +1,6 @@
 # app/api/breeds/services.py
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from firebase_admin import firestore
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -11,9 +10,11 @@ class BreedService:
     강아지 품종 관련 비즈니스 로직을 처리하는 서비스 클래스
     """
     
-    def __init__(self):
-        self.db = firestore.client()
-        self.breeds_collection = self.db.collection('breeds')
+    def __init__(self, db_client=None):
+        self.db = db_client
+        self.breeds_collection = self.db.collection('breeds') if self.db else None
+        if self.db is None:
+            logger.info("BreedService initialized without Firestore client (docs mode or disabled persistence)")
     
     def get_all_breeds(self, limit: Optional[int] = None, offset: int = 0) -> Tuple[List[Dict[str, Any]], int]:
         """
@@ -26,6 +27,8 @@ class BreedService:
         Returns:
             Tuple[품종 목록, 전체 개수]
         """
+        if self.breeds_collection is None:
+            return [], 0
         try:
             # 전체 개수 조회
             all_docs = self.breeds_collection.stream()
@@ -72,6 +75,8 @@ class BreedService:
         Returns:
             품종 정보 딕셔너리 또는 None
         """
+        if self.breeds_collection is None:
+            return None
         try:
             doc_ref = self.breeds_collection.document(breed_name)
             doc = doc_ref.get()
@@ -102,6 +107,8 @@ class BreedService:
         Returns:
             Tuple[검색 결과 목록, 전체 검색 결과 개수]
         """
+        if self.breeds_collection is None:
+            return [], 0
         try:
             # Firestore에서는 부분 문자열 검색이 제한적이므로
             # 모든 데이터를 가져와서 클라이언트 측에서 필터링
@@ -137,6 +144,8 @@ class BreedService:
         Returns:
             품종 요약 정보 목록
         """
+        if self.breeds_collection is None:
+            return []
         try:
             query = self.breeds_collection.order_by('breed_name')
             
@@ -171,6 +180,8 @@ class BreedService:
         Returns:
             존재 여부
         """
+        if self.breeds_collection is None:
+            return False
         try:
             doc_ref = self.breeds_collection.document(breed_name)
             doc = doc_ref.get()
@@ -191,6 +202,8 @@ class BreedService:
         Returns:
             이상적인 체중(kg) 또는 None
         """
+        if self.breeds_collection is None:
+            return None
         try:
             breed_data = self.get_breed_by_name(breed_name)
             if not breed_data:
@@ -211,36 +224,4 @@ class BreedService:
             logger.error(f"품종 이상 체중 조회 실패 ({breed_name}, {gender}): {e}")
             return None
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """
-        품종 데이터베이스 통계 정보를 조회합니다.
-        
-        Returns:
-            통계 정보 딕셔너리
-        """
-        try:
-            all_breeds, total_count = self.get_all_breeds()
-            
-            if not all_breeds:
-                return {
-                    'total_breeds': 0,
-                    'avg_life_expectancy': 0,
-                    'min_life_expectancy': 0,
-                    'max_life_expectancy': 0
-                }
-            
-            life_expectancies = [breed['life_expectancy'] for breed in all_breeds if breed.get('life_expectancy')]
-            
-            stats = {
-                'total_breeds': total_count,
-                'avg_life_expectancy': sum(life_expectancies) / len(life_expectancies) if life_expectancies else 0,
-                'min_life_expectancy': min(life_expectancies) if life_expectancies else 0,
-                'max_life_expectancy': max(life_expectancies) if life_expectancies else 0
-            }
-            
-            logger.info(f"품종 통계 정보 조회 완료: {stats}")
-            return stats
-            
-        except Exception as e:
-            logger.error(f"품종 통계 정보 조회 실패: {e}")
-            raise
+    # 통계 관련 기능은 폐지됨 (UI 정책에 따라 모든 요약/통계 제거)

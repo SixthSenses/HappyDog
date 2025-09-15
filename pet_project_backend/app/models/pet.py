@@ -22,9 +22,9 @@ class Pet:
     gender: PetGender
     breed: str
     birthdate: date
-    initial_weight: float
     is_verified: bool = False
-    nose_print_url: Optional[str] = None
+    profile_image_url: Optional[str] = None  # 마이페이지/멍스타그램 프로필 이미지
+    nose_print_url: Optional[str] = None     # 비문 인증용 이미지 
     faiss_id: Optional[int] = None
     fur_color: Optional[str] = None
     health_concerns: List[str] = field(default_factory=list)
@@ -37,6 +37,8 @@ class Pet:
         """
         # 데이터 복사본 생성 (원본 데이터 변경 방지)
         processed_data = data.copy()
+        
+    # 더 이상 모델에서 profile_image_url 제거하지 않음 (필드 유지)
         
         # gender 필드의 문자열 값을 PetGender Enum 멤버로 변환
         gender_str = processed_data.get('gender')

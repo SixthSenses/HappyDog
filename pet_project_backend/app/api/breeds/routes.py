@@ -5,10 +5,11 @@ from marshmallow import ValidationError
 from urllib.parse import unquote
 
 from .schemas import (
-    BreedSchema, BreedListSchema, BreedSummaryListSchema, 
-    BreedSearchSchema, ErrorResponseSchema
+    BreedSchema, BreedListSchema, BreedSummaryListSchema,
+    BreedSearchSchema, ErrorResponseSchema, BreedExistsResponseSchema
 )
 from .services import BreedService
+# 기존 데코레이터 기반 문서화 제거됨 (docstring 태그로 대체)
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +22,9 @@ def get_breed_service():
 
 @breeds_bp.route('/', methods=['GET'])
 def get_all_breeds():
-    """
-    모든 품종 목록을 조회합니다.
-    
-    Query Parameters:
-        - limit (int, optional): 조회할 최대 개수
-        - offset (int, optional): 건너뛸 개수 (기본값: 0)
-        - summary (bool, optional): 요약 정보만 조회할지 여부 (기본값: false)
+    """품종 목록 조회
+
+    ResponseSchema[200]: BreedListSchema
     """
     try:
         # 쿼리 파라미터 파싱
@@ -79,11 +76,10 @@ def get_all_breeds():
 
 @breeds_bp.route('/<breed_name>', methods=['GET'])
 def get_breed_by_name(breed_name: str):
-    """
-    특정 품종 정보를 조회합니다.
-    
-    Path Parameters:
-        - breed_name (str): 품종명 (URL 인코딩된 상태)
+    """특정 품종 정보 조회
+
+    ResponseSchema[200]: BreedSchema
+    ResponseSchema[404]: ErrorResponseSchema
     """
     try:
         breed_service = get_breed_service()
@@ -112,13 +108,10 @@ def get_breed_by_name(breed_name: str):
 
 @breeds_bp.route('/search', methods=['GET'])
 def search_breeds():
-    """
-    품종명으로 검색합니다.
-    
-    Query Parameters:
-        - q (str, required): 검색 쿼리
-        - limit (int, optional): 조회할 최대 개수 (기본값: 50)
-        - offset (int, optional): 건너뛸 개수 (기본값: 0)
+    """품종 검색
+
+    ResponseSchema[200]: BreedListSchema
+    ResponseSchema[400]: ErrorResponseSchema
     """
     try:
         # 쿼리 파라미터 파싱
@@ -168,11 +161,9 @@ def search_breeds():
 
 @breeds_bp.route('/exists/<breed_name>', methods=['GET'])
 def check_breed_exists(breed_name: str):
-    """
-    특정 품종이 존재하는지 확인합니다.
-    
-    Path Parameters:
-        - breed_name (str): 품종명 (URL 인코딩된 상태)
+    """품종 존재 여부 확인
+
+    ResponseSchema[200]: BreedExistsResponseSchema
     """
     try:
         breed_service = get_breed_service()
@@ -198,24 +189,7 @@ def check_breed_exists(breed_name: str):
             "message": f"품종 존재 확인 중 오류가 발생했습니다: {breed_name}"
         }), 500
 
-@breeds_bp.route('/statistics', methods=['GET'])
-def get_breed_statistics():
-    """
-    품종 데이터베이스 통계 정보를 조회합니다.
-    """
-    try:
-        breed_service = get_breed_service()
-        stats = breed_service.get_statistics()
-        
-        logger.info("품종 통계 정보 조회 성공")
-        return jsonify(stats), 200
-        
-    except Exception as e:
-        logger.error(f"품종 통계 정보 조회 실패: {e}", exc_info=True)
-        return jsonify({
-            "error_code": "STATS_FETCH_FAILED",
-            "message": "통계 정보를 조회하는 중 오류가 발생했습니다."
-        }), 500
+    
 
 @breeds_bp.errorhandler(ValidationError)
 def handle_validation_error(error):

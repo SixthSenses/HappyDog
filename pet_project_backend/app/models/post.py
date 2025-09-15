@@ -8,7 +8,7 @@ class Author:
     """Post 문서 내부에 저장될 작성자 정보."""
     user_id: str
     nickname: str
-    profile_image_url: Optional[str] = None
+    # profile_image_url는 Pet 정보에서 가져오도록 변경됨
 
 @dataclass
 class PetInfo:
@@ -17,6 +17,7 @@ class PetInfo:
     name: str
     breed: str
     birthdate: datetime
+    profile_image_url: Optional[str] = None  # Pet 프로필 이미지 추가
 
 @dataclass
 class Post:

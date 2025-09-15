@@ -11,26 +11,26 @@ class StorageService:
     파일 업로드를 위한 Pre-signed URL 생성 등의 기능을 제공합니다.
     """
 
-    def __init__(self):
+    def __init__(self, bucket=None):
+        """Optionally inject an existing storage bucket. When bucket is None the
+        service operates in a no-op/docs mode and raises on operations that require storage.
         """
-        클래스 인스턴스 생성 시 버킷을 None으로 초기화합니다.
-        실제 버킷 객체는 init_app 메서드를 통해 주입됩니다.
-        """
-        self.bucket = None
+        self.bucket = bucket
 
     def init_app(self, app: Flask):
-        """
-        Flask 앱 초기화 과정에서 호출되어 Storage 버킷을 설정합니다.
-        이 메서드는 app/__init__.py에서 단 한 번만 호출됩니다.
-        
-        :param app: Flask 애플리케이션 객체
-        """
+        """Optionally initialize bucket from app config if not already injected."""
+        if self.bucket is not None:
+            return
         bucket_name = app.config.get('FIREBASE_STORAGE_BUCKET')
         if not bucket_name:
-            raise ValueError("FIREBASE_STORAGE_BUCKET 설정이 .env 또는 설정 파일에 필요합니다.")
-        
-        self.bucket = storage.bucket(bucket_name)
-        logging.info("StorageService: Firebase Storage 서비스가 성공적으로 초기화되었습니다.")
+            logging.info("StorageService: No bucket configured (treated as docs-mode/no-op).")
+            return
+        try:
+            self.bucket = storage.bucket(bucket_name)
+            logging.info("StorageService: Firebase Storage initialized (bucket acquired).")
+        except Exception as e:
+            logging.warning(f"StorageService: bucket initialization failed, operating in no-op mode: {e}")
+            self.bucket = None
 
     def generate_upload_url(self, user_id: str, upload_type: str, filename: str, content_type: str) -> dict:
         """
@@ -48,7 +48,7 @@ class StorageService:
 
         # 'upload_type'에 따라 파일이 저장될 폴더 경로를 매핑합니다.
         path_map = {
-            "user_profile": f"user_profiles/{user_id}",
+            "pet_profile": f"pet_profiles/{user_id}",  # Pet 프로필 이미지용 (User 프로필은 Pet에서 관리)
             "pet_nose_print": f"nose_prints_staging/{user_id}",
             "eye_analysis": f"eye_analysis_images/{user_id}",
             "post_image": f"posts/{user_id}",
@@ -120,3 +120,21 @@ class StorageService:
         except Exception as e:
             logging.error(f"파일 공개 전환 실패: {e}", exc_info=True)
             raise
+
+    def promote_object(self, source_path: str, dest_path: str, delete_source: bool = True) -> None:
+        """Copy a blob to a new destination (promotion) and optionally delete source.
+
+        Used for promoting biometric artifacts from staging to verified.
+        """
+        if not self.bucket:
+            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
+        source_blob = self.bucket.blob(source_path)
+        if not source_blob.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {source_path}")
+        dest_blob = self.bucket.blob(dest_path)
+        self.bucket.copy_blob(source_blob, self.bucket, new_name=dest_path)
+        if delete_source:
+            try:
+                source_blob.delete()
+            except Exception as e:  # non-fatal
+                logging.warning(f"원본 삭제 실패(무시): {e}")

@@ -6,6 +6,7 @@ import jwt
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request as GoogleAuthRequest
+from typing import Optional
 
 class GoogleAuthService:
     """실제 Google OAuth 2.0 통신을 담당하는 서비스 클래스입니다."""
@@ -62,7 +63,7 @@ class GoogleAuthService:
             return None
     
     @staticmethod
-    def exchange_code_for_user_info(auth_code: str, client_secrets_path: str) -> dict:
+    def exchange_code_for_user_info(auth_code: str, client_secrets_path: str, redirect_uri: Optional[str] = None) -> dict:
         """
         인증 코드를 Access Token으로 교환하고, 이를 사용해 사용자 정보를 가져옵니다.
         """
@@ -78,9 +79,8 @@ class GoogleAuthService:
                 ]
             )
             
-            # --- 'httpso' -> 'https'로 수정 ---
-            #flow.redirect_uri = "https://developers.google.com/oauthplayground"  # 안드로이드 스튜디오에서 테스트 할때 http://127.0.0.1:5000/api/auth/social
-            flow.redirect_uri = "http://127.0.0.1:5000/api/auth/social"  # oauthplayground에서 발급받을떄 https://developers.google.com/oauthplayground
+            # 호출자가 명시한 redirect_uri가 있으면 사용하고, 없으면 기본값(Playground)을 사용합니다.
+            flow.redirect_uri = redirect_uri or "https://developers.google.com/oauthplayground"
             # 2. 인증 코드를 사용해 Access Token 및 Refresh Token으로 교환합니다.
             flow.fetch_token(code=auth_code)
 

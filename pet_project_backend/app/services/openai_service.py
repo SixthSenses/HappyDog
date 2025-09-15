@@ -44,33 +44,48 @@ class OpenAIService:
             raise RuntimeError("OpenAIService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
         
         try:
-            # 1단계: GPT-4 Vision으로 이미지 분석
-            image_description = self._analyze_image_with_gpt4_vision(image_url)
-            
+            # 1단계: GPT-4 Vision으로 이미지 분석 (재시도 포함)
+            image_description = None
+            last_err = None
+            for attempt in range(3):
+                try:
+                    image_description = self._analyze_image_with_gpt4_vision(image_url)
+                    break
+                except Exception as e:
+                    last_err = e
+                    logging.warning(f"GPT-4o 분석 재시도 {attempt+1}/3 실패: {e}")
+            if image_description is None:
+                logging.warning("이미지 분석이 3회 모두 실패하여 기본 설명으로 진행합니다.")
+                image_description = "귀여운 반려동물이 있는 일상적인 장면"
+
             # 2단계: 분석 결과와 사용자 텍스트로 만화 프롬프트 구성
             cartoon_prompt = self._build_cartoon_prompt_from_analysis(image_description, user_text)
-            
-            # 3단계: DALL-E 3로 4컷 만화 생성
-            response = self.client.images.generate(
-                model="dall-e-3",
-                prompt=cartoon_prompt,
-                size="1024x1024",  # 표준 크기
-                quality="standard",  # 표준 품질 (저비용)
-                n=1  # 이미지 1장 생성
-            )
-            
-            # 생성된 이미지 정보 반환
-            generated_image = response.data[0]
-            
-            return {
-                "success": True,
-                "image_url": generated_image.url,
-                "image_description": image_description,
-                "final_prompt": cartoon_prompt,
-                "revised_prompt": getattr(generated_image, 'revised_prompt', cartoon_prompt),
-                "model_used": "gpt-4-vision + dall-e-3"
-            }
-            
+
+            # 3단계: DALL-E 3로 4컷 만화 생성 (재시도 포함)
+            last_err = None
+            for attempt in range(3):
+                try:
+                    response = self.client.images.generate(
+                        model="dall-e-3",
+                        prompt=cartoon_prompt,
+                        size="1024x1024",
+                        quality="standard",
+                        n=1,
+                    )
+                    generated_image = response.data[0]
+                    return {
+                        "success": True,
+                        "image_url": generated_image.url,
+                        "image_description": image_description,
+                        "final_prompt": cartoon_prompt,
+                        "revised_prompt": getattr(generated_image, 'revised_prompt', cartoon_prompt),
+                        "model_used": "gpt-4-vision + dall-e-3"
+                    }
+                except Exception as e:
+                    last_err = e
+                    logging.warning(f"DALL-E 생성 재시도 {attempt+1}/3 실패: {e}")
+            raise last_err or RuntimeError("이미지 생성 실패")
+
         except Exception as e:
             logging.error(f"OpenAI 만화 생성 실패: {e}", exc_info=True)
             return {
@@ -86,41 +101,36 @@ class OpenAIService:
         :param image_url: 분석할 이미지 URL
         :return: 이미지 분석 결과 텍스트
         """
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """이 이미지에 있는 동물들과 상황을 자세히 분석해주세요. 
-                                4컷 만화로 만들기 위해 다음 정보를 포함해서 설명해주세요:
-                                1. 동물의 종류, 색깔, 특징
-                                2. 동물의 표정이나 자세
-                                3. 배경이나 주변 환경
-                                4. 전체적인 분위기나 상황
-                                5. 만화로 만들 수 있는 스토리 아이디어"""
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_url
-                                }
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """이 이미지에 있는 동물들과 상황을 자세히 분석해주세요. 
+                            4컷 만화로 만들기 위해 다음 정보를 포함해서 설명해주세요:
+                            1. 동물의 종류, 색깔, 특징
+                            2. 동물의 표정이나 자세
+                            3. 배경이나 주변 환경
+                            4. 전체적인 분위기나 상황
+                            5. 만화로 만들 수 있는 스토리 아이디어"""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url
                             }
-                        ]
-                    }
-                ],
-                max_tokens=500
-            )
-            
-            return response.choices[0].message.content
-            
-        except Exception as e:
-            logging.error(f"GPT-4 Vision 이미지 분석 실패: {e}", exc_info=True)
-            # 분석 실패 시 기본 설명 반환
-            return "귀여운 반려동물이 있는 일상적인 장면"
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500,
+            timeout=60,
+        )
+
+        return response.choices[0].message.content
     
     def _build_cartoon_prompt_from_analysis(self, image_description: str, user_text: str) -> str:
         """

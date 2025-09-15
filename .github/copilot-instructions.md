@@ -1,43 +1,56 @@
-# HappyDog Backend — AI Agent Notes
+## HappyDog AI Agent Instructions
+Focused guidance for autonomous code changes in this backend.
 
-Goal: Practical rules to work productively in this Flask backend without breaking conventions.
+### 1. Core Domain & Layout
+Backend root: `pet_project_backend/app` organized by domain under `api/` (e.g. `auth`, `pets`, `pet_care`, `posts`, `comments`, `notifications`, `uploads`). Each domain keeps: `routes.py` (HTTP only), `services/` (business logic), optional `schemas.py` (Marshmallow), and sometimes sub‑service modules. Never add business logic to `routes`.
+Global cross‑cutting modules: `core/` (initialization: Firestore, JWT, app wiring), `middleware/` (idempotency, rate limiting), `utils/` (error catalog, datetime, API docs helpers), `services/` (shared infrastructure: `firestore_service.py`, `storage_service.py`, `notification_service.py`, `openai_service*.py`).
 
-## Big picture
-- Flask app factory (`app/__init__.py:create_app`) launched by `python run.py` from `pet_project_backend/`.
-- Domains via blueprints under `app/api/**` (auth, users, posts, comments, cartoon_jobs, breeds, pets, pet_care, notifications).
-- Dependency injection: services are created in `create_app()` and stored on `current_app.services[...]` (e.g., 'storage', 'openai', 'breeds', 'pets', 'pet_care_records').
-- Data: Firestore + Storage via Firebase Admin SDK; access happens inside services (no ORM).
-- ML: optional `nose_models`/`eyes_models`; init may fail → service is `None` (callers must guard).
+### 2. Dependency & Service Wiring
+Application services are instantiated in `app/__init__.py` and injected (DI pattern) into domains via `app.services[...]`. When adding a new service: (1) create implementation in appropriate domain or shared `services/`; (2) register instance in `create_app` near related domain grouping; (3) expose only pure methods (side effects limited to Firestore / Storage). Respect ordering (foundational services like notifications, auth first; dependent domains later).
 
-## Run & env
-- Run from `pet_project_backend/`; conda envs defined in `environment.yml` or `envs/*.yml`.
-- `.env` required; key vars include `FLASK_ENV`, `JWT_SECRET_KEY`, `DEV/TEST_FIREBASE_CREDENTIALS_PATH`, `FIREBASE_STORAGE_BUCKET`, `OPENAI_API_KEY`, and ML paths. Secrets live in `secrets/`.
+### 3. Data & Validation
+Firestore is the persistence layer; always convert datetime objects using `DateTimeUtils.for_firestore` before writes. All inbound request payloads must be validated at route entry with a Marshmallow schema (place in `schemas.py` or inline schema module). Do not bypass schema even for internal tooling endpoints. Maintain collection naming consistency already used in existing services—inspect similar service before introducing a new collection.
 
-## Conventions
-- Time: UTC only. Convert ms<->datetime with `app.utils.datetime_utils.DateTimeUtils`. Persist timezone-aware datetimes; maintain `searchDate` (YYYY-MM-DD) for querying.
-- Errors: `{ error_code, message?, details? }` JSON; `ValidationError` is globally handled.
-- Auth: protect endpoints with `@jwt_required()`; validate with Marshmallow schemas next to routes.
+### 4. Error Handling Contract
+Use centralized error system: `app.utils.error_catalog` exports `ERRORS`, `build_error`, `ErrorSpec`. In routes: return `build_error(ERRORS['SOME_CODE'])` on known business failures; never craft ad‑hoc JSON. Wrap Firestore lookups; map not-found to catalog codes instead of raw exceptions. When adding new error: extend catalog (provide code, http status, message, detail schema) and reference it; update swagger via `scripts/swagger_build.py` if needed.
 
-## Firestore patterns
-- Filter by `pet_id` + (`searchDate` eq/range) and optionally `record_type` (`in` up to 10 values).
-- Sort by `timestamp` asc/desc; paginate with cursor doc ID + `start_after()` and `limit+1` for `has_more`.
-- Ensure composite indexes per README (e.g., `(pet_id, searchDate, timestamp)`).
+### 5. Idempotency & Rate Limits
+Long-running or write endpoints that can be retried should integrate idempotency middleware key extraction (see `middleware/idempotency_middleware.py`). For high-frequency endpoints, consult `rate_limit_middleware.py` patterns—reuse helper functions and constant buckets; do not duplicate logic inside routes.
 
-## Example: Pet Care Records
-- Files: `app/api/pet_care/records/{routes,services}.py`.
-- Create: body `{ record_type, timestamp(ms), data, notes? }` → ms→UTC, set `searchDate`, upsert by `log_id` (idempotent via `request_id`).
-- List: `GET /api/pet-care/{pet_id}/records?date=YYYY-MM-DD&record_types=weight,meal&limit=20&cursor=...` (supports `start_date/end_date`, `grouped`, `sort`). Types: `weight, water, activity, meal, bcs`.
+### 6. OpenAPI / Documentation
+Primary specs: root `openapi.json` and `openapi_pretty.json`. Regeneration pipeline leverages `scripts/swagger_build.py` and domain route introspection + error catalog injection. After adding/modifying routes: run the swagger build script and ensure new error responses reference catalog codes only.
 
-## Adding a feature
-1) Implement service in `app/api/<feature>/services.py` (Firestore, time, pagination patterns above).
-2) Add blueprint in `app/api/<feature>/routes.py` with Marshmallow schemas and standard error payloads.
-3) Wire in `app/__init__.py`: create service(s) → `app.services[...]`, `register_blueprint(..., url_prefix='/api/<feature>')`.
+### 7. Testing Strategy
+Use `pytest`. Unit tests: isolate service logic; mock Firestore client (pattern visible in existing `test_*` scripts under `scripts/` and `tests/`). Integration tests must target Firestore Emulator—never real GCP project. Provide Arrange-Act-Assert structure, ensure deterministic timestamps (use helpers). For new domain add minimal smoke test covering happy path + one catalog error.
 
-## OpenAI
-- `app/services/openai_service.py` (GPT‑4o analysis + DALL·E 3). Fetch via `current_app.services['openai']`. Needs `OPENAI_API_KEY`.
+### 8. Security & Input Sanitation
+Authenticate via auth service (Firebase / JWT integration). Never log secrets, tokens, or PII. Validate every external input through schema before reaching service layer. File uploads go through `uploads` domain; reuse existing storage service patterns to enforce size/type constraints.
 
-## Tests
-- Pytest example: `python -m pytest app\utils\test_datetime_utils.py -v`.
+### 9. OpenAI / External Calls
+When using `openai_service.py`, prefer the existing stub for tests (`openai_service_stub.py`). Inject service through `app.services` for testability; do not call external APIs directly inside domain services.
 
-## Safety
-- Never commit secrets/weights; keep `.env` in sync with `secrets/`. Guard ML services for `None`. Avoid logging sensitive values.
+### 10. Performance & Consistency
+Avoid N+1 Firestore reads—batch or structure queries like similar services (inspect `PostService`, `CommentService`). Use idempotency for any endpoint where duplicate POST could corrupt counters or duplicated documents. Keep route functions thin: parse + validate + delegate + format response.
+
+### 11. Adding a New Domain (Example Workflow)
+1. Create folder `app/api/<domain>/` with `routes.py`, `services/__init__.py`, optional `schemas.py`.
+2. Implement service referencing injected Firestore client.
+3. Register service instance in `app/__init__.py` (preserve grouping comment style).
+4. Define Marshmallow schemas; use camelCase in JSON if consistent with neighboring domain (mirror existing pattern).
+5. Add catalog errors if needed; regenerate swagger.
+6. Add unit test (service) + integration test (route) using emulator.
+
+### 12. Commit & PR Conventions
+Follow Conventional Commits (feat, fix, refactor, chore, test, docs). Reference error code or service name when relevant: `fix(auth): handle expired token revocation using ERR-XYZ`.
+
+### 13. Do / Don't Quick Reference
+Do: Centralize errors; validate inputs; inject dependencies; keep routes thin.
+Don't: Embed Firestore logic in routes; create ad-hoc JSON errors; skip schema for internal endpoints; call external APIs directly.
+
+### 14. Fast Start Commands (Windows cmd)
+Create env (example): `conda env create -f environment.yml`
+Run app: `python pet_project_backend/run.py`
+Run tests (unit): `pytest -k service`
+Swagger rebuild: `python pet_project_backend/scripts/swagger_build.py`
+
+Keep this file concise; propose edits via PR if architectural shifts occur.

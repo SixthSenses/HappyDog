@@ -10,8 +10,6 @@ class PetCareSetting:
     """
     pet_id: str
     goalWeight: float
-    waterBowlCapacity: int
-    waterIncrementAmount: int
     goalActivityMinutes: int
     activityIncrementMinutes: int
     goalMealCount: int
