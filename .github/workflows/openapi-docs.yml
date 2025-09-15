@@ -1,103 +1,103 @@
-name: OpenAPI Spec (Docs Mode)
+# name: OpenAPI Spec (Docs Mode)
 
-on:
-  pull_request:
-    branches: [ develop ]
+# on:
+#   pull_request:
+#     branches: [ develop ]
 
-permissions:
-  contents: read
-  pull-requests: write
+# permissions:
+#   contents: read
+#   pull-requests: write
 
-jobs:
-  build-openapi:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # need base ref for diff
+# jobs:
+#   build-openapi:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0  # need base ref for diff
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.10'
 
-      - name: Install minimal dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # If project has a requirements file, install it; ignore errors if absent
-          if [ -f pet_project_backend/requirements.txt ]; then pip install -r pet_project_backend/requirements.txt; fi
-          pip install prance pyyaml
+#       - name: Install minimal dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           # If project has a requirements file, install it; ignore errors if absent
+#           if [ -f pet_project_backend/requirements.txt ]; then pip install -r pet_project_backend/requirements.txt; fi
+#           pip install prance pyyaml
 
-      - name: Generate OpenAPI (docs mode + security)
-        working-directory: pet_project_backend
-        run: |
-          python scripts/swagger_build.py \
-            --app pet_project_backend.app:create_app \
-            --out openapi.json \
-            --docs-mode --validate --add-servers --add-tags --add-security \
-            --public-path '^/api/auth/' \
-            --public-path '^/api/uploads/'
+#       - name: Generate OpenAPI (docs mode + security)
+#         working-directory: pet_project_backend
+#         run: |
+#           python scripts/swagger_build.py \
+#             --app pet_project_backend.app:create_app \
+#             --out openapi.json \
+#             --docs-mode --validate --add-servers --add-tags --add-security \
+#             --public-path '^/api/auth/' \
+#             --public-path '^/api/uploads/'
 
-      - name: Show spec summary
-        run: |
-          echo 'Spec size:' $(wc -c < pet_project_backend/openapi.json) 'bytes'
-          echo 'First 20 lines:'
-          head -n 20 pet_project_backend/openapi.json
+#       - name: Show spec summary
+#         run: |
+#           echo 'Spec size:' $(wc -c < pet_project_backend/openapi.json) 'bytes'
+#           echo 'First 20 lines:'
+#           head -n 20 pet_project_backend/openapi.json
 
-      - name: Diff against base (if existing)
-        id: spec_diff
-        run: |
-          set -e
-          # Attempt to fetch base branch spec file from base commit
-          BASE_SPEC=.base_openapi.json
-          if git show origin/${{ github.base_ref }}:pet_project_backend/openapi.json > $BASE_SPEC 2>/dev/null; then
-            echo 'Base spec found. Computing diff...'
-            if diff -u $BASE_SPEC pet_project_backend/openapi.json > spec.diff; then
-              echo 'no_change=true' >> $GITHUB_OUTPUT
-              echo 'Spec unchanged.'
-            else
-              echo 'no_change=false' >> $GITHUB_OUTPUT
-              echo 'Spec changed.'
-              echo '--- DIFF (truncated to 400 lines) ---'
-              head -n 400 spec.diff
-            fi
-          else
-            echo 'Base spec not found (possibly first introduction). Treat as changed.'
-            echo 'no_change=false' >> $GITHUB_OUTPUT
-          fi
+#       - name: Diff against base (if existing)
+#         id: spec_diff
+#         run: |
+#           set -e
+#           # Attempt to fetch base branch spec file from base commit
+#           BASE_SPEC=.base_openapi.json
+#           if git show origin/${{ github.base_ref }}:pet_project_backend/openapi.json > $BASE_SPEC 2>/dev/null; then
+#             echo 'Base spec found. Computing diff...'
+#             if diff -u $BASE_SPEC pet_project_backend/openapi.json > spec.diff; then
+#               echo 'no_change=true' >> $GITHUB_OUTPUT
+#               echo 'Spec unchanged.'
+#             else
+#               echo 'no_change=false' >> $GITHUB_OUTPUT
+#               echo 'Spec changed.'
+#               echo '--- DIFF (truncated to 400 lines) ---'
+#               head -n 400 spec.diff
+#             fi
+#           else
+#             echo 'Base spec not found (possibly first introduction). Treat as changed.'
+#             echo 'no_change=false' >> $GITHUB_OUTPUT
+#           fi
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: openapi-spec
-          path: |
-            pet_project_backend/openapi.json
-            spec.diff
-          if-no-files-found: ignore
+#       - name: Upload artifacts
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: openapi-spec
+#           path: |
+#             pet_project_backend/openapi.json
+#             spec.diff
+#           if-no-files-found: ignore
 
-      - name: Comment on PR when spec changed
-        if: steps.spec_diff.outputs.no_change == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let diff = '';
-            try { diff = fs.readFileSync('spec.diff', 'utf8'); } catch (e) { diff = '(diff file missing)'; }
-            const MAX = 6000;
-            if (diff.length > MAX) {
-              diff = diff.slice(0, MAX) + '\n... (truncated)';
-            }
-            const body = `⚠️ OpenAPI 스펙 변경 감지\n\n` +
-              `다음 변경이 발생했습니다 (docs-mode 재생성 결과). 리뷰 시 스펙 반영 여부를 확인하세요.\n\n` +
-              '```diff\n' + diff + '\n```';
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
+#       - name: Comment on PR when spec changed
+#         if: steps.spec_diff.outputs.no_change == 'false'
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const fs = require('fs');
+#             let diff = '';
+#             try { diff = fs.readFileSync('spec.diff', 'utf8'); } catch (e) { diff = '(diff file missing)'; }
+#             const MAX = 6000;
+#             if (diff.length > MAX) {
+#               diff = diff.slice(0, MAX) + '\n... (truncated)';
+#             }
+#             const body = `⚠️ OpenAPI 스펙 변경 감지\n\n` +
+#               `다음 변경이 발생했습니다 (docs-mode 재생성 결과). 리뷰 시 스펙 반영 여부를 확인하세요.\n\n` +
+#               '```diff\n' + diff + '\n```';
+#             await github.rest.issues.createComment({
+#               issue_number: context.issue.number,
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               body
+#             });
 
-      - name: Mark success (no change)
-        if: steps.spec_diff.outputs.no_change == 'true'
-        run: echo 'Spec unchanged ✅'
+#       - name: Mark success (no change)
+#         if: steps.spec_diff.outputs.no_change == 'true'
+#         run: echo 'Spec unchanged ✅'
