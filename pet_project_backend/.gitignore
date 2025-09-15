@@ -57,7 +57,7 @@ scripts/
 .conda/
 
 # User Uploads (임시 파일)
-uploads/
+
 
 
 *.env
