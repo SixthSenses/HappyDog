@@ -1,46 +1,4 @@
-# API Reference — Domain Index
-
-문서가 길어 유지보수 불편이 커져, 도메인별 파일로 분리했습니다. 
-
-## 공통 규약
-
-| 항목 | 내용 |
-|---|---|
-| 시간/타임존 | UTC 고정. Firestore Timestamp는 DateTimeUtils.for_firestore로 저장. |
-| 에러 포맷 | { error_code, message?, details? } (전역 ValidationError 핸들러 존재) |
-| 인증 | flask_jwt_extended 기반. 대부분 엔드포인트에 @jwt_required 적용(명시된 optional 제외). |
-
-### 자료형 표기 규칙
-
-| 표기 | 의미 |
-|---|---|
-| string | 문자열 (UUID/URL/ISO8601는 별도 표기) |
-| int / float | 숫자형 |
-| boolean | 불리언 |
-| ISO8601 | UTC 날짜/시간 문자열("YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:mm:ssZ") |
-| timestamp(ms) | Unix epoch milliseconds (int) |
-| UUID | 문자열 UUID |
-| URL | 문자열 URL |
-| object | JSON 오브젝트 |
-| array<T> | T 타입 요소로 구성된 배열 |
-
-## 도메인별 문서
-
-- auth: docs/api/auth.md
-- breeds: docs/api/breeds.md
-- cartoon_jobs: docs/api/cartoon_jobs.md
-- comments: docs/api/comments.md
-- notifications: docs/api/notifications.md
-- pet_care/records: docs/api/pet_care.records.md
-- pet_care/settings: docs/api/pet_care.settings.md
-- pets: docs/api/pets.md
-- posts: docs/api/posts.md
-- uploads: docs/api/uploads.md
-- users: docs/api/users.md
-
-각 문서는 엔드포인트 표, 요청/응답 스키마, 오류 코드, 저장/비즈니스 로직을 포함합니다.
-
----
+## notion 명세서 확인해주세요
 
 ## OpenAPI Spec Generation (Unified)
 
@@ -88,3 +46,51 @@ Docstring 규칙: 첫 줄 Summary, 빈 줄 후 Description. (예: `app/api/.../r
 - 커버리지: 실제 라우트 대비 스펙 누락 감지 테스트
 
 이전 `api_documentation` 데코레이터 기반 상세 예제 시스템은 단계적으로 중단되며, 필요 시 추후 메타데이터 병합 유틸 추가 예정입니다.
+
+---
+
+## ML 모델 경로 및 선택적 초기화
+비문 / 안구 분석 파이프라인은 선택적(옵셔널) 구성으로, 다른 개발 PC에서 자산이 없어도 서버 기동이 멈추지 않도록 설계되었습니다.
+
+### 환경 변수 (.env)
+```
+# 상대경로는 pet_project_backend/ 또는 저장소 루트를 기준으로 자동 탐색
+YOLO_WEIGHTS_PATH="nose_models/saved_models/nose_segment/best.pt"
+EXTRACTOR_WEIGHTS_PATH="nose_models/saved_models/nose_print/seresnext50_ibn_custom_best_model.pth"
+FAISS_INDEX_PATH="nose_models/faiss_index/nose_prints.index"
+ML_CONFIG_PATH="nose_models/config.yaml"
+
+# ML 파이프라인 완전 비활성 (문서모드/일반 개발 속도 개선)
+SKIP_ML=1
+
+# 자산 누락 시 예외를 강제 (CI 무결성 검증 용도)
+STRICT_ML_PATHS=1
+```
+
+### 초기화 규칙
+- `SKIP_ML=1` → nose / eye 모두 미초기화 (`app.services['nose_pipeline'] = None`)
+- `STRICT_ML_PATHS=1` & 자산 일부 미존재 → `FileNotFoundError` 로 조기 실패
+- 기본 모드에서는 경로가 일부 없으면 경고 출력 후 해당 파이프라인만 skip
+
+### 경로 해석 로직
+`app.utils.path_utils.resolve_ml_paths` 가 아래 우선순위로 실제 파일을 탐색:
+1. `pet_project_backend/` (백엔드 루트)
+2. 저장소 루트
+
+### 로그 예시
+```
+INFO ML path resolution summary: { 'YOLO_WEIGHTS_PATH': '.../abs/path/best.pt', ... }
+WARNING Nose pipeline assets missing or unresolved: ['YOLO_WEIGHTS_PATH', ...] (pipeline skipped)
+```
+
+### 팀 온보딩 체크
+| 상황 | 권장 설정 |
+|------|-----------|
+| 모델 필요 없음 / 빠른 API 작업 | `SKIP_ML=1` |
+| 모델 기능 개발 | 자산 다운로드 후 상대경로 유지 |
+| CI 자산 검증 | `STRICT_ML_PATHS=1` |
+
+### 향후 개선 여지
+- Lazy (요청 시) 초기화 전환 옵션
+- 모델 버전 메타(`model_manifest.json`) 로 무결성/버전 비교
+- 다운로더 스크립트 자동화 (`scripts/download_ml_assets.py` 등)
