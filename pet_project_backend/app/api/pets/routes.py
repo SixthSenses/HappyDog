@@ -16,11 +16,13 @@ from .schemas import (
 from .presenters import PetPresenter
 from .policy import PetAccessPolicy
 from app.utils.error_catalog import build_error
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 pets_bp = Blueprint('pets_bp', __name__)
 
 @pets_bp.route('/', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def register_pet():
     """반려동물 등록
 
@@ -105,6 +107,7 @@ def update_pet_profile(pet_id: str):
 
 @pets_bp.route('/<string:pet_id>/nose-print', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def register_nose_print(pet_id: str):
     """반려동물 비문 등록/인증
 
@@ -165,6 +168,7 @@ def register_nose_print(pet_id: str):
 
 @pets_bp.route('/<string:pet_id>/eye-analysis', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def request_eye_analysis(pet_id: str):
     """반려동물 안구 이미지 분석
 

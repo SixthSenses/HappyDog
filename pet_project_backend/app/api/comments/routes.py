@@ -11,11 +11,13 @@ from app.api.comments.schemas import (
     CommentLikeToggleResponseSchema,
 )
 from app.utils.error_catalog import build_error
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 comments_bp = Blueprint('comments_bp', __name__)
 
 @comments_bp.route('/posts/<string:post_id>/comments', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def create_comment(post_id: str):
     """댓글 생성
 

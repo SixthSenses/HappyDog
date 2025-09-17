@@ -26,6 +26,7 @@ from app.utils.api_documentation import CommonErrors, AuthErrors
 # Removed direct import - use DI container pattern
 # from .services import auth_service
 from google_auth_oauthlib.flow import Flow
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -75,6 +76,7 @@ def google_authorize():
         return jsonify(body), status
 
 @auth_bp.route('/social', methods=['POST'])
+@idempotent_endpoint(apply_when_methods=('POST',))
 def social_login():
     """소셜 로그인 및 신규 사용자 자동 가입 처리.
 

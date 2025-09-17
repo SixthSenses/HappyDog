@@ -15,11 +15,13 @@ from app.api.posts.schemas import (
 )
 from app.utils.error_catalog import build_error
 from app.utils.api_documentation import CommonErrors
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 posts_bp = Blueprint('posts_bp', __name__)
 
 @posts_bp.route('/', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def create_post():
     """게시글을 생성합니다.
 

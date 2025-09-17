@@ -17,11 +17,13 @@ from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
     CommonErrors, PetCareErrors
 )
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 pet_care_records_bp = Blueprint('pet_care_records_bp', __name__)
 
 @pet_care_records_bp.route('/<string:pet_id>/records', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def create_care_record(pet_id: str):
     """펫케어 기록 생성
 
