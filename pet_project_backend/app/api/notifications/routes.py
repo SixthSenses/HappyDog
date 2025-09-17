@@ -9,6 +9,7 @@ from .schemas import (
     NotificationUnreadCountResponseSchema,
 )
 from app.utils.error_catalog import build_error
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 notifications_bp = Blueprint('notifications_bp', __name__)
 
@@ -67,6 +68,7 @@ def list_notifications():
 
 @notifications_bp.route('/<string:notification_id>/ack', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def ack_notification(notification_id: str):
     """알림 확인 처리
 

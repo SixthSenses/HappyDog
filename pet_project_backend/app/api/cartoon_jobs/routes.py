@@ -72,6 +72,7 @@ def get_cartoon_job_status(job_id: str):
 
 @cartoon_jobs_bp.route('/<string:job_id>', methods=['DELETE'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('DELETE',))
 def cancel_cartoon_job(job_id: str):
     """만화 작업 취소
 
