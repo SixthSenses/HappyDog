@@ -36,7 +36,7 @@ class PetProfileResponseSchema(Schema):
     pet_id = fields.Str(dump_only=True)
     user_id = fields.Str(dump_only=True)
     name = fields.Str()
-    gender = fields.Str()
+    gender = fields.Str(validate=validate.OneOf([e.value for e in PetGender]))
     breed = fields.Str()
     birthdate = fields.Date()
     # weight 관련 필드 제거됨
@@ -59,7 +59,7 @@ class PetViewBasedResponseSchema(Schema):
     
     # 마이페이지/멍스타그램 전용
     birthdate = fields.Date(allow_none=True)
-    gender = fields.Str(allow_none=True) 
+    gender = fields.Str(allow_none=True, validate=validate.OneOf([e.value for e in PetGender])) 
     breed = fields.Str(allow_none=True)
     
     # 멍스타그램 전용 (나이 계산된 값)
