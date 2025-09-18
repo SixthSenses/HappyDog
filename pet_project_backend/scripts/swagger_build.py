@@ -213,29 +213,94 @@ def collect_marshmallow_schemas() -> Dict[str, Any]:
 
 
 def _field_to_oas(field) -> Dict[str, Any]:  # type: ignore
-    from marshmallow import fields  # type: ignore
-    # Basic scalar mapping
-    if isinstance(field, fields.String):
-        node: Dict[str, Any] = {'type': 'string'}
-    elif isinstance(field, fields.Integer):
-        node = {'type': 'integer', 'format': 'int32'}
-    elif isinstance(field, fields.Float):
-        node = {'type': 'number', 'format': 'float'}
-    elif isinstance(field, fields.Boolean):
-        node = {'type': 'boolean'}
-    elif isinstance(field, fields.DateTime):
-        node = {'type': 'string', 'format': 'date-time'}
-    elif isinstance(field, fields.List):
-        node = {'type': 'array', 'items': _field_to_oas(field.inner)}
-    elif isinstance(field, fields.Nested):
-        ref_name = field.nested if isinstance(field.nested, str) else field.nested.__name__
-        node = {'$ref': f"#/components/schemas/{ref_name}"}
-    elif isinstance(field, fields.Dict):
-        node = {'type': 'object', 'additionalProperties': {'type': 'string'}}
+    from marshmallow import fields, validate  # type: ignore
+    cls_name = getattr(field, '__class__', type(field)).__name__
+    # Class-name based overrides (defensive against subclassing surprises)
+    if cls_name == 'Date':
+        node: Dict[str, Any] = {'type': 'string', 'format': 'date'}
+    elif cls_name == 'Time':
+        node = {'type': 'string', 'format': 'time'}
     else:
-        node = {'type': 'object'}
+    # Specific subclasses must be checked BEFORE their base classes
+        if isinstance(field, getattr(fields, 'URL', tuple())):
+            node = {'type': 'string', 'format': 'uri'}
+        elif isinstance(field, getattr(fields, 'Email', tuple())):
+            node = {'type': 'string', 'format': 'email'}
+        elif isinstance(field, getattr(fields, 'UUID', tuple())):
+            node = {'type': 'string', 'format': 'uuid'}
+        # Basic scalar mapping
+        elif isinstance(field, fields.String):
+            node = {'type': 'string'}
+        elif isinstance(field, fields.Integer):
+            node = {'type': 'integer', 'format': 'int32'}
+        elif isinstance(field, fields.Float):
+            node = {'type': 'number', 'format': 'float'}
+        elif isinstance(field, fields.Boolean):
+            node = {'type': 'boolean'}
+        elif isinstance(field, getattr(fields, 'Decimal', tuple())):
+            node = {'type': 'number'}
+        elif isinstance(field, fields.DateTime):
+            node = {'type': 'string', 'format': 'date-time'}
+        elif isinstance(field, getattr(fields, 'Date', tuple())):
+            node = {'type': 'string', 'format': 'date'}
+        elif isinstance(field, getattr(fields, 'Time', tuple())):
+            node = {'type': 'string', 'format': 'time'}
+        elif isinstance(field, fields.List):
+            node = {'type': 'array', 'items': _field_to_oas(field.inner)}
+        elif isinstance(field, fields.Nested):
+            ref_name = field.nested if isinstance(field.nested, str) else field.nested.__name__
+            node = {'$ref': f"#/components/schemas/{ref_name}"}
+        elif isinstance(field, fields.Dict):
+            node = {'type': 'object', 'additionalProperties': {'type': 'string'}}
+        else:
+            node = {'type': 'object'}
+
+    # Common attributes
     if getattr(field, 'allow_none', False):
         node['nullable'] = True
+
+    # Propagate common validators to OAS
+    try:
+        validators = list(getattr(field, 'validators', []) or [])
+    except Exception:
+        validators = []
+    for v in validators:
+        # Enum support
+        if isinstance(v, getattr(validate, 'OneOf', tuple())):
+            # v.choices may be a set; convert to sorted list when possible for stability
+            try:
+                choices = list(v.choices)
+            except Exception:
+                choices = []
+            # Keep string ordering stable if all are strings
+            try:
+                if all(isinstance(c, str) for c in choices):
+                    choices = sorted(choices)
+            except Exception:
+                pass
+            node['enum'] = choices
+        # Length constraints
+        if isinstance(v, getattr(validate, 'Length', tuple())):
+            minv = getattr(v, 'min', None)
+            maxv = getattr(v, 'max', None)
+            if node.get('type') == 'string':
+                if minv is not None:
+                    node['minLength'] = minv
+                if maxv is not None:
+                    node['maxLength'] = maxv
+            if node.get('type') == 'array':
+                if minv is not None:
+                    node['minItems'] = minv
+                if maxv is not None:
+                    node['maxItems'] = maxv
+        # Numeric range
+        if isinstance(v, getattr(validate, 'Range', tuple())):
+            minv = getattr(v, 'min', None)
+            maxv = getattr(v, 'max', None)
+            if minv is not None:
+                node['minimum'] = minv
+            if maxv is not None:
+                node['maximum'] = maxv
     return node
 
 
