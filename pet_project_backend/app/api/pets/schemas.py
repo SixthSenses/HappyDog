@@ -108,3 +108,28 @@ class NosePrintRegistrationResponseSchema(Schema):
     analysis_id = fields.Str(allow_none=True)
     metadata = fields.Dict(allow_none=True)
     status = fields.Str(allow_none=True)
+
+
+class EyeAnalysisHistoryQuerySchema(Schema):
+    """GET /api/pets/eye-analyses 쿼리 파라미터 검증 스키마."""
+    pet_id = fields.Str(required=False, allow_none=True)
+    limit = fields.Int(required=False, missing=20, validate=validate.Range(min=1, max=50))
+    cursor = fields.Str(required=False, allow_none=True)
+
+
+class EyeAnalysisHistoryItemSchema(Schema):
+    """안구 검사 이력 1건에 대한 응답 스키마."""
+    analysis_id = fields.Str(required=True)
+    pet_id = fields.Str(required=True)
+    disease_name = fields.Str(required=True)
+    # 백엔드는 UTC ISO 문자열 직렬화를 표준으로 사용합니다.
+    created_at = fields.DateTime(required=True)
+    # 프론트에서 그대로 % 표시를 붙여 사용 (예: 91)
+    probability_percent = fields.Int(required=True)
+    image_url = fields.Str(allow_none=True)
+
+
+class EyeAnalysisHistoryListResponseSchema(Schema):
+    """안구 검사 이력 목록 응답 스키마."""
+    items = fields.List(fields.Nested(EyeAnalysisHistoryItemSchema), required=True)
+    next_cursor = fields.Str(allow_none=True)
