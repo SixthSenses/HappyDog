@@ -355,6 +355,56 @@ class PetBiometricService:
 
     # ============= Batch Processing (Future Enhancement) =============
 
+    def list_eye_analysis_history(self, user_id: str, pet_id: Optional[str] = None, limit: int = 20, cursor: Optional[str] = None):
+        """사용자 본인의 안구 검사 이력 조회.
+
+        Firestore 컬렉션 'analysis_history'에서 user_id(필수)와 optional pet_id 로 필터링하여
+        created_at 내림차순으로 페이지네이션 반환합니다.
+
+        Returns: (items, next_cursor)
+        """
+        if self.db is None:
+            return [], None
+        try:
+            from firebase_admin import firestore as _fs
+            ref = self.db.collection('analysis_history')
+            query = ref.where('user_id', '==', user_id).where('analysis_type', '==', 'eye').order_by('created_at', direction=_fs.Query.DESCENDING)
+            if pet_id:
+                query = query.where('pet_id', '==', pet_id)
+            if cursor:
+                cursor_doc = ref.document(cursor).get()
+                if cursor_doc.exists:
+                    query = query.start_after(cursor_doc)
+            docs = query.limit(limit + 1).stream()
+            items = []
+            last_doc = None
+            for doc in docs:
+                if len(items) >= limit:
+                    last_doc = doc
+                    break
+                data = doc.to_dict() or {}
+                created = data.get('created_at')
+                try:
+                    created_iso = created.isoformat() if hasattr(created, 'isoformat') else None
+                except Exception:
+                    created_iso = None
+                result = data.get('result') or {}
+                prob = result.get('probability')
+                percent = int(round(float(prob) * 100)) if isinstance(prob, (int, float)) else None
+                items.append({
+                    'analysis_id': doc.id,
+                    'pet_id': data.get('pet_id'),
+                    'disease_name': result.get('final_disease_name') or result.get('disease_name'),
+                    'created_at': created_iso,
+                    'probability_percent': percent,
+                    'image_url': data.get('image_url')
+                })
+            next_cursor = last_doc.id if last_doc else None
+            return items, next_cursor
+        except Exception as e:
+            logging.error(f"Failed to list eye analysis history for user {user_id}: {e}", exc_info=True)
+            return [], None
+
     def schedule_analysis(self, pet_id: str, analysis_type: str, file_path: str) -> str:
         """Schedule biometric analysis for asynchronous processing.
         

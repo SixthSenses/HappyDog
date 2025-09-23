@@ -10,6 +10,8 @@ from .schemas import (
     PetUpdateSchema,
     BiometricAnalysisRequestSchema,
     EyeAnalysisResponseSchema,
+    EyeAnalysisHistoryQuerySchema,
+    EyeAnalysisHistoryListResponseSchema,
     PetViewBasedResponseSchema,
     NosePrintRegistrationResponseSchema
 )
@@ -264,4 +266,48 @@ def get_pet_profile_by_view():
     except Exception as e:
         logging.error(f"Pet profile API error (target_user_id: {target_user_id}): {e}", exc_info=True)
         status, body = build_error('FETCH_FAILED', message="서버 오류가 발생했습니다.")
+        return jsonify(body), status
+
+
+@pets_bp.route('/eye-analyses', methods=['GET'])
+@jwt_required()
+def list_eye_analysis_history():
+    """안구 검사 이력 조회 (본인 전용)
+
+    인증된 사용자 본인의 검사 이력을 최신순으로 반환합니다. 선택적으로 특정 `pet_id`로 필터링할 수 있습니다.
+
+    RequestSchema(query): EyeAnalysisHistoryQuerySchema
+    ResponseSchema[200]: EyeAnalysisHistoryListResponseSchema
+    """
+    user_id = get_jwt_identity()
+    try:
+        # 쿼리 파라미터 로드 및 기본값 적용
+        args = {
+            'pet_id': request.args.get('pet_id'),
+            'limit': request.args.get('limit', type=int),
+            'cursor': request.args.get('cursor')
+        }
+        query_params = EyeAnalysisHistoryQuerySchema().load({k: v for k, v in args.items() if v is not None})
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+
+    biometric_service = current_app.services.get('pet_biometrics')
+    if not biometric_service:
+        status, body = build_error('SERVICE_UNAVAILABLE')
+        return jsonify(body), status
+
+    try:
+        items, next_cursor = biometric_service.list_eye_analysis_history(
+            user_id=user_id,
+            pet_id=query_params.get('pet_id'),
+            limit=query_params.get('limit', 20),
+            cursor=query_params.get('cursor')
+        )
+        response = {'items': items, 'next_cursor': next_cursor}
+        # Marshmallow dump 보장
+        return jsonify(EyeAnalysisHistoryListResponseSchema().dump(response)), 200
+    except Exception as e:
+        logging.error(f"List eye analysis history API error: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
         return jsonify(body), status

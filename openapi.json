@@ -35,10 +35,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/social": {
@@ -81,10 +78,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       },
       "get": {
         "summary": "OAuth 동의 후 리디렉션 콜백.",
@@ -115,10 +109,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/token/refresh": {
@@ -161,10 +152,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/auth/logout": {
@@ -207,10 +195,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "auth"
-        ]
+        }
       }
     },
     "/api/uploads/url": {
@@ -253,10 +238,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "uploads"
-        ]
+        }
       }
     },
     "/api/uploads/finalize-cartoon": {
@@ -299,10 +281,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "uploads"
-        ]
+        }
       }
     },
     "/api/users/{user_id}/public": {
@@ -346,14 +325,6 @@
             },
             "description": "Path parameter 'user_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
         ]
       }
     },
@@ -387,15 +358,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
-        ]
+        }
       }
     },
     "/api/users/me/summary": {
@@ -428,15 +391,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
-        ]
+        }
       }
     },
     "/api/users/me/notification-preferences": {
@@ -469,15 +424,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
-        ]
+        }
       },
       "put": {
         "summary": "현재 사용자의 알림 설정을 수정합니다.",
@@ -518,15 +465,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
-        ]
+        }
       }
     },
     "/api/users/me/fcm-token": {
@@ -569,15 +508,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "users"
-        ]
+        }
       }
     },
     "/api/posts/": {
@@ -623,15 +554,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
-        ]
+        }
       },
       "get": {
         "summary": "게시글 피드 목록을 페이지네이션으로 조회합니다.",
@@ -662,15 +585,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
-        ]
+        }
       }
     },
     "/api/posts/{post_id}": {
@@ -714,14 +629,6 @@
             },
             "description": "Path parameter 'post_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
         ]
       },
       "patch": {
@@ -774,15 +681,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
-        ]
+        }
       },
       "delete": {
         "summary": "특정 게시글을 삭제합니다. (작성자 본인만 가능)",
@@ -827,14 +726,6 @@
             },
             "description": "Path parameter 'post_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
         ]
       }
     },
@@ -889,15 +780,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
-        ]
+        }
       }
     },
     "/api/posts/users/{author_id}/posts": {
@@ -941,14 +824,6 @@
             },
             "description": "Path parameter 'author_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "posts"
         ]
       }
     },
@@ -1006,15 +881,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "comments"
-        ]
+        }
       },
       "get": {
         "summary": "댓글 목록 조회",
@@ -1056,14 +923,6 @@
             },
             "description": "Path parameter 'post_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "comments"
         ]
       }
     },
@@ -1111,14 +970,6 @@
             },
             "description": "Path parameter 'comment_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "comments"
         ]
       }
     },
@@ -1173,15 +1024,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "comments"
-        ]
+        }
       }
     },
     "/api/cartoon-jobs/": {
@@ -1227,10 +1070,7 @@
               }
             }
           }
-        },
-        "tags": [
-          "cartoon-jobs"
-        ]
+        }
       }
     },
     "/api/cartoon-jobs/{job_id}": {
@@ -1274,9 +1114,6 @@
             },
             "description": "Path parameter 'job_id' (converter: string)"
           }
-        ],
-        "tags": [
-          "cartoon-jobs"
         ]
       },
       "delete": {
@@ -1319,9 +1156,6 @@
             },
             "description": "Path parameter 'job_id' (converter: string)"
           }
-        ],
-        "tags": [
-          "cartoon-jobs"
         ]
       }
     },
@@ -1355,10 +1189,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "tags": [
-          "cartoon-jobs"
-        ]
+        }
       }
     },
     "/api/breeds/": {
@@ -1391,15 +1222,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "breeds"
-        ]
+        }
       }
     },
     "/api/breeds/{breed_name}": {
@@ -1450,14 +1273,6 @@
             },
             "description": "Path parameter 'breed_name' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "breeds"
         ]
       }
     },
@@ -1498,15 +1313,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "breeds"
-        ]
+        }
       }
     },
     "/api/breeds/exists/{breed_name}": {
@@ -1550,14 +1357,6 @@
             },
             "description": "Path parameter 'breed_name' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "breeds"
         ]
       }
     },
@@ -1604,15 +1403,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pets"
-        ]
+        }
       }
     },
     "/api/pets/{pet_id}": {
@@ -1656,14 +1447,6 @@
             },
             "description": "Path parameter 'pet_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pets"
         ]
       },
       "patch": {
@@ -1716,15 +1499,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pets"
-        ]
+        }
       }
     },
     "/api/pets/{pet_id}/nose-print": {
@@ -1778,15 +1553,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pets"
-        ]
+        }
       }
     },
     "/api/pets/{pet_id}/eye-analysis": {
@@ -1840,15 +1607,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pets"
-        ]
+        }
       }
     },
     "/api/pets/profile": {
@@ -1881,15 +1640,40 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
+        }
+      }
+    },
+    "/api/pets/eye-analyses": {
+      "get": {
+        "summary": "안구 검사 이력 조회 (본인 전용)",
+        "description": "인증된 사용자 본인의 검사 이력을 최신순으로 반환합니다. 선택적으로 특정 `pet_id`로 필터링할 수 있습니다.\n\n    RequestSchema(query): EyeAnalysisHistoryQuerySchema\n    ResponseSchema[200]: EyeAnalysisHistoryListResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EyeAnalysisHistoryListResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        ],
-        "tags": [
-          "pets"
-        ]
+        }
       }
     },
     "/api/pet-care/{pet_id}/settings": {
@@ -1933,14 +1717,6 @@
             },
             "description": "Path parameter 'pet_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
         ]
       },
       "put": {
@@ -1993,15 +1769,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
-        ]
+        }
       }
     },
     "/api/pet-care/{pet_id}/records": {
@@ -2058,15 +1826,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
-        ]
+        }
       }
     },
     "/api/pet-care/{pet_id}/records/{log_id}": {
@@ -2129,15 +1889,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
-        ]
+        }
       },
       "delete": {
         "summary": "펫케어 기록 삭제",
@@ -2191,14 +1943,6 @@
             },
             "description": "Path parameter 'log_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
         ]
       }
     },
@@ -2243,14 +1987,6 @@
             },
             "description": "Path parameter 'pet_id' (converter: string)"
           }
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "pet-care"
         ]
       }
     },
@@ -2284,15 +2020,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "notifications"
-        ]
+        }
       }
     },
     "/api/notifications/{notification_id}/ack": {
@@ -2346,15 +2074,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "notifications"
-        ]
+        }
       }
     },
     "/api/notifications/unread-count": {
@@ -2387,15 +2107,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "notifications"
-        ]
+        }
       }
     },
     "/health": {
@@ -2428,15 +2140,7 @@
           "500": {
             "$ref": "#/components/responses/INTERNAL_ERROR"
           }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "tags": [
-          "health"
-        ]
+        }
       }
     }
   },
@@ -2467,17 +2171,17 @@
       "AuthTokensResponseSchema": {
         "type": "object",
         "properties": {
-          "access_token": {
-            "type": "string"
-          },
           "user_id": {
             "type": "string"
           },
-          "user_info": {
-            "$ref": "#/components/schemas/AuthUserInfoSchema"
+          "access_token": {
+            "type": "string"
           },
           "is_new_user": {
             "type": "boolean"
+          },
+          "user_info": {
+            "$ref": "#/components/schemas/AuthUserInfoSchema"
           },
           "refresh_token": {
             "type": "string"
@@ -2494,12 +2198,12 @@
       "AuthUserInfoSchema": {
         "type": "object",
         "properties": {
-          "user_id": {
-            "type": "string"
-          },
           "email": {
             "type": "string",
             "format": "email"
+          },
+          "user_id": {
+            "type": "string"
           },
           "nickname": {
             "type": "string"
@@ -2514,14 +2218,14 @@
       "AuthorizationUrlResponseSchema": {
         "type": "object",
         "properties": {
-          "redirect_uri": {
-            "type": "string",
-            "format": "uri"
-          },
           "state": {
             "type": "string"
           },
           "authorization_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "redirect_uri": {
             "type": "string",
             "format": "uri"
           }
@@ -2580,16 +2284,16 @@
       "BreedListSchema": {
         "type": "object",
         "properties": {
+          "total_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
           "breeds": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BreedSchema"
             }
-          },
-          "total_count": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
           }
         },
         "required": [
@@ -2600,11 +2304,13 @@
       "BreedSchema": {
         "type": "object",
         "properties": {
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
+          "life_expectancy": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 30
           },
-          "created_at": {
+          "updated_at": {
             "type": "string",
             "format": "date-time"
           },
@@ -2613,16 +2319,14 @@
             "minLength": 1,
             "maxLength": 50
           },
-          "weight_kg": {
+          "height_cm": {
             "$ref": "#/components/schemas/HeightWeightSchema"
           },
-          "life_expectancy": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 30
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           },
-          "height_cm": {
+          "weight_kg": {
             "$ref": "#/components/schemas/HeightWeightSchema"
           }
         },
@@ -2660,16 +2364,16 @@
       "BreedSummaryListSchema": {
         "type": "object",
         "properties": {
+          "total_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
           "breeds": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BreedSummarySchema"
             }
-          },
-          "total_count": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
           }
         },
         "required": [
@@ -2696,15 +2400,15 @@
       "ErrorResponseSchema": {
         "type": "object",
         "properties": {
+          "error_code": {
+            "type": "string"
+          },
           "details": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             },
             "nullable": true
-          },
-          "error_code": {
-            "type": "string"
           },
           "message": {
             "type": "string"
@@ -2761,21 +2465,21 @@
       "CartoonJobHealthResponseSchema": {
         "type": "object",
         "properties": {
+          "active_jobs": {
+            "type": "integer",
+            "format": "int32"
+          },
           "integration_health": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             }
           },
-          "max_workers": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "active_jobs": {
-            "type": "integer",
-            "format": "int32"
-          },
           "queue_size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_workers": {
             "type": "integer",
             "format": "int32"
           }
@@ -2793,31 +2497,31 @@
           "user_id": {
             "type": "string"
           },
+          "user_text": {
+            "type": "string",
+            "nullable": true
+          },
           "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
             "type": "string",
             "format": "date-time"
           },
           "original_image_url": {
             "type": "string",
             "format": "uri"
-          },
-          "error_message": {
-            "type": "string",
-            "nullable": true
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "status": {
-            "type": "string"
-          },
-          "user_text": {
-            "type": "string",
-            "nullable": true
-          },
-          "job_id": {
-            "type": "string"
           },
           "result_image_url": {
             "type": "string",
@@ -2884,15 +2588,15 @@
       "CommentListResponseSchema": {
         "type": "object",
         "properties": {
-          "next_cursor": {
-            "type": "string",
-            "nullable": true
-          },
           "comments": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CommentResponseSchema"
             }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -2902,8 +2606,18 @@
       "CommentResponseSchema": {
         "type": "object",
         "properties": {
-          "author": {
-            "$ref": "#/components/schemas/AuthorSchema"
+          "pet": {
+            "$ref": "#/components/schemas/PetInfoSchema"
+          },
+          "post_id": {
+            "type": "string"
+          },
+          "is_liked": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           },
           "text": {
             "type": "string"
@@ -2911,22 +2625,12 @@
           "comment_id": {
             "type": "string"
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "is_liked": {
-            "type": "boolean"
+          "author": {
+            "$ref": "#/components/schemas/AuthorSchema"
           },
           "like_count": {
             "type": "integer",
             "format": "int32"
-          },
-          "post_id": {
-            "type": "string"
-          },
-          "pet": {
-            "$ref": "#/components/schemas/PetInfoSchema"
           }
         },
         "required": [
@@ -2942,14 +2646,10 @@
       "PetInfoSchema": {
         "type": "object",
         "properties": {
-          "name": {
+          "breed": {
             "type": "string"
           },
-          "birthdate": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "pet_id": {
+          "name": {
             "type": "string"
           },
           "profile_image_url": {
@@ -2957,8 +2657,12 @@
             "format": "uri",
             "nullable": true
           },
-          "breed": {
+          "pet_id": {
             "type": "string"
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
@@ -3012,25 +2716,25 @@
       "NotificationItemSchema": {
         "type": "object",
         "properties": {
-          "id": {
+          "type": {
             "type": "string"
           },
           "deeplink": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
             "type": "string"
           },
           "created_at": {
             "type": "string"
           },
           "message": {
-            "type": "string"
-          },
-          "read": {
-            "type": "boolean"
-          },
-          "type": {
-            "type": "string"
-          },
-          "title": {
             "type": "string"
           }
         },
@@ -3047,11 +2751,10 @@
       "NotificationListRequestSchema": {
         "type": "object",
         "properties": {
-          "limit": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1,
-            "maximum": 100
+          "cursor": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1
           },
           "format": {
             "type": "string",
@@ -3060,26 +2763,27 @@
               "web"
             ]
           },
-          "cursor": {
-            "type": "string",
-            "nullable": true,
-            "minLength": 1
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100
           }
         }
       },
       "NotificationListResponseSchema": {
         "type": "object",
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationItemSchema"
-            }
-          },
           "meta": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemSchema"
             }
           }
         },
@@ -3112,9 +2816,82 @@
           "file_path"
         ]
       },
+      "EyeAnalysisHistoryItemSchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "probability_percent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "analysis_id": {
+            "type": "string"
+          },
+          "disease_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "created_at",
+          "disease_name",
+          "pet_id",
+          "probability_percent"
+        ]
+      },
+      "EyeAnalysisHistoryListResponseSchema": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EyeAnalysisHistoryItemSchema"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "EyeAnalysisHistoryQuerySchema": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "pet_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "EyeAnalysisResponseSchema": {
         "type": "object",
         "properties": {
+          "disease_name": {
+            "type": "string"
+          },
           "analysis_id": {
             "type": "string"
           },
@@ -3125,9 +2902,6 @@
           "image_url": {
             "type": "string",
             "nullable": true
-          },
-          "disease_name": {
-            "type": "string"
           }
         },
         "required": [
@@ -3139,13 +2913,12 @@
       "NosePrintRegistrationResponseSchema": {
         "type": "object",
         "properties": {
-          "analysis_id": {
-            "type": "string",
+          "features": {
+            "type": "object",
             "nullable": true
           },
-          "confidence": {
-            "type": "number",
-            "format": "float",
+          "analysis_id": {
+            "type": "string",
             "nullable": true
           },
           "metadata": {
@@ -3155,16 +2928,17 @@
             },
             "nullable": true
           },
-          "features": {
-            "type": "object",
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "number",
+            "format": "float",
             "nullable": true
           },
           "success": {
             "type": "boolean"
-          },
-          "status": {
-            "type": "string",
-            "nullable": true
           }
         },
         "required": [
@@ -3174,27 +2948,25 @@
       "PetProfileResponseSchema": {
         "type": "object",
         "properties": {
+          "breed": {
+            "type": "string"
+          },
           "user_id": {
             "type": "string"
           },
-          "is_verified": {
-            "type": "boolean"
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
           },
           "name": {
             "type": "string"
           },
-          "nose_print_url": {
-            "type": "string",
-            "format": "uri",
-            "nullable": true
-          },
           "fur_color": {
             "type": "string",
             "nullable": true
-          },
-          "birthdate": {
-            "type": "string",
-            "format": "date"
           },
           "pet_id": {
             "type": "string"
@@ -3209,6 +2981,38 @@
             "type": "string",
             "nullable": true
           },
+          "faiss_id": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "nose_print_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date"
+          },
+          "is_verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PetRegistrationSchema": {
+        "type": "object",
+        "properties": {
+          "breed": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
           "gender": {
             "type": "string",
             "enum": [
@@ -3216,31 +3020,9 @@
               "MALE"
             ]
           },
-          "breed": {
-            "type": "string"
-          },
-          "faiss_id": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          }
-        }
-      },
-      "PetRegistrationSchema": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 20
-          },
           "fur_color": {
             "type": "string",
             "nullable": true
-          },
-          "birthdate": {
-            "type": "string",
-            "format": "date"
           },
           "health_concerns": {
             "type": "array",
@@ -3253,17 +3035,9 @@
             "type": "string",
             "nullable": true
           },
-          "gender": {
+          "birthdate": {
             "type": "string",
-            "enum": [
-              "FEMALE",
-              "MALE"
-            ]
-          },
-          "breed": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 30
+            "format": "date"
           }
         },
         "required": [
@@ -3279,12 +3053,6 @@
           "fur_color": {
             "type": "string"
           },
-          "health_concerns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3293,26 +3061,35 @@
           "profile_image_url": {
             "type": "string",
             "nullable": true
+          },
+          "health_concerns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
       "PetViewBasedResponseSchema": {
         "type": "object",
         "properties": {
-          "is_verified": {
-            "type": "boolean"
-          },
-          "post_count": {
-            "type": "integer",
-            "format": "int32",
+          "breed": {
+            "type": "string",
             "nullable": true
           },
           "name": {
             "type": "string"
           },
-          "birthdate": {
+          "gender": {
             "type": "string",
-            "format": "date",
+            "nullable": true,
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "profile_image_url": {
+            "type": "string",
             "nullable": true
           },
           "pet_id": {
@@ -3323,21 +3100,18 @@
             "format": "int32",
             "nullable": true
           },
-          "profile_image_url": {
+          "birthdate": {
             "type": "string",
+            "format": "date",
             "nullable": true
           },
-          "gender": {
-            "type": "string",
-            "nullable": true,
-            "enum": [
-              "FEMALE",
-              "MALE"
-            ]
-          },
-          "breed": {
-            "type": "string",
+          "post_count": {
+            "type": "integer",
+            "format": "int32",
             "nullable": true
+          },
+          "is_verified": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3348,13 +3122,13 @@
       "CareRecordCreateSchema": {
         "type": "object",
         "properties": {
-          "memo": {
-            "type": "string",
-            "nullable": true
-          },
           "timestamp": {
             "type": "integer",
             "format": "int32"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
           },
           "data": {
             "type": "object"
@@ -3392,8 +3166,12 @@
       "DailyRecordsResponseSchema": {
         "type": "object",
         "properties": {
-          "date": {
-            "type": "string"
+          "summary": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
           },
           "records": {
             "type": "array",
@@ -3401,18 +3179,17 @@
               "$ref": "#/components/schemas/RecordResponseSchema"
             }
           },
-          "summary": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "nullable": true
+          "date": {
+            "type": "string"
           }
         }
       },
       "PetCareSettingsSchema": {
         "type": "object",
         "properties": {
+          "pet_id": {
+            "type": "string"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
@@ -3422,6 +3199,12 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 10
+          },
+          "target_daily_activity_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 1440
           },
           "daily_meal_count": {
             "type": "integer",
@@ -3435,20 +3218,11 @@
             "minimum": 0.1,
             "maximum": 200.0
           },
-          "target_daily_activity_minutes": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0,
-            "maximum": 1440
-          },
           "daily_activity_increment": {
             "type": "integer",
             "format": "int32",
             "minimum": 1,
             "maximum": 180
-          },
-          "pet_id": {
-            "type": "string"
           }
         },
         "required": [
@@ -3462,10 +3236,6 @@
       "RecordResponseSchema": {
         "type": "object",
         "properties": {
-          "timestamp_ms": {
-            "type": "integer",
-            "format": "int32"
-          },
           "searchDate": {
             "type": "string"
           },
@@ -3473,14 +3243,18 @@
             "type": "string",
             "nullable": true
           },
-          "record_type": {
+          "pet_id": {
             "type": "string"
           },
           "log_id": {
             "type": "string"
           },
-          "pet_id": {
+          "record_type": {
             "type": "string"
+          },
+          "timestamp_ms": {
+            "type": "integer",
+            "format": "int32"
           },
           "data": {
             "type": "object"
@@ -3526,19 +3300,15 @@
       "PostResponseSchema": {
         "type": "object",
         "properties": {
-          "author": {
-            "$ref": "#/components/schemas/AuthorSchema"
+          "pet": {
+            "$ref": "#/components/schemas/PetInfoSchema"
           },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
-          "text": {
+          "post_id": {
             "type": "string"
-          },
-          "comment_count": {
-            "type": "integer",
-            "format": "int32"
           },
           "image_urls": {
             "type": "array",
@@ -3547,22 +3317,26 @@
               "format": "uri"
             }
           },
+          "is_liked": {
+            "type": "boolean"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
           },
-          "is_liked": {
-            "type": "boolean"
+          "text": {
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/AuthorSchema"
+          },
+          "comment_count": {
+            "type": "integer",
+            "format": "int32"
           },
           "like_count": {
             "type": "integer",
             "format": "int32"
-          },
-          "post_id": {
-            "type": "string"
-          },
-          "pet": {
-            "$ref": "#/components/schemas/PetInfoSchema"
           }
         },
         "required": [
@@ -3633,6 +3407,11 @@
       "UploadUrlRequestSchema": {
         "type": "object",
         "properties": {
+          "content_type": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
           "filename": {
             "type": "string",
             "minLength": 1,
@@ -3647,11 +3426,6 @@
               "pet_profile",
               "post_image"
             ]
-          },
-          "content_type": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 120
           }
         },
         "required": [
@@ -3663,13 +3437,13 @@
       "UploadUrlResponseSchema": {
         "type": "object",
         "properties": {
-          "upload_url": {
-            "type": "string",
-            "format": "uri"
-          },
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "upload_url": {
+            "type": "string",
+            "format": "uri"
           },
           "file_path": {
             "type": "string"
@@ -3706,49 +3480,49 @@
       "NotificationPreferencesResponseSchema": {
         "type": "object",
         "properties": {
+          "mode": {
+            "type": "string",
+            "nullable": true
+          },
           "types": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             }
-          },
-          "mode": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
       "NotificationPreferencesSchema": {
         "type": "object",
         "properties": {
+          "mode": {
+            "type": "string",
+            "nullable": true
+          },
           "types": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             }
-          },
-          "mode": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
       "UserMeResponseSchema": {
         "type": "object",
         "properties": {
-          "user_id": {
-            "type": "string"
-          },
-          "nickname": {
-            "type": "string"
-          },
           "email": {
             "type": "string",
             "format": "email"
           },
+          "user_id": {
+            "type": "string"
+          },
           "pet_id": {
             "type": "string",
             "nullable": true
+          },
+          "nickname": {
+            "type": "string"
           },
           "has_pet": {
             "type": "boolean"
@@ -3766,12 +3540,12 @@
           "user_id": {
             "type": "string"
           },
+          "nickname": {
+            "type": "string"
+          },
           "post_count": {
             "type": "integer",
             "format": "int32"
-          },
-          "nickname": {
-            "type": "string"
           }
         },
         "required": [
@@ -3783,13 +3557,10 @@
       "UserSummaryPetSchema": {
         "type": "object",
         "properties": {
-          "is_verified": {
-            "type": "boolean"
-          },
-          "name": {
+          "breed": {
             "type": "string"
           },
-          "pet_id": {
+          "name": {
             "type": "string"
           },
           "profile_image_url": {
@@ -3797,8 +3568,11 @@
             "format": "uri",
             "nullable": true
           },
-          "breed": {
+          "pet_id": {
             "type": "string"
+          },
+          "is_verified": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3813,15 +3587,15 @@
           "user": {
             "$ref": "#/components/schemas/UserSummaryUserSchema"
           },
+          "pet": {
+            "$ref": "#/components/schemas/UserSummaryPetSchema",
+            "nullable": true
+          },
           "pet_care_settings": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             },
-            "nullable": true
-          },
-          "pet": {
-            "$ref": "#/components/schemas/UserSummaryPetSchema",
             "nullable": true
           }
         },
@@ -3835,12 +3609,12 @@
           "user_id": {
             "type": "string"
           },
+          "nickname": {
+            "type": "string"
+          },
           "post_count": {
             "type": "integer",
             "format": "int32"
-          },
-          "nickname": {
-            "type": "string"
           }
         },
         "required": [
@@ -4150,49 +3924,6 @@
           }
         }
       }
-    },
-    "securitySchemes": {
-      "BearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Provide the access token as: Bearer <token>"
-      }
     }
-  },
-  "tags": [
-    {
-      "name": "auth"
-    },
-    {
-      "name": "breeds"
-    },
-    {
-      "name": "cartoon-jobs"
-    },
-    {
-      "name": "comments"
-    },
-    {
-      "name": "health"
-    },
-    {
-      "name": "notifications"
-    },
-    {
-      "name": "pet-care"
-    },
-    {
-      "name": "pets"
-    },
-    {
-      "name": "posts"
-    },
-    {
-      "name": "uploads"
-    },
-    {
-      "name": "users"
-    }
-  ]
+  }
 }
