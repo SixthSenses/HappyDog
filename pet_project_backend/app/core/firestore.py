@@ -26,9 +26,9 @@ def is_docs_mode() -> bool:
 def initialize_firestore() -> Optional[Any]:
     """Initialize and cache a Firestore client unless in DOCS_MODE.
 
-    Resolution order:
-      1. google.cloud.firestore.Client() (ADC)
-      2. firebase_admin already initialized -> firebase_admin.firestore.client()
+        Resolution order:
+            1. firebase_admin already initialized -> firebase_admin.firestore.client() (explicit service account from .env)
+            2. google.cloud.firestore.Client() (ADC)
 
     Returns None when:
       - DOCS_MODE enabled
@@ -46,27 +46,25 @@ def initialize_firestore() -> Optional[Any]:
         _DB_CLIENT = None
         return _DB_CLIENT
 
-    # Attempt primary client (google.cloud)
-    if firestore is not None:
-        try:  # pragma: no cover - environment dependent
-            _DB_CLIENT = firestore.Client()
-            logging.info("Firestore client initialized via google.cloud.firestore")
-            return _DB_CLIENT
-        except Exception as e:  # pragma: no cover
-            logging.warning(f"Primary Firestore client init failed (google.cloud) - falling back: {e}")
-    else:
-        logging.warning("google.cloud.firestore unavailable; attempting firebase_admin fallback")
-
-    # Fallback: use firebase_admin if already initialized
+    # 1) Prefer firebase_admin if already initialized with explicit credentials
     if firebase_admin is not None and getattr(firebase_admin, '_apps', None):
         try:  # pragma: no cover
             _DB_CLIENT = admin_firestore.client()
-            logging.info("Firestore client initialized via firebase_admin fallback")
+            logging.info("Firestore client initialized via firebase_admin (preferred)")
             return _DB_CLIENT
         except Exception as e:  # pragma: no cover
-            logging.error(f"firebase_admin Firestore fallback failed: {e}")
+            logging.error(f"firebase_admin Firestore init failed: {e}")
+
+    # 2) Fallback to google.cloud (ADC)
+    if firestore is not None:
+        try:  # pragma: no cover - environment dependent
+            _DB_CLIENT = firestore.Client()
+            logging.info("Firestore client initialized via google.cloud.firestore (ADC)")
+            return _DB_CLIENT
+        except Exception as e:  # pragma: no cover
+            logging.warning(f"ADC Firestore client init failed (google.cloud): {e}")
     else:
-        logging.warning("firebase_admin not initialized; cannot use fallback Firestore client")
+        logging.warning("google.cloud.firestore unavailable; ADC path not usable")
 
     logging.warning("Firestore client not initialized (all strategies failed)")
     _DB_CLIENT = None
