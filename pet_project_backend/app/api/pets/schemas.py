@@ -113,7 +113,8 @@ class NosePrintRegistrationResponseSchema(Schema):
 class EyeAnalysisHistoryQuerySchema(Schema):
     """GET /api/pets/eye-analyses 쿼리 파라미터 검증 스키마."""
     pet_id = fields.Str(required=False, allow_none=True)
-    limit = fields.Int(required=False, missing=20, validate=validate.Range(min=1, max=50))
+    # marshmallow v4: 'missing' -> 'load_default'
+    limit = fields.Int(required=False, load_default=20, validate=validate.Range(min=1, max=50))
     cursor = fields.Str(required=False, allow_none=True)
 
 
