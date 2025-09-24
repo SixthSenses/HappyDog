@@ -411,10 +411,17 @@ class PetBiometricService:
                     break
                 data = doc.to_dict() or {}
                 created = data.get('created_at')
+                # Firestore Timestamp 또는 datetime 기대. 문자열이면 파싱 시도.
+                from app.utils.datetime_utils import DateTimeUtils
+                created_dt = None
                 try:
-                    created_iso = created.isoformat() if hasattr(created, 'isoformat') else None
+                    if hasattr(created, 'isoformat'):
+                        created_dt = created  # datetime 또는 Timestamp 변환된 객체
+                    elif isinstance(created, str) and created:
+                        # 과거 혹은 잘못 저장된 문자열 케이스 방어
+                        created_dt = DateTimeUtils.parse_iso_datetime(created)
                 except Exception:
-                    created_iso = None
+                    created_dt = None
                 result = data.get('result') or {}
                 # probability 저장 구조 backward compatible
                 prob = result.get('top_probability') or result.get('probability')
@@ -437,7 +444,7 @@ class PetBiometricService:
                     'analysis_id': doc.id,
                     'pet_id': data.get('pet_id'),
                     'disease_name': result.get('final_disease_name') or result.get('disease_name'),
-                    'created_at': created_iso,
+                    'created_at': created_dt,
                     'probability_percent': percent,
                     'image_url': data.get('image_url'),
                     'predictions': predictions_list,
