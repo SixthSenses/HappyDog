@@ -1,46 +1,70 @@
-name: happydog-backend
+name: dog
 channels:
-  - pytorch
   - conda-forge
+  - pytorch
   - defaults
 dependencies:
-  # Python
+  # Core Python
   - python=3.10
   - pip
 
-  # Core backend
-  - flask=3.1
-  - flask-jwt-extended=4.7
+  # Web / API
+  - flask>=3.0,<4
+  - flask-jwt-extended>=4.7,<5
+  - marshmallow>=4.0,<5
   - pyyaml
   - requests
-  - numpy=1.26
-  - pandas=2.3
+  - python-dotenv
+  - prance  # OpenAPI validation (optional; safe to remove if unused)
+
+  # Data / Utils
+  - numpy>=1.26
+  - pandas>=2.3
   - pillow
   - psutil
   - tqdm
-  - marshmallow=4.0
+  - scipy  # from conda (prefer over pinned old pip version)
+  - shapely
+  - filetype  # available on conda-forge
 
-  # PyTorch (CPU by default on all platforms)
-  - pytorch=2.5
-  - torchvision=0.20
-  - torchaudio=2.5
+  # ML / CV
+  - pytorch  # resolved via pytorch channel
+  - torchvision
+  - torchaudio
+  - faiss
+  - opencv  # (opencv-python wheel equivalent)
+  - timm
+  - ultralytics
+  - sahi
 
-  # Pip-only deps
+  # OpenAI client (conda-forge has recent versions)
+  - openai
+
+  # Progress / misc libs installed earlier
+  - jiter
+  - fire
+
+  # NOTE: 아래 패키지들은 conda 패키지로 충분히 커버되므로 중복 제거됨:
+  #   - opencv-python (대신 opencv)
+  #   - scipy, timm, ultralytics (이미 conda 지정)
+
+  # Pip 전용 (conda에 없거나 최신 유지 목적)
   - pip:
-      - google-auth-oauthlib==1.2.2
-      - opencv-python==4.10.0.84
       - firebase-admin==7.0.0
+      - google-auth-oauthlib==1.2.2
       - google-cloud-firestore==2.21.0
       - google-cloud-storage==3.2.0
-      - openai==1.100.2
-      - jiter==0.10.0
-      - filetype==1.2.0
-      - fire==0.7.0
-      - ultralytics==8.3.172
-      - timm==1.0.19
-      - yolov5==7.0.14
-      - sahi==0.11.31
-      - shapely==2.1.1
-      - scipy==1.11.4
-      - faiss-cpu==1.9.0
+      - ultralytics-thop  # ultralytics 의 thop 플러그인
+
+# 사용 가이드:
+#  1) conda env create -f pet_project_backend/environment.yml
+#  2) conda activate dog
+#  3) (필요 시) GPU: pytorch 채널 안내문 참고해 cudatoolkit 변형 추가
+#  4) OpenAPI 스펙 재빌드 예: 
+#     cmd /c "set DOCS_MODE=1 && python pet_project_backend\scripts\swagger_build.py --app pet_project_backend.app:create_app --out openapi.json --pretty-out openapi_pretty.json --docs-mode --add-tags"
+
+# 태그가 0이었던 원인:
+#  --add-tags 옵션을 주지 않고 실행하면 swagger_build.py 가 tag 맵을 생성하지 않아 'tags' 섹션이 비어 paths=.. tags=0 으로 출력됩니다.
+#  위 명령처럼 --add-tags 추가 시 URL 첫 세그먼트 기반으로 태그가 채워집니다.
+     
 
