@@ -48,7 +48,7 @@ Do: Centralize errors; validate inputs; inject dependencies; keep routes thin.
 Don't: Embed Firestore logic in routes; create ad-hoc JSON errors; skip schema for internal endpoints; call external APIs directly.
 
 ### 14. Fast Start Commands (Windows cmd)
-Create env (example): `conda env create -f environment.yml`
+conda activate dog
 Run app: `python pet_project_backend/run.py`
 Run tests (unit): `pytest -k service`
 Swagger rebuild: `python pet_project_backend/scripts/swagger_build.py`
