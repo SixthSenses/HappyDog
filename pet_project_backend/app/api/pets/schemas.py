@@ -98,7 +98,16 @@ class EyeAnalysisResponseSchema(Schema):
     analysis_id = fields.Str(required=True)
     disease_name = fields.Str(required=True)
     probability = fields.Float(required=True)
+    probability_percent = fields.Int(required=False)
     image_url = fields.Str(allow_none=True)
+    # 전체 질병 확률 리스트 (확률 내림차순). 각 아이템: {disease_name, probability, probability_percent}
+    predictions = fields.List(fields.Dict(), required=False)
+    is_normal = fields.Bool(required=False)
+
+class EyeDiseasePredictionSchema(Schema):
+    disease_name = fields.Str(required=True)
+    probability = fields.Float(required=True)
+    probability_percent = fields.Int(required=True)
 
 class NosePrintRegistrationResponseSchema(Schema):
     """비문(코) 등록/인증 결과 응답 스키마."""
@@ -128,6 +137,8 @@ class EyeAnalysisHistoryItemSchema(Schema):
     # 프론트에서 그대로 % 표시를 붙여 사용 (예: 91)
     probability_percent = fields.Int(required=True)
     image_url = fields.Str(allow_none=True)
+    predictions = fields.List(fields.Nested(EyeDiseasePredictionSchema), required=False)
+    is_normal = fields.Bool(required=False)
 
 
 class EyeAnalysisHistoryListResponseSchema(Schema):

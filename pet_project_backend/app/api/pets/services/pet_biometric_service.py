@@ -319,13 +319,37 @@ class PetBiometricService:
                 logging.error(f"Failed to make image public for pet {pet_id}: {e}")
                 image_url = None
 
-            # Prepare result data
+            # Build ordered predictions list (descending by probability)
+            try:
+                sorted_predictions = sorted(
+                    (
+                        {
+                            'disease_name': k,
+                            'probability': float(v),
+                            'probability_percent': int(round(float(v) * 100))
+                        } for k, v in (all_predictions or {}).items()
+                    ),
+                    key=lambda x: x['probability'],
+                    reverse=True
+                )
+            except Exception:
+                sorted_predictions = []
+
+            is_normal = (disease_name == '정상')
+
+            # Prepare result data (extended schema)
             result_data = {
                 'pet_id': pet_id,
                 'analysis_type': 'eye',
                 'image_url': image_url,
-                'result': {'final_disease_name': disease_name, 'probability': probability},
-                'raw_predictions': all_predictions
+                'result': {
+                    'final_disease_name': disease_name,
+                    'top_probability': probability,
+                    'top_disease_name': disease_name,
+                    'is_normal': is_normal
+                },
+                'raw_predictions': all_predictions,
+                'predictions': sorted_predictions
             }
             
             # Save analysis result (non-critical operation)
@@ -342,7 +366,10 @@ class PetBiometricService:
                 features={
                     'disease_name': disease_name,
                     'probability': probability,
-                    'image_url': image_url
+                    'image_url': image_url,
+                    'predictions': sorted_predictions,
+                    'is_normal': is_normal,
+                    'probability_percent': int(round(float(probability) * 100)) if isinstance(probability, (int, float)) else None
                 },
                 analysis_id=analysis_id,
                 metadata={'raw_predictions': all_predictions}
@@ -389,15 +416,32 @@ class PetBiometricService:
                 except Exception:
                     created_iso = None
                 result = data.get('result') or {}
-                prob = result.get('probability')
+                # probability 저장 구조 backward compatible
+                prob = result.get('top_probability') or result.get('probability')
                 percent = int(round(float(prob) * 100)) if isinstance(prob, (int, float)) else None
+                predictions_list = data.get('predictions')
+                if not predictions_list:
+                    raw_preds = data.get('raw_predictions') or {}
+                    try:
+                        predictions_list = sorted([
+                            {
+                                'disease_name': k,
+                                'probability': float(v),
+                                'probability_percent': int(round(float(v)*100))
+                            } for k, v in raw_preds.items()
+                        ], key=lambda x: x['probability'], reverse=True)
+                    except Exception:
+                        predictions_list = []
+                is_normal = bool(result.get('is_normal')) or (result.get('final_disease_name') == '정상')
                 items.append({
                     'analysis_id': doc.id,
                     'pet_id': data.get('pet_id'),
                     'disease_name': result.get('final_disease_name') or result.get('disease_name'),
                     'created_at': created_iso,
                     'probability_percent': percent,
-                    'image_url': data.get('image_url')
+                    'image_url': data.get('image_url'),
+                    'predictions': predictions_list,
+                    'is_normal': is_normal
                 })
             next_cursor = last_doc.id if last_doc else None
             return items, next_cursor

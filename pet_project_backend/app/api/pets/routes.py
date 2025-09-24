@@ -199,11 +199,15 @@ def request_eye_analysis(pet_id: str):
             code = result_obj.error_code or 'BIO_PROCESSING_FAILED'
             status, body = build_error(code, message=result_obj.error_message, details={'pet_id': pet_id})
             return jsonify(body), status
+        features = result_obj.features or {}
         response_dict = {
             'analysis_id': result_obj.analysis_id,
-            'disease_name': (result_obj.features or {}).get('disease_name'),
-            'probability': (result_obj.features or {}).get('probability'),
-            'image_url': (result_obj.features or {}).get('image_url')
+            'disease_name': features.get('disease_name'),
+            'probability': features.get('probability'),
+            'probability_percent': features.get('probability_percent'),
+            'image_url': features.get('image_url'),
+            'predictions': features.get('predictions'),
+            'is_normal': features.get('is_normal')
         }
         return jsonify(EyeAnalysisResponseSchema().dump(response_dict)), 200
     except ValidationError as err:
