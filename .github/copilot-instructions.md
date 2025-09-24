@@ -1,56 +1,53 @@
 ## HappyDog AI Agent Instructions
-Focused guidance for autonomous code changes in this backend.
+Concise, codebase‑specific rules so an AI can safely ship changes fast.
 
-### 1. Core Domain & Layout
-Backend root: `pet_project_backend/app` organized by domain under `api/` (e.g. `auth`, `pets`, `pet_care`, `posts`, `comments`, `notifications`, `uploads`). Each domain keeps: `routes.py` (HTTP only), `services/` (business logic), optional `schemas.py` (Marshmallow), and sometimes sub‑service modules. Never add business logic to `routes`.
-Global cross‑cutting modules: `core/` (initialization: Firestore, JWT, app wiring), `middleware/` (idempotency, rate limiting), `utils/` (error catalog, datetime, API docs helpers), `services/` (shared infrastructure: `firestore_service.py`, `storage_service.py`, `notification_service.py`, `openai_service*.py`).
+### 1. Architecture Snapshot
+Monolith Flask backend at `pet_project_backend/app` with strict domain folders under `api/` (auth, users, posts, comments, pets, pet_care, notifications, cartoon_jobs, breeds, uploads, translator, guidebook, survey, common). Pattern per domain: `routes.py` (HTTP only) + `services/` (business logic) + optional `schemas.py`. Never put Firestore or ML logic in routes. Shared infra in `app/services/` (storage, notification, openai, idempotency) and `app/utils/` (datetime, error catalog, path utils, metrics). Central composition + DI live in `app/__init__.py` using `app.services[...]` as the container.
 
-### 2. Dependency & Service Wiring
-Application services are instantiated in `app/__init__.py` and injected (DI pattern) into domains via `app.services[...]`. When adding a new service: (1) create implementation in appropriate domain or shared `services/`; (2) register instance in `create_app` near related domain grouping; (3) expose only pure methods (side effects limited to Firestore / Storage). Respect ordering (foundational services like notifications, auth first; dependent domains later).
+### 2. Service Initialization Order (Critical)
+`create_app()` builds Firestore (once), then `_init_core_services()` (storage -> openai or stub if `DOCS_MODE` -> notifications -> idempotency -> breeds -> auth -> optional ML pipelines) then `_init_dependent_services()` (pet care, pets, users, posts, comments, cartoon_jobs). Respect this layering: new service must appear in the earliest phase where its dependencies are already registered. For docs or lightweight environments set `DOCS_MODE=1` to skip Firebase + ML + external network; tests relying on no heavy setup should mimic this.
 
-### 3. Data & Validation
-Firestore is the persistence layer; always convert datetime objects using `DateTimeUtils.for_firestore` before writes. All inbound request payloads must be validated at route entry with a Marshmallow schema (place in `schemas.py` or inline schema module). Do not bypass schema even for internal tooling endpoints. Maintain collection naming consistency already used in existing services—inspect similar service before introducing a new collection.
+### 3. Environment / Flags
+Primary env vars: `FLASK_ENV`, `DOCS_MODE`, `SKIP_ML`, `STRICT_ML_PATHS`, Firebase creds paths (`FIREBASE_CREDENTIALS_PATH`, `FIREBASE_STORAGE_BUCKET`). ML models resolved via `utils.path_utils.resolve_ml_paths`; if assets missing and not strict, pipeline is silently skipped (service set to None). Never assume ML services are non‑null—feature gate in code.
 
-### 4. Error Handling Contract
-Use centralized error system: `app.utils.error_catalog` exports `ERRORS`, `build_error`, `ErrorSpec`. In routes: return `build_error(ERRORS['SOME_CODE'])` on known business failures; never craft ad‑hoc JSON. Wrap Firestore lookups; map not-found to catalog codes instead of raw exceptions. When adding new error: extend catalog (provide code, http status, message, detail schema) and reference it; update swagger via `scripts/swagger_build.py` if needed.
+### 4. Data & Firestore Usage
+All persistence via injected `app.firestore_client`. Convert outgoing datetime structures with `DateTimeUtils.for_firestore`. Keep collection naming consistent—inspect existing domain services before adding new collections. Batch or structure queries like `PostService` / `CommentService` to avoid N+1 reads. No Firestore calls from routes: delegate to service method.
 
-### 5. Idempotency & Rate Limits
-Long-running or write endpoints that can be retried should integrate idempotency middleware key extraction (see `middleware/idempotency_middleware.py`). For high-frequency endpoints, consult `rate_limit_middleware.py` patterns—reuse helper functions and constant buckets; do not duplicate logic inside routes.
+### 5. Validation & Schemas
+Every request body validated with Marshmallow before hitting services (raise `ValidationError` => mapped to uniform 400). Place schemas near the domain (`schemas.py`) or inline file if small; keep JSON field naming consistent (camelCase currently prevalent). Reject ad‑hoc validation logic in services.
 
-### 6. OpenAPI / Documentation
-Primary specs: root `openapi.json` and `openapi_pretty.json`. Regeneration pipeline leverages `scripts/swagger_build.py` and domain route introspection + error catalog injection. After adding/modifying routes: run the swagger build script and ensure new error responses reference catalog codes only.
+### 6. Error Contract
+Central catalog: `app.utils.error_catalog` (`ERRORS`, `build_error`). Routes and middleware return `(status, body)` from `build_error('CODE')`; never hand‑craft JSON. When adding an error: extend catalog with code, http status, message, optional detail schema, then regenerate Swagger. Map not-found & authorization failures explicitly; no raw exception leakage.
 
-### 7. Testing Strategy
-Use `pytest`. Unit tests: isolate service logic; mock Firestore client (pattern visible in existing `test_*` scripts under `scripts/` and `tests/`). Integration tests must target Firestore Emulator—never real GCP project. Provide Arrange-Act-Assert structure, ensure deterministic timestamps (use helpers). For new domain add minimal smoke test covering happy path + one catalog error.
+### 7. Idempotency & Rate Limiting
+For POST endpoints susceptible to duplicate writes wrap with idempotency middleware patterns (see `middleware/idempotency_middleware.py`) and use `app.services['idempotency']`. For burst‑prone endpoints reference bucket config in `rate_limit_middleware.py`; do not clone logic—reuse helpers.
 
-### 8. Security & Input Sanitation
-Authenticate via auth service (Firebase / JWT integration). Never log secrets, tokens, or PII. Validate every external input through schema before reaching service layer. File uploads go through `uploads` domain; reuse existing storage service patterns to enforce size/type constraints.
+### 8. External / OpenAI / ML
+Never instantiate OpenAI client directly; use `app.services['openai']` (stub automatically injected in `DOCS_MODE`). Guard ML dependent code: `if app.services['nose_pipeline']:` etc. Background cartoon job processing uses a `ThreadPoolExecutor` only when not in docs mode—avoid adding blocking tasks to request thread; schedule through existing job services.
 
-### 9. OpenAI / External Calls
-When using `openai_service.py`, prefer the existing stub for tests (`openai_service_stub.py`). Inject service through `app.services` for testability; do not call external APIs directly inside domain services.
+### 9. API Documentation Workflow
+Specs: `openapi.json`, `openapi_pretty.json`. Rebuild after adding/modifying routes or error codes: `python pet_project_backend/scripts/swagger_build.py` (or use VS Code task). The builder auto-injects error responses from catalog; ensure new endpoints refer only to catalog codes. Use `DOCS_MODE=1` for deterministic spec generation (skips heavy init).
 
-### 10. Performance & Consistency
-Avoid N+1 Firestore reads—batch or structure queries like similar services (inspect `PostService`, `CommentService`). Use idempotency for any endpoint where duplicate POST could corrupt counters or duplicated documents. Keep route functions thin: parse + validate + delegate + format response.
+### 10. Testing Conventions
+Use `pytest`. Prefer dependency injection to allow stubbing; for OpenAI rely on stub via `DOCS_MODE` or direct stub injection. Firestore emulator required for integration tests—never call real GCP in tests. Structure tests Arrange / Act / Assert; stable timestamps via `DateTimeUtils.now()` mocking if determinism needed.
 
-### 11. Adding a New Domain (Example Workflow)
-1. Create folder `app/api/<domain>/` with `routes.py`, `services/__init__.py`, optional `schemas.py`.
-2. Implement service referencing injected Firestore client.
-3. Register service instance in `app/__init__.py` (preserve grouping comment style).
-4. Define Marshmallow schemas; use camelCase in JSON if consistent with neighboring domain (mirror existing pattern).
-5. Add catalog errors if needed; regenerate swagger.
-6. Add unit test (service) + integration test (route) using emulator.
+### 11. Adding / Modifying a Domain
+1) Create `app/api/<domain>/` with `routes.py`, `services/`, optional `schemas.py`. 2) Implement services DI-ing Firestore + other services. 3) Register service(s) in the correct phase inside `app/__init__.py`. 4) Register blueprint with `/api/<domain>` prefix. 5) Add error codes (if needed) then regenerate Swagger. 6) Provide unit test (service) + minimal integration test (route success + one catalog error).
 
-### 12. Commit & PR Conventions
-Follow Conventional Commits (feat, fix, refactor, chore, test, docs). Reference error code or service name when relevant: `fix(auth): handle expired token revocation using ERR-XYZ`.
+### 12. Performance & Consistency Rules
+Keep route handlers thin: parse -> validate -> delegate -> format plain dict response. Avoid per-item Firestore fetch loops; design query methods returning already aggregated data. Use idempotency for mutation endpoints creating records or side effects. Prefer explicit service methods over util singletons.
 
-### 13. Do / Don't Quick Reference
-Do: Centralize errors; validate inputs; inject dependencies; keep routes thin.
-Don't: Embed Firestore logic in routes; create ad-hoc JSON errors; skip schema for internal endpoints; call external APIs directly.
+### 13. Commits & PRs
+Conventional Commits (`feat:`, `fix:`, etc.). Include domain or error code context, e.g. `feat(pets): add biometric enrollment ERR-PET-BIOMETRIC-NOTREADY`.
 
-### 14. Fast Start Commands (Windows cmd)
-Create env (example): `conda env create -f environment.yml`
+### 14. Quick Commands (Windows)
+Activate env: `conda activate dog`
 Run app: `python pet_project_backend/run.py`
-Run tests (unit): `pytest -k service`
-Swagger rebuild: `python pet_project_backend/scripts/swagger_build.py`
+Run selective tests: `pytest -k post_service`
+Rebuild Swagger: `python pet_project_backend/scripts/swagger_build.py`
 
-Keep this file concise; propose edits via PR if architectural shifts occur.
+### 15. Do / Don't (Enforced Patterns)
+Do: Centralize errors; validate all inputs; inject services; guard optional ML; rebuild spec after route changes.
+Don't: Perform Firestore or OpenAI calls in routes; craft ad-hoc JSON errors; assume ML services exist; duplicate rate-limit logic.
+
+Questions / gaps: if adding caching layer, background scheduling beyond current executors, or new external API patterns, flag in PR description—no hidden architectural shifts.

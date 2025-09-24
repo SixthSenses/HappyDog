@@ -319,13 +319,37 @@ class PetBiometricService:
                 logging.error(f"Failed to make image public for pet {pet_id}: {e}")
                 image_url = None
 
-            # Prepare result data
+            # Build ordered predictions list (descending by probability)
+            try:
+                sorted_predictions = sorted(
+                    (
+                        {
+                            'disease_name': k,
+                            'probability': float(v),
+                            'probability_percent': int(round(float(v) * 100))
+                        } for k, v in (all_predictions or {}).items()
+                    ),
+                    key=lambda x: x['probability'],
+                    reverse=True
+                )
+            except Exception:
+                sorted_predictions = []
+
+            is_normal = (disease_name == '정상')
+
+            # Prepare result data (extended schema)
             result_data = {
                 'pet_id': pet_id,
                 'analysis_type': 'eye',
                 'image_url': image_url,
-                'result': {'final_disease_name': disease_name, 'probability': probability},
-                'raw_predictions': all_predictions
+                'result': {
+                    'final_disease_name': disease_name,
+                    'top_probability': probability,
+                    'top_disease_name': disease_name,
+                    'is_normal': is_normal
+                },
+                'raw_predictions': all_predictions,
+                'predictions': sorted_predictions
             }
             
             # Save analysis result (non-critical operation)
@@ -342,7 +366,10 @@ class PetBiometricService:
                 features={
                     'disease_name': disease_name,
                     'probability': probability,
-                    'image_url': image_url
+                    'image_url': image_url,
+                    'predictions': sorted_predictions,
+                    'is_normal': is_normal,
+                    'probability_percent': int(round(float(probability) * 100)) if isinstance(probability, (int, float)) else None
                 },
                 analysis_id=analysis_id,
                 metadata={'raw_predictions': all_predictions}
@@ -384,20 +411,44 @@ class PetBiometricService:
                     break
                 data = doc.to_dict() or {}
                 created = data.get('created_at')
+                # Firestore Timestamp 또는 datetime 기대. 문자열이면 파싱 시도.
+                from app.utils.datetime_utils import DateTimeUtils
+                created_dt = None
                 try:
-                    created_iso = created.isoformat() if hasattr(created, 'isoformat') else None
+                    if hasattr(created, 'isoformat'):
+                        created_dt = created  # datetime 또는 Timestamp 변환된 객체
+                    elif isinstance(created, str) and created:
+                        # 과거 혹은 잘못 저장된 문자열 케이스 방어
+                        created_dt = DateTimeUtils.parse_iso_datetime(created)
                 except Exception:
-                    created_iso = None
+                    created_dt = None
                 result = data.get('result') or {}
-                prob = result.get('probability')
+                # probability 저장 구조 backward compatible
+                prob = result.get('top_probability') or result.get('probability')
                 percent = int(round(float(prob) * 100)) if isinstance(prob, (int, float)) else None
+                predictions_list = data.get('predictions')
+                if not predictions_list:
+                    raw_preds = data.get('raw_predictions') or {}
+                    try:
+                        predictions_list = sorted([
+                            {
+                                'disease_name': k,
+                                'probability': float(v),
+                                'probability_percent': int(round(float(v)*100))
+                            } for k, v in raw_preds.items()
+                        ], key=lambda x: x['probability'], reverse=True)
+                    except Exception:
+                        predictions_list = []
+                is_normal = bool(result.get('is_normal')) or (result.get('final_disease_name') == '정상')
                 items.append({
                     'analysis_id': doc.id,
                     'pet_id': data.get('pet_id'),
                     'disease_name': result.get('final_disease_name') or result.get('disease_name'),
-                    'created_at': created_iso,
+                    'created_at': created_dt,
                     'probability_percent': percent,
-                    'image_url': data.get('image_url')
+                    'image_url': data.get('image_url'),
+                    'predictions': predictions_list,
+                    'is_normal': is_normal
                 })
             next_cursor = last_doc.id if last_doc else None
             return items, next_cursor
