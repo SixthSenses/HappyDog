@@ -1457,6 +1457,65 @@
         ]
       }
     },
+    "/api/breeds/guide/{breed_name}": {
+      "get": {
+        "summary": "특정 품종 백과사전 정보 조회",
+        "description": "ResponseSchema[200]: BreedGuideSchema\n    ResponseSchema[404]: ErrorResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedGuideSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "breed_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'breed_name' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
     "/api/breeds/{breed_name}": {
       "get": {
         "summary": "특정 품종 정보 조회",
@@ -2658,6 +2717,23 @@
           "provider"
         ]
       },
+      "BreedBasicInfoSchema": {
+        "type": "object",
+        "properties": {
+          "weight": {
+            "type": "string"
+          },
+          "height": {
+            "type": "string"
+          },
+          "life_span": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          }
+        }
+      },
       "BreedExistsResponseSchema": {
         "type": "object",
         "properties": {
@@ -2671,6 +2747,38 @@
         "required": [
           "breed_name",
           "exists"
+        ]
+      },
+      "BreedGuideSchema": {
+        "type": "object",
+        "properties": {
+          "breed_name": {
+            "type": "string"
+          },
+          "english_name": {
+            "type": "string"
+          },
+          "basic_info": {
+            "$ref": "#/components/schemas/BreedBasicInfoSchema"
+          },
+          "personality": {
+            "$ref": "#/components/schemas/BreedPersonalitySchema"
+          },
+          "common_diseases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "care_points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "breed_name"
         ]
       },
       "BreedListSchema": {
@@ -2692,6 +2800,20 @@
           "breeds",
           "total_count"
         ]
+      },
+      "BreedPersonalitySchema": {
+        "type": "object",
+        "properties": {
+          "strengths": {
+            "type": "string"
+          },
+          "weaknesses": {
+            "type": "string"
+          },
+          "traits": {
+            "type": "string"
+          }
+        }
       },
       "BreedSchema": {
         "type": "object",
@@ -2778,15 +2900,10 @@
         "properties": {
           "breed_name": {
             "type": "string"
-          },
-          "life_expectancy": {
-            "type": "number",
-            "format": "float"
           }
         },
         "required": [
-          "breed_name",
-          "life_expectancy"
+          "breed_name"
         ]
       },
       "ErrorResponseSchema": {

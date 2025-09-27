@@ -6,7 +6,8 @@ from urllib.parse import unquote
 
 from .schemas import (
     BreedSchema, BreedListSchema, BreedSummaryListSchema,
-    BreedSearchSchema, ErrorResponseSchema, BreedExistsResponseSchema
+    BreedSearchSchema, ErrorResponseSchema, BreedExistsResponseSchema,
+    BreedGuideSchema
 )
 from .services import BreedService
 # 기존 데코레이터 기반 문서화 제거됨 (docstring 태그로 대체)
@@ -72,6 +73,31 @@ def get_all_breeds():
         return jsonify({
             "error_code": "BREED_FETCH_FAILED",
             "message": "품종 목록을 조회하는 중 오류가 발생했습니다."
+        }), 500
+
+
+@breeds_bp.route('/guide/<breed_name>', methods=['GET'])
+def get_breed_guide(breed_name: str):
+    """특정 품종 백과사전 정보 조회
+
+    ResponseSchema[200]: BreedGuideSchema
+    ResponseSchema[404]: ErrorResponseSchema
+    """
+    try:
+        breed_service = get_breed_service()
+        decoded_breed_name = unquote(breed_name)
+        guide = breed_service.get_breed_guide(decoded_breed_name)
+        if not guide:
+            return jsonify({
+                "error_code": "BREED_GUIDE_NOT_FOUND",
+                "message": f"품종 백과사전 정보를 찾을 수 없습니다: {decoded_breed_name}"
+            }), 404
+        return jsonify(BreedGuideSchema().dump(guide)), 200
+    except Exception as e:
+        logger.error(f"품종 백과사전 조회 실패 ({breed_name}): {e}")
+        return jsonify({
+            "error_code": "BREED_GUIDE_FETCH_FAILED",
+            "message": f"품종 백과사전 정보를 조회하는 중 오류가 발생했습니다: {breed_name}"
         }), 500
 
 @breeds_bp.route('/<breed_name>', methods=['GET'])
