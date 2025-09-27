@@ -101,7 +101,8 @@ def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
     
     # Utility services with no dependencies
     app.services['idempotency'] = IdempotencyService(app.firestore_client)
-    app.services['breeds'] = BreedService(app.firestore_client)
+    # Inject storage into breeds service so encyclopedia can be loaded from Firebase Storage
+    app.services['breeds'] = BreedService(db_client=app.firestore_client, storage_service=app.services.get('storage'))
     
     # Auth service - foundational for security (DI with Firestore)
     app.services['auth'] = AuthService(app.firestore_client)

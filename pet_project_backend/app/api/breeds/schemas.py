@@ -32,7 +32,6 @@ class BreedSummarySchema(Schema):
     품종 요약 정보를 위한 스키마 (드롭다운 등에서 사용)
     """
     breed_name = fields.Str(required=True)
-    life_expectancy = fields.Float(required=True)
 
 class BreedSummaryListSchema(Schema):
     """
@@ -40,6 +39,31 @@ class BreedSummaryListSchema(Schema):
     """
     breeds = fields.List(fields.Nested(BreedSummarySchema), required=True)
     total_count = fields.Int(required=True, validate=validate.Range(min=0))
+
+
+class BreedBasicInfoSchema(Schema):
+    """백과사전: 기본 정보"""
+    weight = fields.Str(required=False)
+    height = fields.Str(required=False)
+    life_span = fields.Str(required=False)
+    origin = fields.Str(required=False)
+
+
+class BreedPersonalitySchema(Schema):
+    """백과사전: 성격/특징"""
+    strengths = fields.Str(required=False)
+    weaknesses = fields.Str(required=False)
+    traits = fields.Str(required=False)
+
+
+class BreedGuideSchema(Schema):
+    """품종 백과사전 콘텐츠 스키마"""
+    breed_name = fields.Str(required=True)
+    english_name = fields.Str(required=False)
+    basic_info = fields.Nested(BreedBasicInfoSchema, required=False)
+    personality = fields.Nested(BreedPersonalitySchema, required=False)
+    common_diseases = fields.List(fields.Str(), required=False)
+    care_points = fields.List(fields.Str(), required=False)
 
 class BreedSearchSchema(Schema):
     """

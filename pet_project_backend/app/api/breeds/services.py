@@ -1,6 +1,7 @@
 # app/api/breeds/services.py
 import logging
 from typing import List, Dict, Any, Optional, Tuple
+import os
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -10,11 +11,18 @@ class BreedService:
     강아지 품종 관련 비즈니스 로직을 처리하는 서비스 클래스
     """
     
-    def __init__(self, db_client=None):
+    def __init__(self, db_client=None, storage_service=None, guide_blob_path: Optional[str] = None):
         self.db = db_client
         self.breeds_collection = self.db.collection('breeds') if self.db else None
+        self.storage = storage_service
+        # Path in Firebase Storage for the encyclopedia JSON (blob path, not URL)
+        # Default: static/breeds/dog_guide.json (can override via env BREED_GUIDE_BLOB_PATH)
+        self.guide_blob_path = guide_blob_path or os.getenv('BREED_GUIDE_BLOB_PATH') or 'static/breeds/dog_guide.json'
         if self.db is None:
             logger.info("BreedService initialized without Firestore client (docs mode or disabled persistence)")
+        # Lazy caches for local JSON resources
+        self._guide_map = None  # type: Optional[Dict[str, Dict[str, Any]]]
+        self._guide_loaded = False
     
     def get_all_breeds(self, limit: Optional[int] = None, offset: int = 0) -> Tuple[List[Dict[str, Any]], int]:
         """
@@ -156,10 +164,9 @@ class BreedService:
             breeds_summary = []
             
             for doc in docs:
-                breed_data = doc.to_dict()
+                # Only minimal fields for dropdown selection at pet registration
                 summary = {
-                    'breed_name': doc.id,
-                    'life_expectancy': breed_data.get('life_expectancy')
+                    'breed_name': doc.id
                 }
                 breeds_summary.append(summary)
             
@@ -225,3 +232,101 @@ class BreedService:
             return None
     
     # 통계 관련 기능은 폐지됨 (UI 정책에 따라 모든 요약/통계 제거)
+
+    # ===============================
+    # Encyclopedia (dog_guide.json)
+    # ===============================
+    def _load_guides(self) -> None:
+        """Load and normalize dog_guide.json into an internal map keyed by breed_name (Korean).
+
+        This reads from pet_project_backend/scripts/breed_info/dog_guide.json.
+        Fields are normalized to an English-keyed structure for consistent API output.
+        """
+        if self._guide_loaded:
+            return
+        try:
+            import json
+
+            raw: Dict[str, Any] = {}
+
+            # 1) Try Firebase Storage if available
+            if self.storage is not None and getattr(self.storage, 'bucket', None) is not None and self.guide_blob_path:
+                try:
+                    data = self.storage.download_as_bytes(self.guide_blob_path)
+                    raw = json.loads(data.decode('utf-8'))
+                    logger.info(f"Loaded breed guides from Firebase Storage blob: {self.guide_blob_path}")
+                except Exception as se:
+                    logger.warning(f"Failed to load guide from storage (will fallback to local): {se}")
+
+            # 2) Fallback to local file within repo if storage not available or failed
+            if not raw:
+                here = os.path.dirname(__file__)
+                guide_path = os.path.abspath(os.path.join(here, '../../../scripts/breed_info/dog_guide.json'))
+                if os.path.exists(guide_path):
+                    with open(guide_path, 'r', encoding='utf-8') as f:
+                        raw = json.load(f)
+                    logger.info(f"Loaded breed guides from local file: {guide_path}")
+                else:
+                    logger.warning(f"dog_guide.json not found locally at {guide_path}")
+                    self._guide_map = {}
+                    self._guide_loaded = True
+                    return
+
+            def norm_item(k: str, v: Dict[str, Any]) -> Dict[str, Any]:
+                # Korean keys mapping -> English keys used in schema
+                eng_name = v.get('영문명')
+                base = v.get('기본 정보') or {}
+                perso = v.get('성격 특징') or {}
+                diseases = v.get('주요 질환') or []
+                care = v.get('케어 포인트') or []
+                return {
+                    'breed_name': k,
+                    'english_name': eng_name,
+                    'basic_info': {
+                        'weight': base.get('체중'),
+                        'height': base.get('체고'),
+                        'life_span': base.get('수명'),
+                        'origin': base.get('원산지'),
+                    },
+                    'personality': {
+                        'strengths': perso.get('장점'),
+                        'weaknesses': perso.get('단점'),
+                        'traits': perso.get('특성'),
+                    },
+                    'common_diseases': diseases,
+                    'care_points': care,
+                }
+
+            self._guide_map = {breed_k: norm_item(breed_k, breed_v) for breed_k, breed_v in raw.items()}
+            self._guide_loaded = True
+            logger.info(f"Loaded breed guides: {len(self._guide_map)} entries")
+        except Exception as e:
+            logger.error(f"Failed to load dog_guide.json: {e}")
+            self._guide_map = {}
+            self._guide_loaded = True
+
+    def get_breed_guide(self, breed_name: str) -> Optional[Dict[str, Any]]:
+        """Return encyclopedia content for the given breed name (Korean)."""
+        self._load_guides()
+        if not self._guide_map:
+            return None
+        # Exact match first
+        guide = self._guide_map.get(breed_name)
+        if guide:
+            return guide
+        # Fallback: case-insensitive match for safety (even though Korean is case-insensitive)
+        name_lower = breed_name.lower()
+        for k, v in self._guide_map.items():
+            if k.lower() == name_lower:
+                return v
+        return None
+
+    def search_breed_guides(self, query: str, limit: int = 20, offset: int = 0) -> Tuple[List[Dict[str, Any]], int]:
+        """Search encyclopedia entries by Korean breed name substring."""
+        self._load_guides()
+        if not self._guide_map:
+            return [], 0
+        q = (query or '').strip().lower()
+        items = [v for k, v in self._guide_map.items() if q in k.lower()]
+        total = len(items)
+        return items[offset: offset + limit], total
