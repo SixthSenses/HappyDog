@@ -77,9 +77,11 @@ class CareRecordUpdateSchema(Schema):
 
 class DailyRecordsQuerySchema(Schema):
     """
-    특정 날짜의 모든 기록 조회를 위한 스키마.
+    특정 날짜의 기록 조회 쿼리 스키마.
+    - record_type가 주어지면 해당 타입만 필터링합니다.
     """
     date = fields.Str(required=True)  # YYYY-MM-DD 형식
+    record_type = fields.Str(required=False, validate=validate.OneOf(['meal_count', 'activity', 'bcs', 'weight', 'stool', 'vomit']))
     
 class RecordResponseSchema(Schema):
     """
@@ -101,3 +103,51 @@ class DailyRecordsResponseSchema(Schema):
     date = fields.Str()  # YYYY-MM-DD
     records = fields.List(fields.Nested(RecordResponseSchema))
     summary = fields.Dict(allow_none=True)  # 타입별 요약
+
+
+class DeleteRecordResponseSchema(Schema):
+    """
+    기록 삭제 응답 스키마(200 응답 본문).
+    """
+    message = fields.Str()
+    deleted_id = fields.Str()
+
+
+class NoContentSchema(Schema):
+    """
+    본문이 없는 응답(204)에 사용되는 빈 스키마.
+    """
+    pass
+
+
+class DailySummaryWithGoalsResponseSchema(Schema):
+    """
+    일별 요약 + 목표 진행률 응답 스키마.
+    UI의 오늘 달성률(%)/달성 여부 및 기본 레코드 목록에 대응합니다.
+    """
+    date = fields.Str()
+    records = fields.List(fields.Nested(RecordResponseSchema))
+    record_counts = fields.Dict()  # 타입별 개수
+    meta = fields.Dict()
+    goal_progress = fields.Dict(allow_none=True)
+
+
+class RangeQuerySchema(Schema):
+    """
+    기간 요약/트렌드 조회 쿼리 스키마.
+    """
+    start_date = fields.Str(required=True)
+    end_date = fields.Str(required=True)
+
+
+class RangeSummaryWithTrendsResponseSchema(Schema):
+    """
+    기간 요약 + 트렌드 + 목표 추적 응답 스키마.
+    월간 분석 카드/텍스트 등에 대응합니다.
+    """
+    start_date = fields.Str()
+    end_date = fields.Str()
+    records_by_date = fields.Dict(keys=fields.Str(), values=fields.List(fields.Nested(RecordResponseSchema)))
+    meta = fields.Dict()
+    trends = fields.Dict()
+    goal_tracking = fields.Dict(allow_none=True)

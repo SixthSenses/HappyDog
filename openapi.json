@@ -2409,6 +2409,110 @@
         ]
       }
     },
+    "/api/pet-care/{pet_id}/records/daily/summary": {
+      "get": {
+        "summary": "특정 날짜 요약 + 목표 진행률 조회",
+        "description": "UI의 오늘/특정일 달성률, 개수, 간단 요약을 반환합니다.\n\n    ResponseSchema[200]: DailySummaryWithGoalsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailySummaryWithGoalsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records/summary/range": {
+      "get": {
+        "summary": "기간 요약 + 트렌드 + 목표 추적 조회",
+        "description": "월간 분석 카드/문구를 구성하는 데이터에 대응합니다.\n\n    ResponseSchema[200]: RangeSummaryWithTrendsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RangeSummaryWithTrendsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
     "/api/notifications": {
       "get": {
         "summary": "알림 목록 조회",
@@ -3718,6 +3822,28 @@
           }
         }
       },
+      "DailyRecordsQuerySchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "record_type": {
+            "type": "string",
+            "enum": [
+              "activity",
+              "bcs",
+              "meal_count",
+              "stool",
+              "vomit",
+              "weight"
+            ]
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
       "DailyRecordsResponseSchema": {
         "type": "object",
         "properties": {
@@ -3739,38 +3865,88 @@
           }
         }
       },
+      "DailySummaryWithGoalsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordResponseSchema"
+            }
+          },
+          "record_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "goal_progress": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "DeleteRecordResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "deleted_id": {
+            "type": "string"
+          }
+        }
+      },
       "PetCareSettingsSchema": {
         "type": "object",
         "properties": {
-          "daily_meal_count": {
+          "goalWeight": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0.1,
+            "maximum": 200.0
+          },
+          "goalMealCount": {
             "type": "integer",
             "format": "int32",
             "minimum": 1,
             "maximum": 10
           },
-          "target_daily_meal_count": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1,
-            "maximum": 10
-          },
-          "target_daily_activity_minutes": {
+          "goalActivityMinutes": {
             "type": "integer",
             "format": "int32",
             "minimum": 0,
             "maximum": 1440
           },
-          "daily_activity_increment": {
+          "goalActivitySessions": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 48
+          },
+          "activitySessionMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 600
+          },
+          "activityIncrementMinutes": {
             "type": "integer",
             "format": "int32",
             "minimum": 1,
             "maximum": 180
-          },
-          "target_weight": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0.1,
-            "maximum": 200.0
           },
           "pet_id": {
             "type": "string"
@@ -3779,14 +3955,58 @@
             "type": "string",
             "format": "date-time"
           }
+        }
+      },
+      "RangeQuerySchema": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          }
         },
         "required": [
-          "daily_activity_increment",
-          "daily_meal_count",
-          "target_daily_activity_minutes",
-          "target_daily_meal_count",
-          "target_weight"
+          "end_date",
+          "start_date"
         ]
+      },
+      "RangeSummaryWithTrendsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "records_by_date": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "trends": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "goal_tracking": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
       },
       "RecordResponseSchema": {
         "type": "object",
