@@ -33,7 +33,10 @@ class PetCareSettingService:
             settings_data = {
                 "pet_id": pet_id,
                 "goalWeight": goal_weight,
-                "goalActivityMinutes": 30,
+                # 활동 목표(파생): 1회 30분 × 4회 = 120분
+                "goalActivityMinutes": 120,  # 저장은 하되 update 시 직접 갱신 금지 (Method A)
+                "goalActivitySessions": 4,
+                "activitySessionMinutes": 30,
                 "activityIncrementMinutes": 10,
                 "goalMealCount": 3,
                 "mealIncrementCount": 1,
@@ -60,7 +63,10 @@ class PetCareSettingService:
             return {
                 "pet_id": pet_id,
                 "goalWeight": None,
-                "goalActivityMinutes": 30,
+                # 기본값: 1회 30분 × 4회
+                "goalActivityMinutes": 120,
+                "goalActivitySessions": 4,
+                "activitySessionMinutes": 30,
                 "activityIncrementMinutes": 10,
                 "goalMealCount": 3,
                 "mealIncrementCount": 1,
@@ -68,7 +74,16 @@ class PetCareSettingService:
         doc = self.settings_ref.document(pet_id).get()
         if not doc.exists:
             raise FileNotFoundError("해당 반려동물의 펫케어 설정을 찾을 수 없습니다.")
-        return doc.to_dict()
+        data = doc.to_dict()
+        # 과거 문서에 새 키가 없을 수 있으므로 합리적 기본값으로 보강
+        data.setdefault("goalActivitySessions", 0)
+        data.setdefault("activitySessionMinutes", 0)
+        # 파생 목표 분 재계산 (Method A): 세션과 1회 분이 유효하면 goalActivityMinutes 재정의 (메모리 상)
+        sessions = data.get("goalActivitySessions") or 0
+        per_session = data.get("activitySessionMinutes") or 0
+        if sessions > 0 and per_session > 0:
+            data["goalActivityMinutes"] = sessions * per_session
+        return data
 
     def update_settings(self, pet_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """Partially update pet care settings. No-op in DOCS_MODE."""
@@ -78,8 +93,23 @@ class PetCareSettingService:
         doc_ref = self.settings_ref.document(pet_id)
         if not doc_ref.get().exists:
             raise FileNotFoundError("해당 반려동물의 펫케어 설정을 찾을 수 없습니다.")
+        # goalActivityMinutes 직접 수정 요청은 무시 (Method A)
+        if 'goalActivityMinutes' in update_data:
+            update_data.pop('goalActivityMinutes')
+
+        # 업데이트 시점 기록
         update_data['updated_at'] = DateTimeUtils.now()
         firestore_data = DateTimeUtils.for_firestore(update_data)
         doc_ref.update(firestore_data)
-        logging.info(f"Pet care settings updated for {pet_id}")
-        return self.get_settings(pet_id)
+
+        # 저장 후 파생 목표 재계산을 위해 최신 문서 불러온 뒤 세션×분 계산
+        latest = self.get_settings(pet_id)
+        sessions = latest.get("goalActivitySessions") or 0
+        per_session = latest.get("activitySessionMinutes") or 0
+        if sessions > 0 and per_session > 0:
+            derived = sessions * per_session
+            # 파생값 저장 여부: Method A에서는 저장 강제 필요 X (메모리 계산만).
+            # 그러나 기존 문서와의 호환 위해 필드가 있었다면 덮어쓸 수 있음 (선택). 여기서는 저장 생략.
+            latest["goalActivityMinutes"] = derived
+        logging.info(f"Pet care settings updated for {pet_id} (Method A derived minutes applied in response)")
+        return latest

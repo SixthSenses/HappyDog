@@ -11,7 +11,11 @@ from app.api.pet_care.records.schemas import (
     CareRecordUpdateSchema,
     DailyRecordsQuerySchema,
     RecordResponseSchema,
-    DailyRecordsResponseSchema
+    DailyRecordsResponseSchema,
+    DailySummaryWithGoalsResponseSchema,
+    RangeQuerySchema,
+    RangeSummaryWithTrendsResponseSchema,
+    DeleteRecordResponseSchema
 )
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
@@ -84,7 +88,7 @@ def update_care_record(pet_id: str, log_id: str):
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
         return jsonify(body), status
     except FileNotFoundError:
-        status, body = build_error('RESOURCE_NOT_FOUND')
+        status, body = build_error('NOT_FOUND')
         return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 수정 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
@@ -104,14 +108,11 @@ def delete_care_record(pet_id: str, log_id: str):
     try:
         # 기록 삭제
         service.delete_record(pet_id, log_id)
-        
-        return jsonify({
-            "message": "기록이 성공적으로 삭제되었습니다.",
-            "deleted_id": log_id
-        }), 200
+        # 204 No Content 계약으로 일치
+        return Response(status=204)
         
     except FileNotFoundError:
-        status, body = build_error('RESOURCE_NOT_FOUND')
+        status, body = build_error('NOT_FOUND')
         return jsonify(body), status
     except Exception as e:
         logging.error(f"기록 삭제 오류 (pet_id: {pet_id}, log_id: {log_id}): {e}", exc_info=True)
@@ -144,5 +145,72 @@ def get_daily_records(pet_id: str):
         return jsonify(body), status
     except Exception as e:
         logging.error(f"일별 기록 조회 오류 (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+
+@pet_care_records_bp.route('/<string:pet_id>/records/daily/summary', methods=['GET'])
+@jwt_required()
+def get_daily_summary_with_goals(pet_id: str):
+    """특정 날짜 요약 + 목표 진행률 조회
+
+    UI의 오늘/특정일 달성률, 개수, 간단 요약을 반환합니다.
+
+    ResponseSchema[200]: DailySummaryWithGoalsResponseSchema
+    """
+    integration_service = current_app.services.get('pet_care_integration')
+    base_service = current_app.services['pet_care_records']
+    try:
+        date = request.args.get('date') or DateTimeUtils.today_kst_as_date_str()
+        if integration_service:
+            summary = integration_service.get_daily_summary_with_goals(pet_id, date)
+            return jsonify(DailySummaryWithGoalsResponseSchema().dump(summary)), 200
+        # 통합 서비스가 없는 환경에서는 기본 조회 결과만 반환(호환)
+        result = base_service.get_daily_records(pet_id, date)
+        fallback = {
+            'date': date,
+            'records': result.get('records', []),
+            'record_counts': {},
+            'meta': result.get('summary', {})
+        }
+        return jsonify(DailySummaryWithGoalsResponseSchema().dump(fallback)), 200
+    except Exception as e:
+        logging.error(f"일별 요약/목표 조회 오류 (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+
+@pet_care_records_bp.route('/<string:pet_id>/records/summary/range', methods=['GET'])
+@jwt_required()
+def get_range_summary_with_trends(pet_id: str):
+    """기간 요약 + 트렌드 + 목표 추적 조회
+
+    월간 분석 카드/문구를 구성하는 데이터에 대응합니다.
+
+    ResponseSchema[200]: RangeSummaryWithTrendsResponseSchema
+    """
+    integration_service = current_app.services.get('pet_care_integration')
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        if not start_date or not end_date:
+            raise ValidationError({'date_range': ['start_date와 end_date가 필요합니다.']})
+        if integration_service:
+            summary = integration_service.get_range_summary_with_trends(pet_id, start_date, end_date)
+            return jsonify(RangeSummaryWithTrendsResponseSchema().dump(summary)), 200
+        # 통합 서비스 없을 때는 최소 호환 스켈레톤 반환
+        skeleton = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'records_by_date': {},
+            'meta': {},
+            'trends': {},
+        }
+        return jsonify(RangeSummaryWithTrendsResponseSchema().dump(skeleton)), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"기간 요약/트렌드 조회 오류 (pet_id: {pet_id}): {e}", exc_info=True)
         status, body = build_error('FETCH_FAILED')
         return jsonify(body), status

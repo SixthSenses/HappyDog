@@ -52,6 +52,8 @@ from app.api.pets.services.pet_profile_service import PetProfileService
 from app.api.pets.services.pet_biometric_service import PetBiometricService
 from app.api.pet_care.settings.services import PetCareSettingService
 from app.api.pet_care.records.record_integration_service import PetCareRecordIntegration
+from app.api.pet_care.records.repository import FirestorePetCareRecordRepository, InMemoryPetCareRecordRepository
+from app.api.pet_care.records.query_service import PetCareRecordQueryService
 from app.api.pet_care.records.services import PetCareRecordService
 from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
@@ -180,12 +182,19 @@ def _init_dependent_services(app):
     """
     # Pet Care Domain - depends on breeds and notifications
     app.services['pet_care_settings'] = PetCareSettingService(breed_service=app.services['breeds'], db_client=app.firestore_client)
-    app.services['pet_care_records'] = PetCareRecordService(db_client=app.firestore_client)
+    # Repository selection based on Firestore availability (DIP)
+    if app.firestore_client is None:
+        repo = InMemoryPetCareRecordRepository()
+    else:
+        repo = FirestorePetCareRecordRepository(app.firestore_client)
+    app.services['pet_care_repo'] = repo
+    app.services['pet_care_query'] = PetCareRecordQueryService(repo)
+    app.services['pet_care_records'] = PetCareRecordService(repo)
     
     # Pet Care Integration Service - depends on multiple services
     app.services['pet_care_integration'] = PetCareRecordIntegration(
         crud_service=app.services['pet_care_records'],
-        query_service=app.services['pet_care_records'],  # Same service for now
+        query_service=app.services['pet_care_query'],
         cache_service=None,  # Cache service not implemented yet
         settings_service=app.services['pet_care_settings'],
         notification_service=app.services['notifications']
