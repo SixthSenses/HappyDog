@@ -30,4 +30,4 @@ class PetCareSettingsSchema(Schema):
 
     # 응답에만 포함될 필드
     pet_id = fields.Str(dump_only=True)
-    updated_at = fields.DateTime(dump_only=True)
+    updated_at = fields.DateTime(dump_only=True, format="iso8601")

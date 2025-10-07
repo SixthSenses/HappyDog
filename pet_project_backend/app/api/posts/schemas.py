@@ -14,7 +14,7 @@ class PetInfoSchema(Schema):
     pet_id = fields.Str(required=True)
     name = fields.Str(required=True)
     breed = fields.Str(required=True)
-    birthdate = fields.DateTime(required=True)
+    birthdate = fields.DateTime(required=True, format="iso8601")
     profile_image_url = fields.URL(allow_none=True)  # Pet 프로필 이미지 추가
 
 # --- API 요청/응답 스키마 ---
@@ -37,8 +37,8 @@ class PostResponseSchema(Schema):
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
     comment_count = fields.Int(required=True)
-    created_at = fields.DateTime(required=True)
-    updated_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=True, format="iso8601")
+    updated_at = fields.DateTime(required=True, format="iso8601")
     is_liked = fields.Bool(dump_only=True, dump_default=False)
 
 

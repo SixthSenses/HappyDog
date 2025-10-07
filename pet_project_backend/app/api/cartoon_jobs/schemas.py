@@ -31,8 +31,8 @@ class CartoonJobResponseSchema(Schema):
     user_text = fields.Str(allow_none=True)
     result_image_url = fields.URL(allow_none=True)
     error_message = fields.Str(allow_none=True)
-    created_at = fields.DateTime(required=True)
-    updated_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=True, format="iso8601")
+    updated_at = fields.DateTime(required=True, format="iso8601")
 
 
 class CartoonJobHealthResponseSchema(Schema):

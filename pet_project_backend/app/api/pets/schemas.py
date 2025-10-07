@@ -133,7 +133,7 @@ class EyeAnalysisHistoryItemSchema(Schema):
     pet_id = fields.Str(required=True)
     disease_name = fields.Str(required=True)
     # 백엔드는 UTC ISO 문자열 직렬화를 표준으로 사용합니다.
-    created_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=True, format="iso8601")
     # 프론트에서 그대로 % 표시를 붙여 사용 (예: 91)
     probability_percent = fields.Int(required=True)
     image_url = fields.Str(allow_none=True)

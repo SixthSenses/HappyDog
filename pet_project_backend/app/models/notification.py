@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, Optional
+from app.utils.datetime_utils import DateTimeUtils
 
 class NotificationType(Enum):
     """알림 유형을 정의하는 Enum 클래스"""
@@ -30,4 +31,4 @@ class Notification:
     target_id: str         # 알림의 대상 객체 ID (post_id, comment_id, job_id 등)
     target_summary: Optional[str] = None # "회원님의 게시글에...", "회원님의 댓글을..."
     is_read: bool = False
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)

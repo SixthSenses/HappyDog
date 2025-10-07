@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from app.utils.datetime_utils import DateTimeUtils
 
 @dataclass
 class Author:
@@ -31,5 +32,5 @@ class Post:
     text: str
     like_count: int = 0
     comment_count: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)
+    updated_at: datetime = field(default_factory=DateTimeUtils.now)

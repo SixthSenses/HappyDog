@@ -10,8 +10,8 @@ class BreedSchema(Schema):
     life_expectancy = fields.Float(required=True, validate=validate.Range(min=0, max=30))
     height_cm = fields.Nested('HeightWeightSchema', required=True)
     weight_kg = fields.Nested('HeightWeightSchema', required=True)
-    created_at = fields.DateTime(dump_only=True)
-    updated_at = fields.DateTime(dump_only=True)
+    created_at = fields.DateTime(dump_only=True, format="iso8601")
+    updated_at = fields.DateTime(dump_only=True, format="iso8601")
 
 class HeightWeightSchema(Schema):
     """

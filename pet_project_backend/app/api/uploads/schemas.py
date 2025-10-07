@@ -36,7 +36,7 @@ class UploadUrlResponseSchema(Schema):
     """업로드 URL 발급 응답."""
     upload_url = fields.URL(required=True)
     file_path = fields.Str(required=True)
-    expires_at = fields.DateTime(required=True)
+    expires_at = fields.DateTime(required=True, format="iso8601")
 
 
 class FinalizeCartoonResponseSchema(Schema):
