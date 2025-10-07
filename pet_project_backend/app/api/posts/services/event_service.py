@@ -37,7 +37,7 @@ class PostEventService:
             # UserStatsService를 통해 포스트 수 캐시 업데이트
             user_stats_service = current_app.services.get('user_stats')
             if user_stats_service:
-                user_stats_service.update_post_count_cache(user_id, increment=1)
+                user_stats_service.update_post_count_cache(user_id, delta=1)
                 
             logging.info(f"게시글 생성 이벤트 처리 완료 (post_id: {post_data.get('post_id')}, user_id: {user_id})")
         except Exception as e:
@@ -91,7 +91,7 @@ class PostEventService:
             # UserStatsService를 통해 포스트 수 캐시 업데이트
             user_stats_service = current_app.services.get('user_stats')
             if user_stats_service:
-                user_stats_service.update_post_count_cache(user_id, increment=-1)
+                user_stats_service.update_post_count_cache(user_id, delta=-1)
                 
             logging.info(f"게시글 삭제 이벤트 처리 완료 (post_id: {post_data.get('post_id')}, user_id: {user_id})")
         except Exception as e:

@@ -1,6 +1,7 @@
 # app/models/pet_setting.py
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.utils.datetime_utils import DateTimeUtils
 
 @dataclass
 class PetCareSetting:
@@ -14,5 +15,5 @@ class PetCareSetting:
     activityIncrementMinutes: int
     goalMealCount: int
     mealIncrementCount: int
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)
+    updated_at: datetime = field(default_factory=DateTimeUtils.now)

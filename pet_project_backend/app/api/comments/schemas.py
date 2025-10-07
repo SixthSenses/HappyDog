@@ -19,7 +19,7 @@ class CommentResponseSchema(Schema):
     pet = fields.Nested(PetInfoSchema, required=True)  # pet_id, name, breed, profile_image_url 포함
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
-    created_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=True, format="iso8601")
     
     # 서비스 로직에서 채워주는 응답 전용 필드
     is_liked = fields.Bool(dump_only=True, dump_default=False)

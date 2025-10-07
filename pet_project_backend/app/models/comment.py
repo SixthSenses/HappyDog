@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, Optional
+from app.utils.datetime_utils import DateTimeUtils
 
 @dataclass
 class CommentAuthor:
@@ -29,4 +30,4 @@ class Comment:
     pet: CommentPetInfo  # 반려동물 정보와 프로필 이미지 포함
     text: str
     like_count: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)
