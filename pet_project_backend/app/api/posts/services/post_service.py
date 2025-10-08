@@ -23,8 +23,9 @@ class PostService:
     Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE)
     methods return lightweight placeholders or no-op values without touching Firestore.
     """
-    def __init__(self, db_client=None):
+    def __init__(self, db_client=None, storage_service=None):
         self.db = db_client
+        self.storage_service = storage_service
         if self.db is None:
             self.posts_ref = None
             self.users_ref = None
@@ -43,13 +44,28 @@ class PostService:
         - 이 스냅샷은 이후 펫 프로필(닉네임/품종/이미지) 변경 시 과거 게시글을 소급 업데이트하지 않습니다 (stale 허용).
         - 허용 이유: 게시글 타임라인 무결성 + 비용(대량 update fan-out) 절감. UI는 최신 프로필 필요 시 별도 lookup / lazy merge 전략 가능.
         - 향후 변경 여지: Verified 변경(예: is_verified)만 실시간 반영 요구 시 projection 레이어(PostPresenter)에서 merge hook 추가.
+        
+        Args:
+            user_id: 작성자 사용자 ID
+            text: 게시글 텍스트
+            file_paths: Storage에 업로드된 파일의 상대 경로 리스트
+        
+        Returns:
+            생성된 게시글 정보 (image_urls는 Firebase Storage URL 포함)
+        
+        Note:
+            file_paths는 클라이언트가 pre-signed URL로 업로드 완료한 파일의 경로여야 합니다.
+            존재하지 않는 파일 경로가 포함된 경우 FileNotFoundError 발생.
         """
+        # file_paths를 Firebase Storage URL로 변환
+        image_urls = self._convert_paths_to_urls(file_paths)
+        
         if self.db is None:
             # Return synthetic post object (no persistence)
             post_id = str(uuid.uuid4())
             author = Author(user_id=user_id, nickname="demo_user")
             pet_info = PetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", birthdate=None, profile_image_url=None)
-            new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=file_paths, text=text)
+            new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             return asdict(new_post)
         try:
             user_doc = self.users_ref.document(user_id).get()
@@ -75,7 +91,7 @@ class PostService:
                 profile_image_url=pet_data.get("profile_image_url")
             )
             post_id = str(uuid.uuid4())
-            new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=file_paths, text=text)
+            new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             post_data = DateTimeUtils.for_firestore(asdict(new_post))
             self.posts_ref.document(post_id).set(post_data)
             return asdict(new_post)
@@ -83,6 +99,84 @@ class PostService:
             logging.error(f"게시글 생성 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
 
+    def _convert_paths_to_urls(self, file_paths: List[str]) -> List[str]:
+        """
+        파일 경로를 Firebase Storage URL로 변환합니다.
+        
+        이미 완전한 URL인 경우(https://로 시작)는 변환 없이 그대로 반환합니다.
+        이는 다른 서비스(예: CartoonJobIntegrationService)에서 이미 URL을 생성한 경우를 지원합니다.
+        
+        Args:
+            file_paths: Storage 파일 경로 또는 URL 리스트
+            
+        Returns:
+            Firebase Storage URL 리스트 (토큰 포함)
+            
+        Raises:
+            FileNotFoundError: 파일이 존재하지 않는 경우
+            RuntimeError: StorageService가 초기화되지 않은 경우
+        """
+        if not file_paths:
+            return []
+        
+        if not self.storage_service:
+            logging.warning("StorageService가 없음. 경로를 그대로 반환합니다.")
+            return file_paths
+        
+        image_urls = []
+        for fp in file_paths:
+            # 이미 완전한 URL인 경우 변환 스킵 (OCP: 기존 동작 확장)
+            if fp and fp.startswith('https://'):
+                logging.debug(f"이미 URL 형식: {fp}")
+                image_urls.append(fp)
+                continue
+            
+            # 상대 경로를 URL로 변환
+            try:
+                url = self.storage_service.get_public_url(fp)
+                image_urls.append(url)
+            except FileNotFoundError:
+                logging.error(f"파일을 찾을 수 없음: {fp}. 클라이언트가 업로드를 완료했는지 확인하세요.")
+                raise
+            except Exception as e:
+                logging.error(f"URL 변환 실패: {fp} - {e}")
+                raise RuntimeError(f"이미지 URL 생성 실패: {str(e)}")
+        
+        return image_urls
+
+    def _ensure_full_image_urls(self, post_data: Dict[str, Any]) -> None:
+        """
+        image_urls가 상대 경로인 경우 전체 URL로 변환합니다.
+        기존 데이터 호환성을 위한 헬퍼 메서드입니다.
+        
+        Note:
+            - 레거시 데이터 지원: DB에 상대 경로로 저장된 기존 데이터 처리
+            - 새로운 데이터는 create_post에서 이미 URL로 변환되어 저장됨
+            - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
+        """
+        if not post_data or 'image_urls' not in post_data:
+            return
+        
+        image_urls = post_data['image_urls']
+        if not image_urls or not self.storage_service:
+            return
+        
+        # 상대 경로인지 확인 (https://로 시작하지 않으면 상대 경로)
+        converted_urls = []
+        for url in image_urls:
+            if url and not url.startswith('https://'):
+                try:
+                    # 상대 경로를 전체 URL로 변환
+                    full_url = self.storage_service.get_public_url(url)
+                    converted_urls.append(full_url)
+                except Exception as e:
+                    logging.warning(f"URL 변환 실패 (fallback to original): {url} - {e}")
+                    converted_urls.append(url)
+            else:
+                converted_urls.append(url)
+        
+        post_data['image_urls'] = converted_urls
+    
     def get_posts(self, limit: int, cursor: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """게시글 피드 목록을 페이지네이션으로 조회합니다 (좋아요 정보 제외)."""
         if self.db is None:
@@ -99,6 +193,7 @@ class PostService:
         
         for doc in docs:
             post_data = doc.to_dict()
+            self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
             posts.append(post_data)
             last_doc_id = doc.id
 
@@ -111,7 +206,9 @@ class PostService:
         doc = self.posts_ref.document(post_id).get()
         if not doc.exists:
             return None
-        return doc.to_dict()
+        post_data = doc.to_dict()
+        self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
+        return post_data
 
     def update_post(self, post_id: str, user_id: str, text: str) -> Optional[Dict[str, Any]]:
         """특정 게시글의 내용을 수정합니다."""

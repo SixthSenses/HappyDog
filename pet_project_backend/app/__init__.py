@@ -226,7 +226,7 @@ def _init_dependent_services(app):
     app.services['users'] = UserService()  # Lightweight, no dependencies
     
     # Posts Domain - depends on storage (DI with Firestore)
-    app.services['posts'] = PostService(app.firestore_client)
+    app.services['posts'] = PostService(app.firestore_client, storage_service=app.services['storage'])
     app.services['post_likes'] = PostLikeService(app.firestore_client)
     app.services['post_events'] = PostEventService()
     app.services['post_storage'] = PostStorageService(app.services['storage'])

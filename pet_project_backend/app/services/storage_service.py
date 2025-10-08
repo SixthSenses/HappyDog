@@ -99,27 +99,7 @@ class StorageService:
             logging.error(f"파일 다운로드 실패: {e}", exc_info=True)
             raise
 
-    def make_public_and_get_url(self, file_path: str) -> str:
-        """
-        지정된 파일을 공개(public)로 설정하고 해당 URL을 반환합니다.
-        
-        :param file_path: 공개로 전환할 파일의 경로
-        :return: 공개적으로 접근 가능한 URL
-        """
-        if not self.bucket:
-            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
-            
-        blob = self.bucket.blob(file_path)
-        
-        if not blob.exists():
-            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
-            
-        try:
-            blob.make_public()
-            return blob.public_url
-        except Exception as e:
-            logging.error(f"파일 공개 전환 실패: {e}", exc_info=True)
-            raise
+
 
     def promote_object(self, source_path: str, dest_path: str, delete_source: bool = True) -> None:
         """Copy a blob to a new destination (promotion) and optionally delete source.
@@ -138,3 +118,55 @@ class StorageService:
                 source_blob.delete()
             except Exception as e:  # non-fatal
                 logging.warning(f"원본 삭제 실패(무시): {e}")
+
+    def get_public_url(self, file_path: str) -> str:
+        """
+        파일 경로를 Firebase 다운로드 토큰이 포함된 공개 URL로 변환합니다.
+        
+        Firebase Storage는 업로드 시 자동으로 download token을 생성하며,
+        이 메서드는 해당 토큰을 포함한 공개 접근 가능한 URL을 반환합니다.
+        
+        :param file_path: Storage 파일 경로 (상대 경로)
+        :return: 공개 접근 가능한 Firebase Storage URL (토큰 포함)
+        :raises FileNotFoundError: 파일이 존재하지 않는 경우
+        :raises RuntimeError: Storage가 초기화되지 않은 경우
+        """
+        if not self.bucket:
+            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
+        
+        blob = self.bucket.blob(file_path)
+        
+        # 파일 존재 여부 확인
+        if not blob.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+        
+        # 메타데이터에서 다운로드 토큰 추출
+        blob.reload()  # 메타데이터 최신화
+        metadata = blob.metadata or {}
+        download_token = metadata.get('firebaseStorageDownloadTokens')
+        
+        if not download_token:
+            # 토큰이 없으면 새로 생성하여 설정
+            import uuid
+            download_token = str(uuid.uuid4())
+            blob.metadata = metadata
+            blob.metadata['firebaseStorageDownloadTokens'] = download_token
+            try:
+                blob.patch()  # 메타데이터만 업데이트
+                logging.info(f"다운로드 토큰 생성 및 설정 완료: {file_path}")
+            except Exception as e:
+                logging.error(f"다운로드 토큰 설정 실패: {e}. Fallback to signed URL.")
+                # Fallback: signed URL 생성 (시간 제한 있음)
+                return blob.generate_signed_url(version="v4", expiration=timedelta(days=7), method="GET")
+        
+        # Firebase Storage 공개 URL 생성 (토큰 포함)
+        from urllib.parse import quote
+        bucket_name = self.bucket.name
+        encoded_path = quote(file_path, safe='')
+        
+        # Firebase Storage의 공개 다운로드 URL 형식
+        # https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token={token}
+        firebase_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_path}?alt=media&token={download_token}"
+        
+        return firebase_url
+    
