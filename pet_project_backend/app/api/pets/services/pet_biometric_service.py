@@ -311,12 +311,12 @@ class PetBiometricService:
                 spec = ERRORS['BIO_PROCESSING_FAILED']
                 return BiometricAnalysisResult(success=False, error_code=spec.code, error_message=spec.default_message)
 
-            # Make image public (non-critical operation)
+            # Get Firebase Storage URL (non-critical operation)
             try:
-                image_url = self.storage_service.make_public_and_get_url(file_path)
-                logging.info(f"Image made public for pet {pet_id}")
+                image_url = self.storage_service.get_public_url(file_path)
+                logging.info(f"Image URL generated for pet {pet_id}")
             except Exception as e:
-                logging.error(f"Failed to make image public for pet {pet_id}: {e}")
+                logging.error(f"Failed to get image URL for pet {pet_id}: {e}")
                 image_url = None
 
             # Build ordered predictions list (descending by probability)

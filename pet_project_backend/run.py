@@ -1,6 +1,11 @@
 # run.py
 from dotenv import load_dotenv
 import os
+
+# gRPC/ALTS 관련 경고 로그 숨기기 (Firebase Admin SDK 사용 시 로컬 환경에서 발생)
+os.environ['GRPC_VERBOSITY'] = 'ERROR'
+os.environ['GRPC_TRACE'] = ''
+
 from app import create_app
 basedir = os.path.abspath(os.path.dirname(__file__))
 # 2. 해당 디렉터리 안에 있는 '.env' 파일의 정확한 경로를 지정합니다.

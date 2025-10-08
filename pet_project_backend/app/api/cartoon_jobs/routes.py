@@ -27,10 +27,27 @@ def create_cartoon_job():
     """
     cartoon_job_service = current_app.services['cartoon_jobs']
     job_events = current_app.services['job_events']
+    storage_service = current_app.services['storage']
     user_id = get_jwt_identity()
     try:
         data = CartoonJobCreateSchema().load(request.get_json())
-        image_url = data['file_paths'][0]
+        file_path = data['file_paths'][0]
+        
+        # 파일 경로를 Firebase Storage URL로 변환
+        # (GCS URL이 아닌 토큰 포함된 Firebase Storage URL 사용)
+        try:
+            if file_path.startswith('https://'):
+                # 이미 URL인 경우 그대로 사용
+                image_url = file_path
+            else:
+                # 상대 경로인 경우 Firebase Storage URL 생성
+                image_url = storage_service.get_public_url(file_path)
+                logging.info(f"만화 작업용 Firebase Storage URL 생성: {image_url}")
+        except Exception as e:
+            logging.error(f"이미지 URL 생성 실패: {e}")
+            # Fallback: 원본 경로 사용
+            image_url = file_path
+        
         job_data = cartoon_job_service.create_job(
             user_id=user_id,
             image_url=image_url,

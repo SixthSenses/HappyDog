@@ -64,9 +64,9 @@ def get_upload_url():
 @uploads_bp.route('/finalize-cartoon', methods=['POST'])
 @jwt_required()
 def finalize_cartoon_upload():
-    """만화 이미지 공개 전환
+    """만화 이미지 URL 생성
 
-    업로드된 만화 원본 이미지를 공개로 전환하고 URL을 반환합니다.
+    업로드된 만화 원본 이미지의 Firebase Storage URL을 반환합니다.
 
     RequestSchema: FinalizeCartoonRequestSchema
     ResponseSchema[200]: FinalizeCartoonResponseSchema
@@ -74,7 +74,7 @@ def finalize_cartoon_upload():
     storage_service = current_app.services['storage']
     try:
         data = FinalizeCartoonRequestSchema().load(request.get_json() or {})
-        public_url = storage_service.make_public_and_get_url(data['file_path'])
+        public_url = storage_service.get_public_url(data['file_path'])
         return jsonify(FinalizeCartoonResponseSchema().dump({'public_url': public_url})), 200
     except ValidationError as err:
         status, body = build_error('VALIDATION_ERROR', details=err.messages)
@@ -83,6 +83,6 @@ def finalize_cartoon_upload():
         status, body = build_error('NOT_FOUND', message=str(e))
         return jsonify(body), status
     except Exception as e:
-        logging.error(f"파일 공개 전환 오류: {e}", exc_info=True)
-        status, body = build_error('UPDATE_FAILED', message="공개 전환 실패")
+        logging.error(f"URL 생성 오류: {e}", exc_info=True)
+        status, body = build_error('UPDATE_FAILED', message="URL 생성 실패")
         return jsonify(body), status

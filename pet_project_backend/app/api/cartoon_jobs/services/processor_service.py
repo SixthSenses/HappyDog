@@ -111,9 +111,10 @@ class CartoonJobProcessor:
                 update_data = job_service.update_job_status(job_id, CartoonJobStatus.PROCESSING)
                 job_events.handle_job_processing(update_data)
                 
-                # 2. OpenAI 서비스로 만화 생성
+                # 2. OpenAI 서비스로 만화 생성 (StorageService 주입)
                 openai_service = current_app.services['openai']
-                result = openai_service.generate_cartoon(image_url, user_text)
+                storage_service = current_app.services['storage']
+                result = openai_service.generate_cartoon(image_url, user_text, storage_service=storage_service)
                 
                 # 3. 완료 전 취소 상태 재확인 (경쟁 상태 방지)
                 job_data = job_service.get_job_by_id(job_id)

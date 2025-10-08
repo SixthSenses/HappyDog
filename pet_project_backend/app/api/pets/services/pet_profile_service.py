@@ -41,6 +41,30 @@ class PetProfileService:
 
     # ============= Core CRUD Operations =============
 
+    def _ensure_full_profile_image_url(self, pet_data: Dict[str, Any]) -> None:
+        """
+        profile_image_url이 상대 경로인 경우 전체 URL로 변환합니다.
+        
+        Note:
+            - 레거시 데이터 지원: DB에 상대 경로로 저장된 기존 데이터 처리
+            - 새로운 데이터는 update_pet_profile_image에서 이미 URL로 변환되어 저장됨
+            - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
+        """
+        if not pet_data or 'profile_image_url' not in pet_data:
+            return
+        
+        profile_image_url = pet_data.get('profile_image_url')
+        if not profile_image_url or not self.storage_service:
+            return
+        
+        # 상대 경로인지 확인 (https://로 시작하지 않으면 상대 경로)
+        if not profile_image_url.startswith('https://'):
+            try:
+                full_url = self.storage_service.get_public_url(profile_image_url)
+                pet_data['profile_image_url'] = full_url
+            except Exception as e:
+                logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_image_url} - {e}")
+
     def get_pet_by_id_and_owner(self, pet_id: str, user_id: str) -> Optional[Pet]:
         """Get pet information and convert to Pet object.
         
@@ -60,6 +84,8 @@ class PetProfileService:
             if 'pet_id' not in pet_data or not pet_data.get('pet_id'):
                 pet_data['pet_id'] = doc.id
             if pet_data.get('user_id') == user_id:
+                # 기존 상대 경로 데이터를 전체 URL로 변환
+                self._ensure_full_profile_image_url(pet_data)
                 return Pet.from_dict(pet_data)
         return None
 
@@ -90,6 +116,8 @@ class PetProfileService:
             data = pet_doc.to_dict() or {}
             if 'pet_id' not in data or not data.get('pet_id'):
                 data['pet_id'] = pet_doc.id
+            # 기존 상대 경로 데이터를 전체 URL로 변환
+            self._ensure_full_profile_image_url(data)
             return data
         except Exception as e:
             logging.error(f"get_first_pet_by_owner failed (user_id={user_id}): {e}", exc_info=True)
@@ -340,20 +368,21 @@ class PetProfileService:
         Args:
             pet_id: The pet's unique identifier
             user_id: The owner's user ID for authorization
-            file_path: Storage path of the uploaded image
+            file_path: Storage path of the uploaded image (relative path)
             
         Returns:
-            Public URL of the uploaded image
+            Firebase Storage URL (with token)
             
         Raises:
             PermissionError: If pet not found or user not authorized
+            FileNotFoundError: If file does not exist in Storage
         """
         # Verify ownership
         if not self.get_pet_by_id_and_owner(pet_id, user_id):
             raise PermissionError("프로필 이미지를 수정할 권한이 없거나 반려동물을 찾을 수 없습니다.")
         
-        # Make image public and get URL
-        public_url = self.storage_service.make_public_and_get_url(file_path)
+        # Get Firebase Storage URL with token
+        public_url = self.storage_service.get_public_url(file_path)
         
         # Update profile with image URL
         self.update_pet_profile(pet_id, user_id, {'profile_image_url': public_url})
