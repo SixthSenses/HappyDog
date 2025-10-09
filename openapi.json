@@ -291,8 +291,8 @@
     },
     "/api/uploads/finalize-cartoon": {
       "post": {
-        "summary": "만화 이미지 공개 전환",
-        "description": "업로드된 만화 원본 이미지를 공개로 전환하고 URL을 반환합니다.\n\n    RequestSchema: FinalizeCartoonRequestSchema\n    ResponseSchema[200]: FinalizeCartoonResponseSchema",
+        "summary": "만화 이미지 URL 생성",
+        "description": "업로드된 만화 원본 이미지의 Firebase Storage URL을 반환합니다.\n\n    RequestSchema: FinalizeCartoonRequestSchema\n    ResponseSchema[200]: FinalizeCartoonResponseSchema",
         "responses": {
           "200": {
             "description": "성공",
