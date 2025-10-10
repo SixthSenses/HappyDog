@@ -25,7 +25,8 @@ posts_bp = Blueprint('posts_bp', __name__)
 def create_post():
     """게시글을 생성합니다.
 
-    클라이언트는 텍스트(`text`)와 업로드 완료된 파일 경로 리스트(`file_paths`)를 전달합니다.
+    클라이언트는 필수로 텍스트(`text`)를 전달하고, 선택적으로 업로드 완료된 파일 경로 리스트(`file_paths`)를 전달할 수 있습니다.
+    이미지 없이 텍스트만으로도 게시글 작성이 가능합니다.
     성공 시 생성된 게시글의 전체 정보를 201 응답으로 반환하며, 생성 이벤트 후속 처리(post_events_service)가 비동기/후속 로직을 트리거합니다.
 
     RequestSchema: PostCreateSchema
