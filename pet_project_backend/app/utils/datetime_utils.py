@@ -11,15 +11,17 @@
 """
 
 import logging
-from datetime import datetime, date, timezone, time
+from datetime import datetime, date, timezone, time, timedelta
 from typing import Union, Optional, Any, Dict, List
 from dateutil import parser as dateutil_parser
 from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 
-# 프로젝트 기본 timezone (KST)
-KST = timezone.utc  # 백엔드는 UTC로 통일, 프론트엔드에서 현지 시간으로 변환
+# 프로젝트 기본 timezone (KST = UTC+9)
+# 백엔드는 UTC로 저장하되, searchDate 같은 날짜 필드는 KST 기준으로 생성
+KST_OFFSET = timedelta(hours=9)  # UTC+9
+KST = timezone(KST_OFFSET, name='KST')
 
 class DateTimeUtils:
     """시간/날짜 처리를 위한 중앙화된 유틸리티 클래스"""
@@ -62,8 +64,18 @@ class DateTimeUtils:
     
     @staticmethod
     def today() -> date:
-        """오늘 날짜를 반환"""
+        """오늘 날짜를 UTC 기준으로 반환"""
         return datetime.now(timezone.utc).date()
+    
+    @staticmethod
+    def today_kst() -> date:
+        """오늘 날짜를 KST(한국 시간) 기준으로 반환"""
+        return datetime.now(KST).date()
+    
+    @staticmethod
+    def today_kst_as_date_str() -> str:
+        """오늘 날짜를 KST 기준 YYYY-MM-DD 문자열로 반환"""
+        return DateTimeUtils.today_kst().strftime('%Y-%m-%d')
     
     @staticmethod
     def parse_iso_datetime(iso_string: str) -> datetime:
@@ -155,6 +167,57 @@ class DateTimeUtils:
         향후 직접 호출부를 to_date_string 으로 교체 후 이 alias 제거 가능.
         """
         return DateTimeUtils.to_date_string(d)
+    
+    @staticmethod
+    def to_kst_date(dt: datetime) -> date:
+        """
+        UTC datetime을 KST(한국 시간) 기준 date로 변환
+        
+        펫케어 기록의 searchDate 생성에 사용됩니다.
+        사용자가 10월 10일 00:30 (KST)에 기록을 생성하면,
+        UTC로는 10월 9일 15:30이지만 searchDate는 "2025-10-10"이 되어야 합니다.
+        
+        Args:
+            dt: UTC datetime 객체
+            
+        Returns:
+            KST 기준 date 객체
+            
+        Example:
+            >>> utc_dt = datetime(2025, 10, 9, 15, 48, 0, tzinfo=timezone.utc)
+            >>> DateTimeUtils.to_kst_date(utc_dt)
+            date(2025, 10, 10)  # KST 기준으로 10월 10일
+        """
+        try:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            
+            # KST로 변환
+            kst_dt = dt.astimezone(KST)
+            return kst_dt.date()
+            
+        except Exception as e:
+            logger.error(f"KST date 변환 실패: {dt} - {e}")
+            raise ValueError(f"datetime을 KST date로 변환할 수 없습니다: {dt}")
+    
+    @staticmethod
+    def to_kst_date_str(dt: datetime) -> str:
+        """
+        UTC datetime을 KST 기준 YYYY-MM-DD 문자열로 변환
+        
+        Args:
+            dt: UTC datetime 객체
+            
+        Returns:
+            YYYY-MM-DD 형식 문자열 (KST 기준)
+            
+        Example:
+            >>> utc_dt = datetime(2025, 10, 9, 15, 48, 0, tzinfo=timezone.utc)
+            >>> DateTimeUtils.to_kst_date_str(utc_dt)
+            "2025-10-10"
+        """
+        kst_date = DateTimeUtils.to_kst_date(dt)
+        return DateTimeUtils.to_date_string(kst_date)
     
     @staticmethod
     def for_firestore(obj: Any) -> Any:

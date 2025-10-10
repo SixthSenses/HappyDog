@@ -55,7 +55,8 @@ class FirestorePetCareRecordRepository:
         log_id = str(uuid.uuid4())
         ts_ms = record_data['timestamp']
         ts_dt = DateTimeUtils.from_timestamp_ms(ts_ms)
-        search_date = DateTimeUtils.to_date_str(ts_dt)
+        # searchDate는 KST 기준으로 생성 (사용자가 기록한 날짜와 일치)
+        search_date = DateTimeUtils.to_kst_date_str(ts_dt)
 
         record = PetCareLog(
             log_id=log_id,
