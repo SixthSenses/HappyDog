@@ -305,7 +305,12 @@ def _field_to_oas(field) -> Dict[str, Any]:  # type: ignore
 
 
 def convert_schema_classes(schema_classes: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert collected Schema classes into OpenAPI schema objects."""
+    """Convert collected Schema classes into OpenAPI schema objects.
+    
+    Uses data_key attribute if present to match actual API field names,
+    otherwise falls back to the internal field name.
+    Extracts class docstring as schema description.
+    """
     from marshmallow import Schema  # type: ignore
     result: Dict[str, Any] = {}
     for name, cls in schema_classes.items():
@@ -317,12 +322,22 @@ def convert_schema_classes(schema_classes: Dict[str, Any]) -> Dict[str, Any]:
         required: List[str] = []
         props: Dict[str, Any] = {}
         for fname, field in inst.fields.items():  # type: ignore
-            props[fname] = _field_to_oas(field)
-            if getattr(field, 'required', False):
-                required.append(fname)
+            # Use data_key if present (API field name), otherwise use internal field name
+            api_field_name = getattr(field, 'data_key', None) or fname
+            props[api_field_name] = _field_to_oas(field)
+            if getattr(field, 'required', False) and not getattr(field, 'dump_only', False):
+                required.append(api_field_name)
         schema_obj: Dict[str, Any] = {'type': 'object', 'properties': props}
         if required:
             schema_obj['required'] = sorted(required)
+        
+        # Add schema description from class docstring
+        doc = getattr(cls, '__doc__', None)
+        if doc:
+            description = doc.strip()
+            if description:
+                schema_obj['description'] = description
+        
         result[name] = schema_obj
     return result
 

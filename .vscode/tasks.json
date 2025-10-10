@@ -4,7 +4,7 @@
 		{
 			"label": "Rebuild Swagger",
 			"type": "shell",
-			"command": "conda activate happydog-backend && python pet_project_backend/scripts/swagger_build.py",
+			"command": "conda activate dog; python pet_project_backend/scripts/swagger_build.py",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],
@@ -13,7 +13,7 @@
 		{
 			"label": "Rebuild Swagger (docs mode)",
 			"type": "shell",
-			"command": "conda activate happydog-backend && python pet_project_backend/scripts/swagger_build.py --app pet_project_backend.app:create_app --out openapi.json --pretty-out openapi_pretty.json --docs-mode --add-tags --add-security --add-servers --strict-doc-tags",
+			"command": "conda activate dog; python pet_project_backend/scripts/swagger_build.py --app pet_project_backend.app:create_app --out openapi.json --pretty-out openapi_pretty.json --docs-mode --add-tags --add-security --add-servers --strict-doc-tags",
 			"args": [],
 			"isBackground": false,
 			"problemMatcher": [],
