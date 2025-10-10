@@ -22,7 +22,7 @@ class PetInfoSchema(Schema):
 class PostCreateSchema(Schema):
     """POST /api/posts 요청 본문의 유효성을 검사합니다."""
     text = fields.Str(required=True, validate=validate.Length(min=1, max=2000))
-    file_paths = fields.List(fields.Str(), required=True, validate=validate.Length(min=1))
+    file_paths = fields.List(fields.Str(), required=False, load_default=[], validate=validate.Length(min=0))
 
 class PostUpdateSchema(Schema):
     """PATCH /api/posts/{post_id} 요청 본문의 유효성을 검사합니다."""
@@ -33,7 +33,7 @@ class PostResponseSchema(Schema):
     post_id = fields.Str(dump_only=True)
     author = fields.Nested(AuthorSchema, required=True)
     pet = fields.Nested(PetInfoSchema, required=True)
-    image_urls = fields.List(fields.URL(), required=True)
+    image_urls = fields.List(fields.URL(), required=True, allow_none=True)
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
     comment_count = fields.Int(required=True)

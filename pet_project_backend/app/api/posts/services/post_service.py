@@ -36,7 +36,7 @@ class PostService:
             self.users_ref = self.db.collection('users')
             self.pets_ref = self.db.collection('pets')
 
-    def create_post(self, user_id: str, text: str, file_paths: List[str]) -> Optional[Dict[str, Any]]:
+    def create_post(self, user_id: str, text: str, file_paths: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """새로운 게시글을 생성하고 Firestore에 저장합니다.
 
         Snapshot Policy (PR4 문서화):
@@ -48,17 +48,18 @@ class PostService:
         Args:
             user_id: 작성자 사용자 ID
             text: 게시글 텍스트
-            file_paths: Storage에 업로드된 파일의 상대 경로 리스트
+            file_paths: Storage에 업로드된 파일의 상대 경로 리스트 (선택적, 없으면 텍스트만 게시글)
         
         Returns:
-            생성된 게시글 정보 (image_urls는 Firebase Storage URL 포함)
+            생성된 게시글 정보 (image_urls는 Firebase Storage URL 포함, 이미지 없으면 빈 리스트)
         
         Note:
             file_paths는 클라이언트가 pre-signed URL로 업로드 완료한 파일의 경로여야 합니다.
             존재하지 않는 파일 경로가 포함된 경우 FileNotFoundError 발생.
+            file_paths가 None이거나 빈 리스트면 텍스트만으로 게시글이 생성됩니다.
         """
-        # file_paths를 Firebase Storage URL로 변환
-        image_urls = self._convert_paths_to_urls(file_paths)
+        # file_paths를 Firebase Storage URL로 변환 (None이면 빈 리스트로 처리)
+        image_urls = self._convert_paths_to_urls(file_paths or [])
         
         if self.db is None:
             # Return synthetic post object (no persistence)
