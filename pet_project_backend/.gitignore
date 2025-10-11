@@ -9,11 +9,11 @@ __pycache__/
 desktop.ini
 *.pyc
 # Environments
-
+/cloud_functions_sample
 .venv/
 venv/
 ENV/
-
+*.log
 # VSCode
 .vscode/
 
@@ -34,6 +34,7 @@ migrations/versions/*.py
 # Logs
 *.log
 
+# scriptts
 
 
 # MyPy
@@ -46,10 +47,8 @@ migrations/versions/*.py
 *.jpg
 
 #secrets
-secrets/
+
 /secrets
-*.json
-.json
 
 # Editable Install Metadata
 *.egg-info/
@@ -58,6 +57,8 @@ secrets/
 .conda/
 
 # User Uploads (임시 파일)
-uploads/
-/secrets
-*.json
+
+
+
+*.env
+.github

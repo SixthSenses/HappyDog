@@ -1,0 +1,4825 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HappyDog API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/auth/google/authorize": {
+      "get": {
+        "summary": "Google OAuth 인증 URL을 생성하거나 선택적으로 바로 리다이렉트합니다.",
+        "description": "query parameters:\n      - redirect=true|1: 생성된 URL로 302 리다이렉트, 아니면 JSON 반환\n\n    ResponseSchema[200]: AuthorizationUrlResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationUrlResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/social": {
+      "post": {
+        "summary": "소셜 로그인 및 신규 사용자 자동 가입 처리.",
+        "description": "RequestSchema: SocialLoginSchema\n    ResponseSchema[200]: AuthTokensResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialLoginSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      },
+      "get": {
+        "summary": "OAuth 동의 후 리디렉션 콜백.",
+        "description": "query parameters:\n      - code: Google OAuth authorization code\n\n    ResponseSchema[200]: AuthTokensResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/token/refresh": {
+      "post": {
+        "summary": "유효한 Refresh Token으로 새로운 Access Token 재발급.",
+        "description": "RequestSchema: EmptyRequestSchema\n    ResponseSchema[200]: AuthTokensRefreshResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensRefreshResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "로그아웃 처리 및 Access/Refresh 토큰 블랙리스트 등록.",
+        "description": "RequestSchema: LogoutRequestSchema\n    ResponseSchema[200]: AuthLogoutResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLogoutResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/uploads/url": {
+      "post": {
+        "summary": "업로드 URL 생성",
+        "description": "모든 파일 업로드를 위한 범용 Pre-signed URL을 발급합니다.\n\n    RequestSchema: UploadUrlRequestSchema\n    ResponseSchema[200]: UploadUrlResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadUrlResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadUrlRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/uploads/finalize-cartoon": {
+      "post": {
+        "summary": "만화 이미지 URL 생성",
+        "description": "업로드된 만화 원본 이미지의 Firebase Storage URL을 반환합니다.\n\n    RequestSchema: FinalizeCartoonRequestSchema\n    ResponseSchema[200]: FinalizeCartoonResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizeCartoonResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeCartoonRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/users/{user_id}/public": {
+      "get": {
+        "summary": "[DEPRECATED] 다른 사용자의 공개 프로필 정보를 조회합니다.",
+        "description": "더 이상 사용되지 않는 엔드포인트입니다. 신규 클라이언트는\n    GET /api/pets/profile?view=social&user_id={user_id} 사용으로 마이그레이션 해야 합니다.\n\n    ResponseSchema: UserPublicResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublicResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'user_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "summary": "현재 로그인한 사용자의 기본 정보를 조회합니다.",
+        "description": "ResponseSchema: UserMeResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMeResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/me/summary": {
+      "get": {
+        "summary": "사용자, 반려동물, 펫케어 설정의 통합 요약 정보를 조회합니다.",
+        "description": "ResponseSchema: UserSummaryResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummaryResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/me/notification-preferences": {
+      "get": {
+        "summary": "현재 사용자의 알림 설정을 조회합니다.",
+        "description": "ResponseSchema: NotificationPreferencesResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferencesResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      },
+      "put": {
+        "summary": "현재 사용자의 알림 설정을 수정합니다.",
+        "description": "RequestSchema: NotificationPreferencesSchema\n    ResponseSchema: NotificationPreferencesResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferencesResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferencesSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/users/me/fcm-token": {
+      "put": {
+        "summary": "현재 사용자의 FCM 토큰을 업데이트합니다.",
+        "description": "RequestSchema: FCMTokenSchema\n    ResponseSchema: FCMTokenUpdateResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FCMTokenUpdateResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FCMTokenSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/posts/": {
+      "post": {
+        "summary": "게시글을 생성합니다.",
+        "description": "클라이언트는 필수로 텍스트(`text`)를 전달하고, 선택적으로 업로드 완료된 파일 경로 리스트(`file_paths`)를 전달할 수 있습니다.\n    이미지 없이 텍스트만으로도 게시글 작성이 가능합니다.\n    성공 시 생성된 게시글의 전체 정보를 201 응답으로 반환하며, 생성 이벤트 후속 처리(post_events_service)가 비동기/후속 로직을 트리거합니다.\n\n    RequestSchema: PostCreateSchema\n    ResponseSchema[201]: PostResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCreateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      },
+      "get": {
+        "summary": "게시글 피드 목록을 페이지네이션으로 조회합니다.",
+        "description": "로그인 사용자는 각 게시글의 `is_liked` 상태가 채워집니다.\n    커서 기반 페이지네이션(`limit`, `cursor`)을 지원합니다.\n\n    ResponseSchema[200]: PostsFeedResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostsFeedResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/posts/{post_id}": {
+      "get": {
+        "summary": "특정 게시글의 상세 정보를 조회합니다.",
+        "description": "로그인 사용자의 경우 해당 게시글 좋아요 여부(`is_liked`)가 포함됩니다.\n\n    ResponseSchema[200]: PostResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      },
+      "patch": {
+        "summary": "특정 게시글의 내용을 수정합니다. (작성자 본인만 가능)",
+        "description": "RequestSchema: PostUpdateSchema\n    ResponseSchema[200]: PostResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostUpdateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      },
+      "delete": {
+        "summary": "특정 게시글을 삭제합니다. (작성자 본인만 가능)",
+        "description": "ResponseSchema[204]: NoContentSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "204": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoContentSchema"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/posts/{post_id}/like": {
+      "post": {
+        "summary": "게시글의 좋아요를 누르거나 취소합니다.",
+        "description": "RequestSchema: EmptyRequestSchema\n    ResponseSchema[200]: PostLikeToggleResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostLikeToggleResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/posts/users/{author_id}/posts": {
+      "get": {
+        "summary": "특정 사용자가 작성한 게시물 피드를 페이지네이션으로 조회합니다.",
+        "description": "멍스타그램 프로필 전용 엔드포인트이며 구조는 일반 피드와 동일합니다.\n\n    ResponseSchema[200]: PostsFeedResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostsFeedResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "author_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'author_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "posts"
+        ]
+      }
+    },
+    "/api/comments/posts/{post_id}/comments": {
+      "post": {
+        "summary": "댓글 생성",
+        "description": "특정 게시글에 새로운 댓글을 작성합니다. 댓글 생성 후 게시물 작성자 및 멘션된 사용자에게 알림이 생성됩니다.\n\n    RequestSchema: CommentCreateSchema\n    ResponseSchema[201]: CommentResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentCreateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "comments"
+        ]
+      },
+      "get": {
+        "summary": "댓글 목록 조회",
+        "description": "특정 게시글의 댓글 목록을 페이지네이션으로 조회합니다. 로그인 사용자의 경우 좋아요 상태도 함께 반환됩니다.\n\n    ResponseSchema[200]: CommentListResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentListResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'post_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/comments/comments/{comment_id}": {
+      "delete": {
+        "summary": "댓글 삭제",
+        "description": "특정 댓글을 삭제합니다. (작성자 본인만 가능) 성공 시 204 No Content.\n\n    ResponseSchema[204]: NoContentSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "204": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoContentSchema"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'comment_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/comments/comments/{comment_id}/like": {
+      "post": {
+        "summary": "댓글 좋아요 토글",
+        "description": "특정 댓글의 좋아요를 누르거나 취소합니다.\n\n    RequestSchema: EmptyRequestSchema\n    ResponseSchema[200]: CommentLikeToggleResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentLikeToggleResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'comment_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/cartoon-jobs/": {
+      "post": {
+        "summary": "만화 변환 작업 생성",
+        "description": "이미지를 만화 스타일로 변환하는 비동기 작업을 생성합니다.\n\n    RequestSchema: CartoonJobCreateSchema\n    ResponseSchema[202]: CartoonJobResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "202": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartoonJobResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartoonJobCreateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "cartoon-jobs"
+        ]
+      }
+    },
+    "/api/cartoon-jobs/{job_id}": {
+      "get": {
+        "summary": "만화 작업 상태 조회",
+        "description": "특정 만화 생성 작업의 현재 상태를 조회합니다.\n\n    ResponseSchema[200]: CartoonJobResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartoonJobResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'job_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "cartoon-jobs"
+        ]
+      },
+      "delete": {
+        "summary": "만화 작업 취소",
+        "description": "진행 중인 만화 생성 작업을 취소 요청합니다.\n\n    ResponseSchema[200]: CartoonJobResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartoonJobResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'job_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "cartoon-jobs"
+        ]
+      }
+    },
+    "/api/cartoon-jobs/health": {
+      "get": {
+        "summary": "작업 프로세서 건강 상태 조회",
+        "description": "만화 변환 작업 프로세서의 현재 상태와 성능 지표를 조회합니다.\n\n    ResponseSchema[200]: CartoonJobHealthResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartoonJobHealthResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "cartoon-jobs"
+        ]
+      }
+    },
+    "/api/breeds/": {
+      "get": {
+        "summary": "품종 목록 조회",
+        "description": "ResponseSchema[200]: BreedListSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedListSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
+    "/api/breeds/guide/{breed_name}": {
+      "get": {
+        "summary": "특정 품종 백과사전 정보 조회",
+        "description": "ResponseSchema[200]: BreedGuideSchema\n    ResponseSchema[404]: ErrorResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedGuideSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "breed_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'breed_name' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
+    "/api/breeds/{breed_name}": {
+      "get": {
+        "summary": "특정 품종 정보 조회",
+        "description": "ResponseSchema[200]: BreedSchema\n    ResponseSchema[404]: ErrorResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "breed_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'breed_name' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
+    "/api/breeds/search": {
+      "get": {
+        "summary": "품종 검색",
+        "description": "ResponseSchema[200]: BreedListSchema\n    ResponseSchema[400]: ErrorResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedListSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
+    "/api/breeds/exists/{breed_name}": {
+      "get": {
+        "summary": "품종 존재 여부 확인",
+        "description": "ResponseSchema[200]: BreedExistsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreedExistsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "breed_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'breed_name' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "breeds"
+        ]
+      }
+    },
+    "/api/pets/": {
+      "post": {
+        "summary": "반려동물 등록",
+        "description": "새로운 반려동물을 시스템에 등록합니다. 현재 사용자당 하나의 반려동물만 등록할 수 있습니다.\n\n    RequestSchema: PetRegistrationSchema\n    ResponseSchema[201]: PetProfileResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetProfileResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetRegistrationSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pets/{pet_id}": {
+      "get": {
+        "summary": "반려동물 프로필 조회 (소유자 전용)",
+        "description": "소유자만 접근할 수 있는 반려동물의 전체 프로필 정보를 조회합니다. 비공개 정보까지 포함됩니다.\n\n    ResponseSchema[200]: PetProfileResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetProfileResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      },
+      "patch": {
+        "summary": "반려동물 프로필 수정",
+        "description": "소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.\n\n    RequestSchema: PetUpdateSchema\n    ResponseSchema[200]: PetProfileResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetProfileResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetUpdateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pets/{pet_id}/nose-print": {
+      "post": {
+        "summary": "반려동물 비문 등록/인증",
+        "description": "특정 반려동물의 비문(코) 이미지를 분석하여 등록/인증 처리합니다.\n\n    RequestSchema: BiometricAnalysisRequestSchema\n    ResponseSchema[200]: NosePrintRegistrationResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NosePrintRegistrationResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiometricAnalysisRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pets/{pet_id}/eye-analysis": {
+      "post": {
+        "summary": "반려동물 안구 이미지 분석",
+        "description": "특정 반려동물의 안구 이미지를 분석합니다.\n\n    RequestSchema: BiometricAnalysisRequestSchema\n    ResponseSchema[200]: EyeAnalysisResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EyeAnalysisResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiometricAnalysisRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pets/profile": {
+      "get": {
+        "summary": "뷰 기반 반려동물 프로필 조회",
+        "description": "용도(view)에 맞게 필터링된 반려동물 프로필을 조회합니다. 정책은 PetAccessPolicy로 관리됩니다.\n\n    ResponseSchema[200]: PetViewBasedResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetViewBasedResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pets/eye-analyses": {
+      "get": {
+        "summary": "안구 검사 이력 조회 (본인 전용)",
+        "description": "인증된 사용자 본인의 검사 이력을 최신순으로 반환합니다. 선택적으로 특정 `pet_id`로 필터링할 수 있습니다.\n\n    RequestSchema(query): EyeAnalysisHistoryQuerySchema\n    ResponseSchema[200]: EyeAnalysisHistoryListResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EyeAnalysisHistoryListResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pets"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/settings": {
+      "get": {
+        "summary": "펫케어 설정 조회",
+        "description": "특정 반려동물의 펫케어 설정 정보를 조회합니다. 체중 목표, 활동 목표 등의 관리 설정을 포함합니다.\n\n    ResponseSchema[200]: PetCareSettingsSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetCareSettingsSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      },
+      "put": {
+        "summary": "펫케어 설정 수정",
+        "description": "특정 반려동물의 펫케어 설정 정보를 수정합니다. 부분 업데이트를 지원하여 필요한 필드만 수정할 수 있습니다.\n\n    RequestSchema: PetCareSettingsSchema\n    ResponseSchema[200]: PetCareSettingsSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetCareSettingsSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetCareSettingsSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records": {
+      "post": {
+        "summary": "펫케어 기록 생성",
+        "description": "개별 펫케어 기록을 생성합니다. 각 기록 타입(식사횟수, 활동량, BCS, 체중, 대변, 구토)을 개별적으로 기록할 수 있습니다.\n\n    RequestSchema: CareRecordCreateSchema\n    ResponseSchema[201]: RecordResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareRecordCreateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records/{log_id}": {
+      "patch": {
+        "summary": "펫케어 기록 수정",
+        "description": "기존 펫케어 기록을 수정합니다.\n\n    RequestSchema: CareRecordUpdateSchema\n    ResponseSchema[200]: RecordResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'log_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareRecordUpdateSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      },
+      "delete": {
+        "summary": "펫케어 기록 삭제",
+        "description": "기존 펫케어 기록을 삭제합니다.\n\n    ResponseSchema[204]: NoContentSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          },
+          "204": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoContentSchema"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'log_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records/daily": {
+      "get": {
+        "summary": "특정 날짜 펫케어 기록 조회",
+        "description": "특정 날짜에 기록된 모든 펫케어 데이터를 조회합니다.\n\n    ResponseSchema[200]: DailyRecordsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyRecordsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records/daily/summary": {
+      "get": {
+        "summary": "특정 날짜 요약 + 목표 진행률 조회",
+        "description": "UI의 오늘/특정일 달성률, 개수, 간단 요약을 반환합니다.\n\n    ResponseSchema[200]: DailySummaryWithGoalsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailySummaryWithGoalsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/records/summary/range": {
+      "get": {
+        "summary": "기간 요약 + 트렌드 + 목표 추적 조회",
+        "description": "월간 분석 카드/문구를 구성하는 데이터에 대응합니다.\n\n    ResponseSchema[200]: RangeSummaryWithTrendsResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RangeSummaryWithTrendsResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "summary": "알림 목록 조회",
+        "description": "사용자의 알림 목록을 페이지네이션으로 조회합니다. 포맷(mobile/web)과 커서 기반 페이지네이션을 지원합니다.\n\n    RequestSchema: NotificationListRequestSchema (query params)\n    ResponseSchema[200]: NotificationListResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/{notification_id}/ack": {
+      "post": {
+        "summary": "알림 확인 처리",
+        "description": "특정 알림을 확인 상태로 변경합니다. 확인된 알림은 미확인 알림 수에 포함되지 않습니다.\n\n    RequestSchema: EmptyRequestSchema\n    ResponseSchema[200]: NotificationAckResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationAckResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'notification_id' (converter: string)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequestSchema"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "summary": "미확인 알림 수 조회",
+        "description": "사용자의 미확인 알림 개수를 조회합니다.\n\n    ResponseSchema[200]: NotificationUnreadCountResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationUnreadCountResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "시스템 헬스 체크",
+        "description": "ResponseSchema[200]: HealthStatusResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatusResponseSchema"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthLogoutResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "description": "로그아웃 응답."
+      },
+      "AuthTokensRefreshResponseSchema": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token"
+        ],
+        "description": "토큰 재발급 응답 (새 access_token)."
+      },
+      "AuthTokensResponseSchema": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "is_new_user": {
+            "type": "boolean"
+          },
+          "user_info": {
+            "$ref": "#/components/schemas/AuthUserInfoSchema"
+          }
+        },
+        "required": [
+          "access_token",
+          "is_new_user",
+          "refresh_token",
+          "user_id",
+          "user_info"
+        ],
+        "description": "소셜 로그인/콜백 성공 시 토큰/유저 정보."
+      },
+      "AuthUserInfoSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "nickname": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "nickname",
+          "user_id"
+        ],
+        "description": "토큰 발급 시 함께 반환되는 사용자 요약 정보"
+      },
+      "AuthorizationUrlResponseSchema": {
+        "type": "object",
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorization_url",
+          "redirect_uri",
+          "state"
+        ],
+        "description": "GET /api/auth/google/authorize 응답 스키마"
+      },
+      "LogoutRequestSchema": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token"
+        ],
+        "description": "로그아웃 요청의 유효성을 검사하는 스키마"
+      },
+      "SocialLoginSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "auth_code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "auth_code",
+          "provider"
+        ],
+        "description": "소셜 로그인 요청의 유효성을 검사하는 스키마"
+      },
+      "BreedBasicInfoSchema": {
+        "type": "object",
+        "properties": {
+          "weight": {
+            "type": "string"
+          },
+          "height": {
+            "type": "string"
+          },
+          "life_span": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          }
+        },
+        "description": "백과사전: 기본 정보"
+      },
+      "BreedExistsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "breed_name": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "breed_name",
+          "exists"
+        ],
+        "description": "품종 존재 여부 확인 응답."
+      },
+      "BreedGuideSchema": {
+        "type": "object",
+        "properties": {
+          "breed_name": {
+            "type": "string"
+          },
+          "english_name": {
+            "type": "string"
+          },
+          "basic_info": {
+            "$ref": "#/components/schemas/BreedBasicInfoSchema"
+          },
+          "personality": {
+            "$ref": "#/components/schemas/BreedPersonalitySchema"
+          },
+          "common_diseases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "care_points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "breed_name"
+        ],
+        "description": "품종 백과사전 콘텐츠 스키마"
+      },
+      "BreedListSchema": {
+        "type": "object",
+        "properties": {
+          "breeds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BreedSchema"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "breeds",
+          "total_count"
+        ],
+        "description": "품종 목록 조회 응답을 위한 스키마"
+      },
+      "BreedPersonalitySchema": {
+        "type": "object",
+        "properties": {
+          "strengths": {
+            "type": "string"
+          },
+          "weaknesses": {
+            "type": "string"
+          },
+          "traits": {
+            "type": "string"
+          }
+        },
+        "description": "백과사전: 성격/특징"
+      },
+      "BreedSchema": {
+        "type": "object",
+        "properties": {
+          "breed_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "life_expectancy": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "height_cm": {
+            "$ref": "#/components/schemas/HeightWeightSchema"
+          },
+          "weight_kg": {
+            "$ref": "#/components/schemas/HeightWeightSchema"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "breed_name",
+          "height_cm",
+          "life_expectancy",
+          "weight_kg"
+        ],
+        "description": "개별 품종 정보를 위한 스키마"
+      },
+      "BreedSearchSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "description": "품종 검색 요청을 위한 스키마"
+      },
+      "BreedSummaryListSchema": {
+        "type": "object",
+        "properties": {
+          "breeds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BreedSummarySchema"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "breeds",
+          "total_count"
+        ],
+        "description": "품종 요약 목록 조회 응답을 위한 스키마"
+      },
+      "BreedSummarySchema": {
+        "type": "object",
+        "properties": {
+          "breed_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "breed_name"
+        ],
+        "description": "품종 요약 정보를 위한 스키마 (드롭다운 등에서 사용)"
+      },
+      "ErrorResponseSchema": {
+        "type": "object",
+        "properties": {
+          "error_code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "error_code",
+          "message"
+        ],
+        "description": "오류 응답 스키마"
+      },
+      "HeightWeightSchema": {
+        "type": "object",
+        "properties": {
+          "male": {
+            "type": "number",
+            "format": "float",
+            "nullable": true,
+            "minimum": 0
+          },
+          "female": {
+            "type": "number",
+            "format": "float",
+            "nullable": true,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "female",
+          "male"
+        ],
+        "description": "키/몸무게 정보 (성별별)를 위한 스키마"
+      },
+      "CartoonJobCreateSchema": {
+        "type": "object",
+        "properties": {
+          "file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "user_text": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "file_paths"
+        ],
+        "description": "POST /api/cartoon-jobs\n    만화 생성을 요청할 때의 데이터 형식을 정의하고 유효성을 검사합니다."
+      },
+      "CartoonJobHealthResponseSchema": {
+        "type": "object",
+        "properties": {
+          "active_jobs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "queue_size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "max_workers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "integration_health": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "active_jobs",
+          "integration_health",
+          "max_workers",
+          "queue_size"
+        ],
+        "description": "Cartoon job processor health 응답."
+      },
+      "CartoonJobResponseSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "original_image_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "user_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "result_image_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "created_at",
+          "job_id",
+          "original_image_url",
+          "status",
+          "updated_at",
+          "user_id"
+        ],
+        "description": "만화 생성 작업 정보 응답을 위한 최종 JSON 형식을 정의합니다.\n    (생성, 조회, 취소 시 모두 이 스키마를 사용)"
+      },
+      "AuthorSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nickname",
+          "user_id"
+        ],
+        "description": "게시물 응답에 포함될 작성자 정보 스키마."
+      },
+      "CommentCreateSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "description": "POST /api/posts/{post_id}/comments\n    댓글 생성을 요청할 때의 데이터 형식을 정의하고 유효성을 검사합니다."
+      },
+      "CommentLikeToggleResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "liked": {
+            "type": "boolean"
+          },
+          "comment_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "comment_id",
+          "liked",
+          "message"
+        ],
+        "description": "댓글 좋아요 토글 결과 응답."
+      },
+      "CommentListResponseSchema": {
+        "type": "object",
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentResponseSchema"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "comments"
+        ],
+        "description": "댓글 목록 응답.\n\n    - comments: 댓글 객체 배열\n    - next_cursor: 다음 페이지 커서 (없으면 null)"
+      },
+      "CommentResponseSchema": {
+        "type": "object",
+        "properties": {
+          "comment_id": {
+            "type": "string"
+          },
+          "post_id": {
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/AuthorSchema"
+          },
+          "pet": {
+            "$ref": "#/components/schemas/PetInfoSchema"
+          },
+          "text": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_liked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "author",
+          "comment_id",
+          "created_at",
+          "like_count",
+          "pet",
+          "post_id",
+          "text"
+        ],
+        "description": "댓글 정보 응답을 위한 최종 JSON 형식을 정의합니다."
+      },
+      "PetInfoSchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "breed": {
+            "type": "string"
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile_image_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          }
+        },
+        "required": [
+          "birthdate",
+          "breed",
+          "name",
+          "pet_id"
+        ],
+        "description": "게시물 응답에 포함될 반려동물 정보 스키마."
+      },
+      "EmptyRequestSchema": {
+        "type": "object",
+        "properties": {},
+        "description": "바디가 없는 요청(POST/PUT/PATCH)도 명시적으로 문서화하기 위한 placeholder."
+      },
+      "HealthStatusResponseSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "counters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "counters",
+          "status"
+        ]
+      },
+      "NoContentSchema": {
+        "type": "object",
+        "properties": {},
+        "description": "204 No Content 응답 본문 없음 표시 placeholder."
+      },
+      "NotificationAckRequestSchema": {
+        "type": "object",
+        "properties": {},
+        "description": "알림 읽음 처리 요청 스키마"
+      },
+      "NotificationAckResponseSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "description": "알림 확인 처리 응답 스키마"
+      },
+      "NotificationItemSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "deeplink": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "created_at",
+          "deeplink",
+          "id",
+          "message",
+          "read",
+          "title",
+          "type"
+        ],
+        "description": "단일 알림 응답 스키마"
+      },
+      "NotificationListRequestSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "mobile",
+              "web"
+            ]
+          }
+        },
+        "description": "알림 목록 조회 요청 스키마"
+      },
+      "NotificationListResponseSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemSchema"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "meta"
+        ],
+        "description": "알림 목록 응답 스키마"
+      },
+      "NotificationUnreadCountResponseSchema": {
+        "type": "object",
+        "properties": {
+          "unread_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "unread_count"
+        ],
+        "description": "미읽은 알림 수 응답 스키마"
+      },
+      "BiometricAnalysisRequestSchema": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "description": "비문 및 안구 분석 요청을 위한 공통 스키마."
+      },
+      "EyeAnalysisHistoryItemSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "pet_id": {
+            "type": "string"
+          },
+          "disease_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "probability_percent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "predictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EyeDiseasePredictionSchema"
+            }
+          },
+          "is_normal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "created_at",
+          "disease_name",
+          "pet_id",
+          "probability_percent"
+        ],
+        "description": "안구 검사 이력 1건에 대한 응답 스키마."
+      },
+      "EyeAnalysisHistoryListResponseSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EyeAnalysisHistoryItemSchema"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "안구 검사 이력 목록 응답 스키마."
+      },
+      "EyeAnalysisHistoryQuerySchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "description": "GET /api/pets/eye-analyses 쿼리 파라미터 검증 스키마."
+      },
+      "EyeAnalysisResponseSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_id": {
+            "type": "string"
+          },
+          "disease_name": {
+            "type": "string"
+          },
+          "probability": {
+            "type": "number",
+            "format": "float"
+          },
+          "probability_percent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "predictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "is_normal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "disease_name",
+          "probability"
+        ],
+        "description": "안구 분석 결과 응답 스키마."
+      },
+      "EyeDiseasePredictionSchema": {
+        "type": "object",
+        "properties": {
+          "disease_name": {
+            "type": "string"
+          },
+          "probability": {
+            "type": "number",
+            "format": "float"
+          },
+          "probability_percent": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "disease_name",
+          "probability",
+          "probability_percent"
+        ]
+      },
+      "NosePrintRegistrationResponseSchema": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "features": {
+            "type": "object",
+            "nullable": true
+          },
+          "analysis_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "description": "비문(코) 등록/인증 결과 응답 스키마."
+      },
+      "PetProfileResponseSchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "breed": {
+            "type": "string"
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date"
+          },
+          "fur_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "health_concerns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_verified": {
+            "type": "boolean"
+          },
+          "profile_image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "nose_print_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "faiss_id": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "description": "소유자 전용 프로필 정보 응답 스키마 (모든 정보 포함)."
+      },
+      "PetRegistrationSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "breed": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date"
+          },
+          "fur_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "health_concerns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "profile_image_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "birthdate",
+          "breed",
+          "gender",
+          "name"
+        ]
+      },
+      "PetUpdateSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "fur_color": {
+            "type": "string"
+          },
+          "health_concerns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "profile_image_url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PetViewBasedResponseSchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profile_image_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_verified": {
+            "type": "boolean"
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "breed": {
+            "type": "string",
+            "nullable": true
+          },
+          "age_months": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "post_count": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "required": [
+          "is_verified",
+          "name"
+        ],
+        "description": "뷰 기반 필터링이 적용된 Pet 프로필 응답 스키마."
+      },
+      "CareRecordCreateSchema": {
+        "type": "object",
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "enum": [
+              "activity",
+              "bcs",
+              "meal_count",
+              "stool",
+              "vomit",
+              "weight"
+            ]
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "object"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "data",
+          "record_type",
+          "timestamp"
+        ],
+        "description": "개별 펫케어 기록 생성을 위한 스키마.\n    각 기록 타입별로 개별적으로 받을 수 있습니다."
+      },
+      "CareRecordUpdateSchema": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "description": "기존 펫케어 기록 수정을 위한 스키마."
+      },
+      "DailyRecordsQuerySchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "record_type": {
+            "type": "string",
+            "enum": [
+              "activity",
+              "bcs",
+              "meal_count",
+              "stool",
+              "vomit",
+              "weight"
+            ]
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "description": "특정 날짜의 기록 조회 쿼리 스키마.\n    - record_type가 주어지면 해당 타입만 필터링합니다."
+      },
+      "DailyRecordsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordResponseSchema"
+            }
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "description": "특정 날짜의 모든 기록 응답 스키마."
+      },
+      "DailySummaryWithGoalsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordResponseSchema"
+            }
+          },
+          "record_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "goal_progress": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "description": "일별 요약 + 목표 진행률 응답 스키마.\n    UI의 오늘 달성률(%)/달성 여부 및 기본 레코드 목록에 대응합니다."
+      },
+      "DeleteRecordResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "deleted_id": {
+            "type": "string"
+          }
+        },
+        "description": "기록 삭제 응답 스키마(200 응답 본문)."
+      },
+      "PetCareSettingsSchema": {
+        "type": "object",
+        "properties": {
+          "target_weight": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0.1,
+            "maximum": 200.0
+          },
+          "target_daily_meal_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "target_daily_activity_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "target_daily_activity_sessions": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 48
+          },
+          "activity_session_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 600
+          },
+          "daily_activity_increment": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 180
+          },
+          "pet_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "펫케어 설정 조회/수정 스키마.\n\n    목표 활동 분(`target_daily_activity_minutes`)은 파생 필드이며\n    ( `target_daily_activity_sessions` × `activity_session_minutes` ) 로 계산됩니다.\n    클라이언트는 PATCH/PUT 요청에서 `target_daily_activity_minutes` 값을 전송하지 말아야 하며,\n    서버는 전송하더라도 무시합니다.\n\n    식사 목표는 `target_daily_meal_count`(=goalMealCount)만 사용합니다.\n    과거에 존재하던 `daily_meal_count` 필드는 혼동 방지를 위해 제거되었습니다."
+      },
+      "RangeQuerySchema": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "end_date",
+          "start_date"
+        ],
+        "description": "기간 요약/트렌드 조회 쿼리 스키마."
+      },
+      "RangeSummaryWithTrendsResponseSchema": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "records_by_date": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "trends": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "goal_tracking": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "description": "기간 요약 + 트렌드 + 목표 추적 응답 스키마.\n    월간 분석 카드/텍스트 등에 대응합니다."
+      },
+      "RecordResponseSchema": {
+        "type": "object",
+        "properties": {
+          "log_id": {
+            "type": "string"
+          },
+          "pet_id": {
+            "type": "string"
+          },
+          "record_type": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "timestamp_ms": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "object"
+          },
+          "memo": {
+            "type": "string",
+            "nullable": true
+          },
+          "searchDate": {
+            "type": "string"
+          }
+        },
+        "description": "기록 응답을 위한 스키마."
+      },
+      "PostCreateSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "file_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "description": "POST /api/posts 요청 본문의 유효성을 검사합니다."
+      },
+      "PostLikeToggleResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "description": "POST /api/posts/{post_id}/like 좋아요 토글 결과.\n\n    단순 메시지 필드만을 포함합니다."
+      },
+      "PostResponseSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/AuthorSchema"
+          },
+          "pet": {
+            "$ref": "#/components/schemas/PetInfoSchema"
+          },
+          "image_urls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "nullable": true
+          },
+          "text": {
+            "type": "string"
+          },
+          "like_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "comment_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_liked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "author",
+          "comment_count",
+          "created_at",
+          "image_urls",
+          "like_count",
+          "pet",
+          "text",
+          "updated_at"
+        ],
+        "description": "게시글 정보 응답을 위한 최종 JSON 형식을 정의합니다."
+      },
+      "PostUpdateSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "description": "PATCH /api/posts/{post_id} 요청 본문의 유효성을 검사합니다."
+      },
+      "PostsFeedResponseSchema": {
+        "type": "object",
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostResponseSchema"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "posts"
+        ],
+        "description": "피드/사용자별 게시글 목록 응답 래퍼.\n\n    GET /api/posts, GET /api/posts/users/{author_id}/posts 에서 사용.\n    posts 배열과 다음 페이지 커서가 포함됩니다."
+      },
+      "FinalizeCartoonRequestSchema": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      },
+      "FinalizeCartoonResponseSchema": {
+        "type": "object",
+        "properties": {
+          "public_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "public_url"
+        ],
+        "description": "만화 원본 공개 전환 응답."
+      },
+      "UploadUrlRequestSchema": {
+        "type": "object",
+        "properties": {
+          "upload_type": {
+            "type": "string",
+            "enum": [
+              "cartoon_source_image",
+              "eye_analysis",
+              "pet_nose_print",
+              "pet_profile",
+              "post_image"
+            ]
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content_type": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "content_type",
+          "filename",
+          "upload_type"
+        ]
+      },
+      "UploadUrlResponseSchema": {
+        "type": "object",
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "expires_at",
+          "file_path",
+          "upload_url"
+        ],
+        "description": "업로드 URL 발급 응답."
+      },
+      "FCMTokenSchema": {
+        "type": "object",
+        "properties": {
+          "fcm_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fcm_token"
+        ],
+        "description": "POST /api/users/me/fcm-token\n    FCM 토큰 등록/업데이트 요청 본문의 유효성을 검사하는 스키마."
+      },
+      "FCMTokenUpdateResponseSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "description": "FCM 토큰 업데이트 결과 메시지."
+      },
+      "NotificationPreferencesResponseSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "nullable": true
+          },
+          "types": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "알림 설정 조회/수정 결과 응답 스키마 (GET/PUT 공용)."
+      },
+      "NotificationPreferencesSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "nullable": true
+          },
+          "types": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "유저 알림 개인 설정 스키마."
+      },
+      "UserMeResponseSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "has_pet": {
+            "type": "boolean"
+          },
+          "pet_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "email",
+          "nickname",
+          "user_id"
+        ],
+        "description": "GET /api/users/me 응답.\n\n    내 기본 정보 (민감정보 제외) 및 보조 상태(has_pet/pet_id) 포함."
+      },
+      "UserPublicResponseSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "post_count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "nickname",
+          "post_count"
+        ],
+        "description": "GET /api/users/{user_id}\n    다른 사용자의 프로필 정보를 응답할 때 사용하는 스키마.\n    민감한 정보(예: email, google_id, fcm_token)는 제외하고\n    공개 가능한 정보만 포함하여 반환하도록 정의합니다.\n    프로필 이미지는 Pet 정보에서 가져오도록 변경됨."
+      },
+      "UserSummaryPetSchema": {
+        "type": "object",
+        "properties": {
+          "pet_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "breed": {
+            "type": "string"
+          },
+          "profile_image_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "is_verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "breed",
+          "name",
+          "pet_id"
+        ],
+        "description": "요약 응답 중 pet 부분 (단일 반려동물 정책)."
+      },
+      "UserSummaryResponseSchema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserSummaryUserSchema"
+          },
+          "pet": {
+            "$ref": "#/components/schemas/UserSummaryPetSchema",
+            "nullable": true
+          },
+          "pet_care_settings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "description": "GET /api/users/me/summary 응답.\n\n    user / pet / pet_care_settings (옵셔널) 통합 구조.\n    pet_care_settings는 동적 dict 로 덤프."
+      },
+      "UserSummaryUserSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "post_count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "nickname",
+          "user_id"
+        ],
+        "description": "요약 응답 중 user 부분 (post_count 등 추가 필드 포함 가능)."
+      }
+    },
+    "responses": {
+      "UNAUTHORIZED": {
+        "description": "인증이 필요하거나 토큰이 유효하지 않습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "VALIDATION_ERROR": {
+        "description": "입력 값이 유효하지 않습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "FORBIDDEN": {
+        "description": "권한이 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "NOT_FOUND": {
+        "description": "리소스를 찾을 수 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "INTERNAL_ERROR": {
+        "description": "서버 내부 오류가 발생했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "OUT_OF_RANGE": {
+        "description": "값이 허용 범위를 벗어났습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "INVALID_STATE": {
+        "description": "현재 상태에서는 수행할 수 없는 작업입니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "RANGE_TOO_LARGE": {
+        "description": "조회 범위가 너무 큽니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "INVALID_QUERY_COMBINATION": {
+        "description": "잘못된 쿼리 파라미터 조합입니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "RATE_LIMIT_EXCEEDED": {
+        "description": "요청이 너무 많습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "IDEMPOTENCY_CONFLICT": {
+        "description": "중복 Idempotency 요청이 감지되었습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "IDEMPOTENCY_KEY_REUSED_DIFFERENT_BODY": {
+        "description": "동일 키로 다른 요청 본문이 전송되었습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "FETCH_FAILED": {
+        "description": "조회 처리 중 오류가 발생했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "RECORD_CREATION_FAILED": {
+        "description": "생성 처리 중 오류가 발생했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "UPDATE_FAILED": {
+        "description": "수정 처리 중 오류가 발생했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "DELETE_FAILED": {
+        "description": "삭제 처리 중 오류가 발생했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "SERVICE_UNAVAILABLE": {
+        "description": "서비스를 현재 사용할 수 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "FIRESTORE_UNAVAILABLE": {
+        "description": "데이터베이스(Cloud Firestore)에 일시적으로 연결할 수 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_IMAGE_MISSING": {
+        "description": "필수 생체 이미지 파일이 누락되었습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_INVALID_IMAGE": {
+        "description": "업로드된 이미지가 유효하지 않거나 읽을 수 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_ALREADY_VERIFIED": {
+        "description": "이미 해당 반려동물에 대해 생체 정보가 검증되었습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_DUPLICATE_CANDIDATE": {
+        "description": "유사한 생체 후보 데이터가 이미 존재합니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_PROCESSING_FAILED": {
+        "description": "생체 이미지 처리에 실패했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "BIO_ALREADY_PROCESSED": {
+        "description": "이 생체 이미지는 이미 처리되었습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "PET_LIMIT_REACHED": {
+        "description": "등록 가능한 반려동물 수 한도를 초과했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "NOSE_PRINT_DUPLICATE": {
+        "description": "이미 등록된 비문과 중복됩니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "INVALID_STATE_FOR_CANCEL": {
+        "description": "현재 상태에서는 작업을 취소할 수 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "JOB_NOT_FOUND_OR_FORBIDDEN": {
+        "description": "작업을 찾을 수 없거나 권한이 없습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "DUPLICATE_RECORD": {
+        "description": "이미 해당 날짜에 동일한 기록이 존재합니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      },
+      "STORAGE_QUOTA_EXCEEDED": {
+        "description": "저장소 할당량을 초과했습니다.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseSchema"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Provide the access token as: Bearer <token>"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Development"
+    },
+    {
+      "url": "https://api.happydog.com/api",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth"
+    },
+    {
+      "name": "breeds"
+    },
+    {
+      "name": "cartoon-jobs"
+    },
+    {
+      "name": "comments"
+    },
+    {
+      "name": "health"
+    },
+    {
+      "name": "notifications"
+    },
+    {
+      "name": "pet-care"
+    },
+    {
+      "name": "pets"
+    },
+    {
+      "name": "posts"
+    },
+    {
+      "name": "uploads"
+    },
+    {
+      "name": "users"
+    }
+  ]
+}

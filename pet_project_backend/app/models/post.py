@@ -2,13 +2,14 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from app.utils.datetime_utils import DateTimeUtils
 
 @dataclass
 class Author:
     """Post 문서 내부에 저장될 작성자 정보."""
     user_id: str
     nickname: str
-    profile_image_url: Optional[str] = None
+    # profile_image_url는 Pet 정보에서 가져오도록 변경됨
 
 @dataclass
 class PetInfo:
@@ -17,6 +18,7 @@ class PetInfo:
     name: str
     breed: str
     birthdate: datetime
+    profile_image_url: Optional[str] = None  # Pet 프로필 이미지 추가
 
 @dataclass
 class Post:
@@ -30,5 +32,5 @@ class Post:
     text: str
     like_count: int = 0
     comment_count: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=DateTimeUtils.now)
+    updated_at: datetime = field(default_factory=DateTimeUtils.now)

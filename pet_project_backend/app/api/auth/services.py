@@ -7,33 +7,73 @@ from dataclasses import asdict
 from firebase_admin import firestore, auth as firebase_auth
 from flask import Flask
 from app.models.user import User
+from dataclasses import fields as dataclass_fields
+from app.utils.datetime_utils import DateTimeUtils, for_firestore
 
 class AuthService:
-    def __init__(self):
-        self.db = None
-        self.users_ref = None
-        self.revoked_tokens_ref = None
+    def __init__(self, db_client=None):
+        self.db = db_client
+        if self.db is None:
+            self.users_ref = None
+            self.revoked_tokens_ref = None
+        else:
+            self.users_ref = self.db.collection('users')
+            self.revoked_tokens_ref = self.db.collection('revoked_tokens')
         self.app: Optional[Flask] = None
 
     def init_app(self, app: Flask):
-        """앱 초기화 과정에서 호출되어 DB 연결 및 앱 컨텍스트를 설정합니다."""
-        self.db = firestore.client()
-        self.users_ref = self.db.collection('users')
-        self.revoked_tokens_ref = self.db.collection('revoked_tokens')
+        """앱 초기화 과정에서 호출되어 JWT 콜백만 등록합니다 (DI된 db 사용)."""
         self.app = app
+        if self.db is not None:
+            self._register_jwt_callbacks(app)
+            logging.info("AuthService initialized with injected Firestore client and JWT integration")
+        else:
+            logging.info("AuthService initialized without Firestore client (no-op for persistence)")
+
+    def _register_jwt_callbacks(self, app: Flask):
+        """Register JWT token blocklist callbacks with Flask-JWT-Extended."""
+        try:
+            from flask_jwt_extended import JWTManager
+            jwt_manager = app.extensions.get('flask-jwt-extended')
+            if jwt_manager:
+                # Register token revocation check callback
+                @jwt_manager.token_in_blocklist_loader
+                def check_if_token_revoked(jwt_header, jwt_payload):
+                    return self.is_token_revoked(jwt_payload)
+                logging.info("JWT token blocklist callback registered successfully")
+        except ImportError:
+            logging.warning("Flask-JWT-Extended not available for token blocklist integration")
+        except Exception as e:
+            logging.error(f"Failed to register JWT callbacks: {e}")
 
     def get_or_create_user_by_google(self, google_user_info: dict) -> Tuple[User, bool]:
         google_id = google_user_info.get('sub')
         if not google_id:
             raise ValueError("Google user info must contain 'sub' (google_id).")
-
+        if self.users_ref is None:
+            # Return synthetic user (not persisted) in docs mode / no DB context
+            synthetic_user = User(
+                user_id=str(uuid.uuid4()),
+                google_id=google_id,
+                email=google_user_info.get('email'),
+                nickname=google_user_info.get('name'),
+                join_date=DateTimeUtils.now(),
+                notification_unread_count=0
+            )
+            return synthetic_user, True
         query = self.users_ref.where('google_id', '==', google_id).limit(1).stream()
         user_doc = next(query, None)
 
         if user_doc:
             is_new_user = False
-            user_data = user_doc.to_dict()
-            user = User(**user_data)
+            user_data = user_doc.to_dict() or {}
+            # User 데이터클래스에 정의된 필드만 선별 (예상치 못한 필드로 인한 __init__ 오류 방지)
+            allowed = {f.name for f in dataclass_fields(User)}
+            filtered = {k: v for k, v in user_data.items() if k in allowed}
+            # 누락 가능 기본 필드 보정
+            if 'notification_unread_count' not in filtered:
+                filtered['notification_unread_count'] = 0
+            user = User(**filtered)
             return user, is_new_user
         else:
             is_new_user = True
@@ -43,20 +83,25 @@ class AuthService:
                 google_id=google_id,
                 email=google_user_info.get('email'),
                 nickname=google_user_info.get('name'),
-                join_date=datetime.now(),
-                profile_image_url=None # 최초 가입 시 프로필 이미지는 없음
+                join_date=DateTimeUtils.now()
             )
-            self.users_ref.document(user_id).set(asdict(new_user))
+            # Firestore 호환 변환 후 저장
+            user_data = DateTimeUtils.for_firestore(asdict(new_user))
+            self.users_ref.document(user_id).set(user_data)
             return new_user, is_new_user
 
     # --- Blocklist 관련 로직 ---
     def add_token_to_blocklist(self, jti: str, expires: datetime):
         """전달받은 토큰의 jti를 만료 시간과 함께 Firestore에 저장합니다."""
+        if self.revoked_tokens_ref is None:
+            return
         try:
-            self.revoked_tokens_ref.document(jti).set({
-                'revoked_at': datetime.now(),
+            token_data = {
+                'revoked_at': DateTimeUtils.now(),
                 'expires_at': expires
-            })
+            }
+            token_data = DateTimeUtils.for_firestore(token_data)
+            self.revoked_tokens_ref.document(jti).set(token_data)
         except Exception as e:
             logging.error(f"Blocklist 토큰 추가 실패 (jti: {jti}): {e}")
 
@@ -64,6 +109,8 @@ class AuthService:
     def is_token_revoked(self, jwt_payload: dict) -> bool:
         """jti를 이용해 해당 토큰이 무효화 목록에 있는지 확인합니다."""
         jti = jwt_payload['jti']
+        if self.revoked_tokens_ref is None:
+            return False
         doc = self.revoked_tokens_ref.document(jti).get()
         return doc.exists
 
@@ -75,20 +122,7 @@ class AuthService:
         self.add_token_to_blocklist(refresh_jti, refresh_expires)
         logging.info(f"사용자 로그아웃 처리 완료. JTI: {access_jti[:8]}..., {refresh_jti[:8]}...")
 
-
-    # --- 프로필 이미지 업데이트 로직 ---
-    def update_profile_image(self, user_id: str, image_url: str) -> Optional[Dict[str, Any]]:
-        """사용자의 프로필 이미지 URL을 업데이트합니다."""
-        try:
-            user_ref = self.users_ref.document(user_id)
-            user_ref.update({'profile_image_url': image_url})
-            updated_doc = user_ref.get()
-            if updated_doc.exists:
-                return updated_doc.to_dict()
-            return None
-        except Exception as e:
-            logging.error(f"프로필 이미지 업데이트 실패 (user_id: {user_id}): {e}")
-            raise
+    # update_profile_image 메소드 제거됨 - 프로필 이미지는 Pet 테이블에서 관리
 
     # --- 회원 탈퇴 로직 ---
     def delete_user_account(self, user_id: str):
@@ -105,4 +139,5 @@ class AuthService:
             # 이 경우, DB나 Storage의 데이터가 남을 수 있으므로 심각한 오류입니다.
             raise
 
-auth_service = AuthService()
+# ❌ Remove singleton pattern - services should be registered in DI container
+# auth_service = AuthService()

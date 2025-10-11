@@ -1,0 +1,3214 @@
+{
+  "아펜핀셔": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 25.9,
+      "female": 22.0
+    },
+    "Weight (kg)": {
+      "male": 3.9,
+      "female": 3.3
+    }
+  },
+  "아프간 하운드": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 56.1
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "에어데일 테리어": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 49.6
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "아키타": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 52.2,
+      "female": 38.6
+    }
+  },
+  "알래스칸 클리 카이": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 36.8,
+      "female": 31.3
+    },
+    "Weight (kg)": {
+      "male": 7.0,
+      "female": 6.0
+    }
+  },
+  "알래스칸 맬러뮤트": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 38.6,
+      "female": 34.0
+    }
+  },
+  "아메리칸 불도그": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 59.7,
+      "female": 50.7
+    },
+    "Weight (kg)": {
+      "male": 39.7,
+      "female": 33.7
+    }
+  },
+  "아메리칸 잉글리시 쿤하운드": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "아메리칸 에스키모 도그": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 22.7
+    },
+    "Weight (kg)": {
+      "male": 3.6,
+      "female": 3.1
+    }
+  },
+  "아메리칸 폭스하운드": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 59.7,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 28.3
+    }
+  },
+  "아메리칸 헤어리스 테리어": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 9.1,
+      "female": 7.7
+    }
+  },
+  "아메리칸 레오파드 하운드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 49.6
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "아메리칸 스태퍼드셔 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 44.5
+    },
+    "Weight (kg)": {
+      "male": 28.3,
+      "female": 21.5
+    }
+  },
+  "아메리칸 워터 스패니얼": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 41.9,
+      "female": 35.6
+    },
+    "Weight (kg)": {
+      "male": 17.0,
+      "female": 14.7
+    }
+  },
+  "아나톨리안 셰퍼드 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 73.7,
+      "female": 68.6
+    },
+    "Weight (kg)": {
+      "male": 59.0,
+      "female": 45.4
+    }
+  },
+  "아펜젤러 세넨훈드": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 53.3,
+      "female": 45.3
+    },
+    "Weight (kg)": {
+      "male": 26.8,
+      "female": 22.8
+    }
+  },
+  "오스트레일리안 캐틀 도그": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "오스트레일리안 켈피": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 39.9
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "오스트레일리안 셰퍼드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 49.5
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 21.5
+    }
+  },
+  "오스트레일리안 스텀피 테일 캐틀 도그": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 18.8,
+      "female": 16.0
+    }
+  },
+  "오스트레일리안 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 22.7
+    },
+    "Weight (kg)": {
+      "male": 7.9,
+      "female": 6.7
+    }
+  },
+  "아자와크": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 64.8
+    },
+    "Weight (kg)": {
+      "male": 22.5,
+      "female": 17.5
+    }
+  },
+  "바르바도 다 테르세이라": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 25.9
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "바베트": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 55.4,
+      "female": 47.1
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "바센지": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 43.2,
+      "female": 40.6
+    },
+    "Weight (kg)": {
+      "male": 10.9,
+      "female": 10.0
+    }
+  },
+  "바셋 포브 드 브르타뉴": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 14.1,
+      "female": 12.0
+    }
+  },
+  "바셋 하운드": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 32.4
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 20.2
+    }
+  },
+  "바바리안 마운틴 센트 하운드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 47.8,
+      "female": 40.6
+    },
+    "Weight (kg)": {
+      "male": 23.4,
+      "female": 19.9
+    }
+  },
+  "비글": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 9.1,
+      "female": 7.7
+    }
+  },
+  "비어디드 콜리": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 52.1
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "보스롱": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 64.0
+    },
+    "Weight (kg)": {
+      "male": 40.8,
+      "female": 34.7
+    }
+  },
+  "베들링턴 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 41.1,
+      "female": 34.9
+    },
+    "Weight (kg)": {
+      "male": 9.1,
+      "female": 7.7
+    }
+  },
+  "벨지안 라케노이즈": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "벨지안 말리노이즈": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 31.8,
+      "female": 22.7
+    }
+  },
+  "벨지안 시프도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 29.5,
+      "female": 23.8
+    }
+  },
+  "벨지안 테뷰런": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 29.5,
+      "female": 23.8
+    }
+  },
+  "베르가마스코 시프도그": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 59.7,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 34.9,
+      "female": 29.0
+    }
+  },
+  "베르제 피카르": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "버니즈 마운틴 도그": {
+    "Life Expectancy": 8.5,
+    "Height (cm)": {
+      "male": 66.5,
+      "female": 62.2
+    },
+    "Weight (kg)": {
+      "male": 44.2,
+      "female": 37.4
+    }
+  },
+  "비숑 프리제": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 22.7
+    },
+    "Weight (kg)": {
+      "male": 6.8,
+      "female": 5.8
+    }
+  },
+  "비버 테리어": {
+    "Life Expectancy": 16,
+    "Height (cm)": {
+      "male": 22.9,
+      "female": 19.5
+    },
+    "Weight (kg)": {
+      "male": 2.7,
+      "female": 2.3
+    }
+  },
+  "블랙 앤 탄 쿤하운드": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 39.7,
+      "female": 33.7
+    }
+  },
+  "블랙 러시안 테리어": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 72.4,
+      "female": 69.8
+    },
+    "Weight (kg)": {
+      "male": 47.6,
+      "female": 40.5
+    }
+  },
+  "블러드하운드": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 45.4,
+      "female": 40.8
+    }
+  },
+  "블루 피카르디 스패니얼": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 47.5
+    },
+    "Weight (kg)": {
+      "male": 21.5,
+      "female": 18.3
+    }
+  },
+  "블루틱 쿤하운드": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 24.9
+    }
+  },
+  "보어보엘": {
+    "Life Expectancy": 10.0,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 59.7
+    },
+    "Weight (kg)": {
+      "male": 79.4,
+      "female": 67.5
+    }
+  },
+  "보헤미안 셰퍼드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 53.6,
+      "female": 45.6
+    },
+    "Weight (kg)": {
+      "male": 22.9,
+      "female": 19.5
+    }
+  },
+  "볼로네즈": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 3.6,
+      "female": 3.1
+    }
+  },
+  "보더 콜리": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 52.1,
+      "female": 49.5
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "보더 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 34.3,
+      "female": 29.2
+    },
+    "Weight (kg)": {
+      "male": 6.4,
+      "female": 5.8
+    }
+  },
+  "보르조이": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 71.1,
+      "female": 66.0
+    },
+    "Weight (kg)": {
+      "male": 40.8,
+      "female": 32.9
+    }
+  },
+  "보스턴 테리어": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 8.4,
+      "female": 7.1
+    }
+  },
+  "부비에 데 아르덴": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 58.9,
+      "female": 50.1
+    },
+    "Weight (kg)": {
+      "male": 31.5,
+      "female": 26.8
+    }
+  },
+  "부비에 데 플랑드르": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 40.8,
+      "female": 34.7
+    }
+  },
+  "복서": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 28.0
+    }
+  },
+  "보이킨 스패니얼": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 42.7,
+      "female": 38.6
+    },
+    "Weight (kg)": {
+      "male": 15.9,
+      "female": 13.6
+    }
+  },
+  "브라코 이탈리아노": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 28.0
+    }
+  },
+  "브라크 뒤 부르보네": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 52.8,
+      "female": 44.9
+    },
+    "Weight (kg)": {
+      "male": 20.0,
+      "female": 17.0
+    }
+  },
+  "브라크 프랑세 피레니언": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 52.8,
+      "female": 44.9
+    },
+    "Weight (kg)": {
+      "male": 21.5,
+      "female": 18.3
+    }
+  },
+  "브라크 생 제르맹": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 47.5
+    },
+    "Weight (kg)": {
+      "male": 22.2,
+      "female": 18.9
+    }
+  },
+  "브라질리언 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 35.3,
+      "female": 30.0
+    },
+    "Weight (kg)": {
+      "male": 10.0,
+      "female": 8.5
+    }
+  },
+  "브리아드": {
+    "Life Expectancy": 12,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 60.5
+    },
+    "Weight (kg)": {
+      "male": 35.2,
+      "female": 29.9
+    }
+  },
+  "브리트니": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 15.9,
+      "female": 13.5
+    }
+  },
+  "브로홀머": {
+    "Life Expectancy": 9.0,
+    "Height (cm)": {
+      "male": 72.4,
+      "female": 61.5
+    },
+    "Weight (kg)": {
+      "male": 54.4,
+      "female": 46.2
+    }
+  },
+  "브뤼셀 그리펀": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 21.6,
+      "female": 18.4
+    },
+    "Weight (kg)": {
+      "male": 4.1,
+      "female": 3.5
+    }
+  },
+  "불테리어": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "불도그": {
+    "Life Expectancy": 9.0,
+    "Height (cm)": {
+      "male": 36.8,
+      "female": 31.3
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 18.1
+    }
+  },
+  "불마스티프": {
+    "Life Expectancy": 8.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 54.4,
+      "female": 49.9
+    }
+  },
+  "케언 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 24.1
+    },
+    "Weight (kg)": {
+      "male": 6.4,
+      "female": 5.9
+    }
+  },
+  "칼루포": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 57.2
+    },
+    "Weight (kg)": {
+      "male": 38.6,
+      "female": 32.8
+    }
+  },
+  "가나안 도그": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 53.3
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 18.1
+    }
+  },
+  "캐네디언 에스키모 도그": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 64.0,
+      "female": 54.4
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "케인 코르소": {
+    "Life Expectancy": 10.5,
+    "Height (cm)": {
+      "male": 66.5,
+      "female": 63.0
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "카디건 웰시 코기": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 29.2,
+      "female": 24.8
+    },
+    "Weight (kg)": {
+      "male": 15.4,
+      "female": 13.4
+    }
+  },
+  "캐롤라이나 도그": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 47.2,
+      "female": 40.1
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "카타훌라 레오파드 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 49.6
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 28.0
+    }
+  },
+  "코카시안 셰퍼드 도그": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 57.2
+    },
+    "Weight (kg)": {
+      "male": 61.0,
+      "female": 51.9
+    }
+  },
+  "카발리에 킹 찰스 스패니얼": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 31.8,
+      "female": 27.0
+    },
+    "Weight (kg)": {
+      "male": 7.0,
+      "female": 6.0
+    }
+  },
+  "센트럴 아시안 셰퍼드 도그": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 57.2
+    },
+    "Weight (kg)": {
+      "male": 44.9,
+      "female": 38.2
+    }
+  },
+  "체스키 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 29.2,
+      "female": 24.8
+    },
+    "Weight (kg)": {
+      "male": 8.6,
+      "female": 7.3
+    }
+  },
+  "체서피크 베이 리트리버": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 28.3
+    }
+  },
+  "치와와": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 16.5,
+      "female": 14.0
+    },
+    "Weight (kg)": {
+      "male": 2.7,
+      "female": 2.3
+    }
+  },
+  "차이니즈 크레스티드": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 25.9
+    },
+    "Weight (kg)": {
+      "male": 4.5,
+      "female": 3.8
+    }
+  },
+  "차이니즈 샤페이": {
+    "Life Expectancy": 10.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 20.2
+    }
+  },
+  "치누크": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 26.1
+    }
+  },
+  "차우차우": {
+    "Life Expectancy": 10.0,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 39.9
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "치르네코 델레트나": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 10.9,
+      "female": 10.0
+    }
+  },
+  "클럼버 스패니얼": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 35.2,
+      "female": 28.3
+    }
+  },
+  "코커 스패니얼": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 35.6
+    },
+    "Weight (kg)": {
+      "male": 12.5,
+      "female": 10.2
+    }
+  },
+  "콜리": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 26.1
+    }
+  },
+  "꼬똥 드 툴레아": {
+    "Life Expectancy": 17.0,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 24.1
+    },
+    "Weight (kg)": {
+      "male": 5.4,
+      "female": 4.8
+    }
+  },
+  "크로아티안 시프도그": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 16.6,
+      "female": 14.1
+    }
+  },
+  "컬리 코티드 리트리버": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 35.2,
+      "female": 29.9
+    }
+  },
+  "체코슬로바키안 울프독": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 55.1
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "닥스훈트": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 14.0,
+      "female": 11.9
+    },
+    "Weight (kg)": {
+      "male": 5.0,
+      "female": 4.2
+    }
+  },
+  "달마티안": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "댄디 딘몬트 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 9.5,
+      "female": 8.1
+    }
+  },
+  "데니쉬-스웨디쉬 팜도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 34.3,
+      "female": 29.2
+    },
+    "Weight (kg)": {
+      "male": 7.9,
+      "female": 6.7
+    }
+  },
+  "도이처 바텔훈트": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 49.5,
+      "female": 42.1
+    },
+    "Weight (kg)": {
+      "male": 21.5,
+      "female": 18.3
+    }
+  },
+  "도베르만 핀셔": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 39.7,
+      "female": 34.0
+    }
+  },
+  "도고 아르젠티노": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 64.0,
+      "female": 63.0
+    },
+    "Weight (kg)": {
+      "male": 40.8,
+      "female": 34.7
+    }
+  },
+  "도그 드 보르도": {
+    "Life Expectancy": 6.5,
+    "Height (cm)": {
+      "male": 59.2,
+      "female": 62.2
+    },
+    "Weight (kg)": {
+      "male": 49.9,
+      "female": 44.9
+    }
+  },
+  "드렌츠 파트리즈숀": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "드레버": {
+    "Life Expectancy": 15,
+    "Height (cm)": {
+      "male": 34.3,
+      "female": 29.2
+    },
+    "Weight (kg)": {
+      "male": 17.0,
+      "female": 14.4
+    }
+  },
+  "더치 셰퍼드": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 49.6
+    },
+    "Weight (kg)": {
+      "male": 26.5,
+      "female": 22.5
+    }
+  },
+  "잉글리시 코커 스패니얼": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 41.9,
+      "female": 39.4
+    },
+    "Weight (kg)": {
+      "male": 14.1,
+      "female": 13.2
+    }
+  },
+  "잉글리시 폭스하운드": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 26.0
+    }
+  },
+  "잉글리시 세터": {
+    "Life Expectancy": 12,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 22.7
+    }
+  },
+  "잉글리시 스프링어 스패니얼": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 48.3
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 18.1
+    }
+  },
+  "잉글리시 토이 스패니얼": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 5.0,
+      "female": 4.2
+    }
+  },
+  "엔틀부쳐 마운틴 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 21.5
+    }
+  },
+  "에스트렐라 마운틴 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 68.1,
+      "female": 57.9
+    },
+    "Weight (kg)": {
+      "male": 47.4,
+      "female": 40.3
+    }
+  },
+  "유라시어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "필드 스패니얼": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "피니시 라프훈트": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 49.5,
+      "female": 44.5
+    },
+    "Weight (kg)": {
+      "male": 19.5,
+      "female": 16.6
+    }
+  },
+  "피니시 스피츠": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 47.8,
+      "female": 42.7
+    },
+    "Weight (kg)": {
+      "male": 13.2,
+      "female": 10.9
+    }
+  },
+  "플랫 코티드 리트리버": {
+    "Life Expectancy": 9.0,
+    "Height (cm)": {
+      "male": 60.5,
+      "female": 57.9
+    },
+    "Weight (kg)": {
+      "male": 29.5,
+      "female": 25.1
+    }
+  },
+  "프렌치 불도그": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 25.9
+    },
+    "Weight (kg)": {
+      "male": 12.7,
+      "female": 10.8
+    }
+  },
+  "프렌치 스패니얼": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 57.9,
+      "female": 49.2
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "저먼 롱헤어드 포인터": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 54.0
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 26.0
+    }
+  },
+  "저먼 핀셔": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 39.9
+    },
+    "Weight (kg)": {
+      "male": 15.9,
+      "female": 13.5
+    }
+  },
+  "저먼 셰퍼드 도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 58.4
+    },
+    "Weight (kg)": {
+      "male": 35.2,
+      "female": 27.2
+    }
+  },
+  "저먼 쇼트헤어드 포인터": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 28.3,
+      "female": 23.8
+    }
+  },
+  "저먼 스피츠": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "저먼 와이어헤어드 포인터": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "자이언트 슈나우저": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 62.2
+    },
+    "Weight (kg)": {
+      "male": 38.6,
+      "female": 30.6
+    }
+  },
+  "글렌 오브 이말 테리어": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 33.5,
+      "female": 28.5
+    },
+    "Weight (kg)": {
+      "male": 16.3,
+      "female": 13.9
+    }
+  },
+  "골든 리트리버": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 59.7,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 31.8,
+      "female": 27.2
+    }
+  },
+  "고든 세터": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 62.2
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 26.1
+    }
+  },
+  "그랑 바셋 그리펀 벤딘": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 42.7,
+      "female": 36.3
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "그레이트 데인": {
+    "Life Expectancy": 8.5,
+    "Height (cm)": {
+      "male": 78.7,
+      "female": 73.7
+    },
+    "Weight (kg)": {
+      "male": 71.4,
+      "female": 56.7
+    }
+  },
+  "그레이트 피레니즈": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 74.9,
+      "female": 68.6
+    },
+    "Weight (kg)": {
+      "male": 45.4,
+      "female": 38.6
+    }
+  },
+  "그레이터 스위스 마운틴 도그": {
+    "Life Expectancy": 9.5,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 64.5
+    },
+    "Weight (kg)": {
+      "male": 57.8,
+      "female": 44.2
+    }
+  },
+  "그레이하운드": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 73.7,
+      "female": 69.8
+    },
+    "Weight (kg)": {
+      "male": 30.6,
+      "female": 28.3
+    }
+  },
+  "해밀턴스토바레": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "하노버리안 센트하운드": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 40.4,
+      "female": 34.3
+    }
+  },
+  "해리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 20.2
+    }
+  },
+  "하바니즈": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 4.5,
+      "female": 3.8
+    }
+  },
+  "홋카이도": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "호바와트": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 55.1
+    },
+    "Weight (kg)": {
+      "male": 35.2,
+      "female": 29.9
+    }
+  },
+  "이비잔 하운드": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 61.5
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 20.4
+    }
+  },
+  "아이슬란딕 시프도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 41.9
+    },
+    "Weight (kg)": {
+      "male": 13.6,
+      "female": 11.3
+    }
+  },
+  "아이리시 레드 앤 화이트 세터": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 64.0,
+      "female": 58.9
+    },
+    "Weight (kg)": {
+      "male": 23.1,
+      "female": 19.3
+    }
+  },
+  "아이리시 세터": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 31.8,
+      "female": 27.2
+    }
+  },
+  "아이리시 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 12.2,
+      "female": 11.3
+    }
+  },
+  "아이리시 워터 스패니얼": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 27.9,
+      "female": 23.4
+    }
+  },
+  "아이리시 울프하운드": {
+    "Life Expectancy": 7.0,
+    "Height (cm)": {
+      "male": 81.3,
+      "female": 76.2
+    },
+    "Weight (kg)": {
+      "male": 54.4,
+      "female": 47.6
+    }
+  },
+  "이탈리안 그레이하운드": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 4.8,
+      "female": 4.1
+    }
+  },
+  "야크트테리어": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 36.8,
+      "female": 31.3
+    },
+    "Weight (kg)": {
+      "male": 8.8,
+      "female": 7.5
+    }
+  },
+  "재패니즈 아키타이누": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.5,
+      "female": 60.5
+    },
+    "Weight (kg)": {
+      "male": 31.8,
+      "female": 27.2
+    }
+  },
+  "재패니즈 친": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 4.1,
+      "female": 3.5
+    }
+  },
+  "재패니즈 스피츠": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 34.3,
+      "female": 29.2
+    },
+    "Weight (kg)": {
+      "male": 7.9,
+      "female": 6.7
+    }
+  },
+  "재패니즈 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 29.2,
+      "female": 24.8
+    },
+    "Weight (kg)": {
+      "male": 5.0,
+      "female": 4.2
+    }
+  },
+  "카이 켄": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "카렐리안 베어 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 53.8,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 21.1,
+      "female": 17.9
+    }
+  },
+  "키스혼드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "케리 블루 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 47.8,
+      "female": 46.2
+    },
+    "Weight (kg)": {
+      "male": 16.6,
+      "female": 14.1
+    }
+  },
+  "키슈 켄": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 52.1,
+      "female": 44.3
+    },
+    "Weight (kg)": {
+      "male": 20.4,
+      "female": 17.3
+    }
+  },
+  "코몬도르": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 69.8,
+      "female": 64.8
+    },
+    "Weight (kg)": {
+      "male": 45.4,
+      "female": 36.3
+    }
+  },
+  "진돗개": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 52.1,
+      "female": 44.3
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "크롬포랜더": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 41.9,
+      "female": 35.6
+    },
+    "Weight (kg)": {
+      "male": 12.5,
+      "female": 10.6
+    }
+  },
+  "쿠바츠": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 73.7,
+      "female": 68.6
+    },
+    "Weight (kg)": {
+      "male": 48.8,
+      "female": 36.3
+    }
+  },
+  "래브라도 리트리버": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 59.7,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 32.9,
+      "female": 28.3
+    }
+  },
+  "라고토 로마뇰로": {
+    "Life Expectancy": 16.0,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 14.4,
+      "female": 12.5
+    }
+  },
+  "레이클랜드 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 37.6,
+      "female": 32.0
+    },
+    "Weight (kg)": {
+      "male": 7.7,
+      "female": 6.5
+    }
+  },
+  "랭커셔 힐러": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 5.9,
+      "female": 5.0
+    }
+  },
+  "라포니안 허더": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 31.8,
+      "female": 27.0
+    }
+  },
+  "라지 먼스터랜더": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 63.0,
+      "female": 53.5
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "레온베르거": {
+    "Life Expectancy": 7,
+    "Height (cm)": {
+      "male": 75.7,
+      "female": 69.8
+    },
+    "Weight (kg)": {
+      "male": 63.5,
+      "female": 52.2
+    }
+  },
+  "라사 압소": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 22.7
+    },
+    "Weight (kg)": {
+      "male": 6.8,
+      "female": 5.8
+    }
+  },
+  "뢰첸": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 33.0,
+      "female": 28.1
+    },
+    "Weight (kg)": {
+      "male": 6.8,
+      "female": 5.8
+    }
+  },
+  "말티즈": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 20.3,
+      "female": 17.3
+    },
+    "Weight (kg)": {
+      "male": 3.2,
+      "female": 2.7
+    }
+  },
+  "맨체스터 테리어 (스탠더드)": {
+    "Life Expectancy": 16.0,
+    "Height (cm)": {
+      "male": 39.4,
+      "female": 33.5
+    },
+    "Weight (kg)": {
+      "male": 7.7,
+      "female": 6.5
+    }
+  },
+  "맨체스터 테리어 (토이)": {
+    "Life Expectancy": 16.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 5.4,
+      "female": 4.6
+    }
+  },
+  "마스티프": {
+    "Life Expectancy": 8.0,
+    "Height (cm)": {
+      "male": 76.2,
+      "female": 69.8
+    },
+    "Weight (kg)": {
+      "male": 88.5,
+      "female": 65.8
+    }
+  },
+  "미니어처 아메리칸 셰퍼드": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 40.6,
+      "female": 38.1
+    },
+    "Weight (kg)": {
+      "male": 13.6,
+      "female": 11.6
+    }
+  },
+  "미니어처 불테리어": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 25.9
+    },
+    "Weight (kg)": {
+      "male": 10.4,
+      "female": 8.8
+    }
+  },
+  "미니어처 핀셔": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 28.4,
+      "female": 24.1
+    },
+    "Weight (kg)": {
+      "male": 4.1,
+      "female": 3.5
+    }
+  },
+  "미니어처 슈나우저": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 33.0,
+      "female": 28.1
+    },
+    "Weight (kg)": {
+      "male": 7.0,
+      "female": 6.0
+    }
+  },
+  "마운틴 커": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 20.4,
+      "female": 17.3
+    }
+  },
+  "무디": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 42.7,
+      "female": 36.3
+    },
+    "Weight (kg)": {
+      "male": 10.7,
+      "female": 9.1
+    }
+  },
+  "나폴리탄 마스티프": {
+    "Life Expectancy": 8.0,
+    "Height (cm)": {
+      "male": 72.4,
+      "female": 67.3
+    },
+    "Weight (kg)": {
+      "male": 68.0,
+      "female": 49.9
+    }
+  },
+  "네덜란드 코이커혼드예": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 32.4
+    },
+    "Weight (kg)": {
+      "male": 11.3,
+      "female": 9.6
+    }
+  },
+  "뉴펀들랜드": {
+    "Life Expectancy": 9.5,
+    "Height (cm)": {
+      "male": 71.1,
+      "female": 60.4
+    },
+    "Weight (kg)": {
+      "male": 63.5,
+      "female": 49.9
+    }
+  },
+  "노퍽 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 5.2,
+      "female": 4.4
+    }
+  },
+  "노르보텐스피츠": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 43.7,
+      "female": 37.1
+    },
+    "Weight (kg)": {
+      "male": 11.3,
+      "female": 9.6
+    }
+  },
+  "노르웨이언 부훈트": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 45.2,
+      "female": 42.7
+    },
+    "Weight (kg)": {
+      "male": 16.1,
+      "female": 13.8
+    }
+  },
+  "노르웨이언 엘크하운드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 52.1,
+      "female": 49.5
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.8
+    }
+  },
+  "노르웨이언 룬데훈트": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 33.0
+    },
+    "Weight (kg)": {
+      "male": 7.5,
+      "female": 6.1
+    }
+  },
+  "노리치 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 5.4,
+      "female": 4.6
+    }
+  },
+  "노바 스코샤 덕 톨링 리트리버": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 49.5,
+      "female": 47.0
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 16.4
+    }
+  },
+  "올드 잉글리시 시프도그": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 53.3
+    },
+    "Weight (kg)": {
+      "male": 36.3,
+      "female": 30.9
+    }
+  },
+  "오터하운드": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 52.2,
+      "female": 36.3
+    }
+  },
+  "빠삐용": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 3.4,
+      "female": 2.9
+    }
+  },
+  "파슨 러셀 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 33.0
+    },
+    "Weight (kg)": {
+      "male": 6.8,
+      "female": 5.8
+    }
+  },
+  "페키니즈": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 19.1,
+      "female": 16.2
+    },
+    "Weight (kg)": {
+      "male": 6.4,
+      "female": 5.4
+    }
+  },
+  "펨브록 웰시 코기": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 13.6,
+      "female": 12.7
+    }
+  },
+  "페루비안 잉카 오키드": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 32.5,
+      "female": 27.6
+    },
+    "Weight (kg)": {
+      "male": 5.9,
+      "female": 5.0
+    }
+  },
+  "프티 바셋 그리펀 벤딘": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 14.7,
+      "female": 12.5
+    }
+  },
+  "파라오 하운드": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "플롯 하운드": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 57.1,
+      "female": 54.6
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.5
+    }
+  },
+  "포인터": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 67.3,
+      "female": 62.2
+    },
+    "Weight (kg)": {
+      "male": 29.5,
+      "female": 24.9
+    }
+  },
+  "폴리시 로우랜드 시프도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "포메라니안": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 16.5,
+      "female": 14.0
+    },
+    "Weight (kg)": {
+      "male": 2.3,
+      "female": 2.0
+    }
+  },
+  "퐁토드메르 스패니얼": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 16.6,
+      "female": 14.1
+    }
+  },
+  "푸들 (미니어처)": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 31.8,
+      "female": 27.0
+    },
+    "Weight (kg)": {
+      "male": 5.7,
+      "female": 4.8
+    }
+  },
+  "푸들 (스탠더드)": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 32.4
+    },
+    "Weight (kg)": {
+      "male": 29.5,
+      "female": 25.1
+    }
+  },
+  "푸들 (토이)": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 2.3,
+      "female": 2.0
+    }
+  },
+  "포르셀렌": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 57.1,
+      "female": 48.5
+    },
+    "Weight (kg)": {
+      "male": 26.5,
+      "female": 22.5
+    }
+  },
+  "포르투갈 포덴고": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 54.0
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "포르투갈 포덴고 페케노": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 5.0,
+      "female": 4.2
+    }
+  },
+  "포르투갈 포인터": {
+    "Life Expectancy": 14,
+    "Height (cm)": {
+      "male": 53.8,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 21.3,
+      "female": 18.1
+    }
+  },
+  "포르투갈 시프도그": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 21.9,
+      "female": 18.6
+    }
+  },
+  "포르투갈 워터 도그": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 48.3
+    },
+    "Weight (kg)": {
+      "male": 23.1,
+      "female": 19.3
+    }
+  },
+  "프레사 카나리오": {
+    "Life Expectancy": 10.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": 44.0,
+      "female": 37.4
+    }
+  },
+  "푸델포인터": {
+    "Life Expectancy": 14,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "퍼그": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 29.2,
+      "female": 24.8
+    },
+    "Weight (kg)": {
+      "male": 7.3,
+      "female": 6.2
+    }
+  },
+  "풀리": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 43.2,
+      "female": 40.6
+    },
+    "Weight (kg)": {
+      "male": 13.6,
+      "female": 11.6
+    }
+  },
+  "푸미": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 43.7,
+      "female": 41.1
+    },
+    "Weight (kg)": {
+      "male": 12.7,
+      "female": 10.4
+    }
+  },
+  "피레니언 마스티프": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 73.7,
+      "female": 62.6
+    },
+    "Weight (kg)": {
+      "male": 70.3,
+      "female": 59.8
+    }
+  },
+  "피레니언 셰퍼드": {
+    "Life Expectancy": 18.0,
+    "Height (cm)": {
+      "male": 43.2,
+      "female": 36.7
+    },
+    "Weight (kg)": {
+      "male": 10.2,
+      "female": 8.7
+    }
+  },
+  "하페이루 두 알렌테주": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 58.3
+    },
+    "Weight (kg)": {
+      "male": 47.4,
+      "female": 40.3
+    }
+  },
+  "랫 테리어": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 29.2,
+      "female": 24.8
+    },
+    "Weight (kg)": {
+      "male": 7.9,
+      "female": 6.7
+    }
+  },
+  "레드본 쿤하운드": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 59.7
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "로디지안 리지백": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 63.5
+    },
+    "Weight (kg)": {
+      "male": 38.6,
+      "female": 31.8
+    }
+  },
+  "루마니안 카르파티안 셰퍼드": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 52.9
+    },
+    "Weight (kg)": {
+      "male": 38.6,
+      "female": 32.8
+    }
+  },
+  "루마니안 미오리티크 셰퍼드 도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 71.1,
+      "female": 60.4
+    },
+    "Weight (kg)": {
+      "male": 52.2,
+      "female": 44.4
+    }
+  },
+  "로트와일러": {
+    "Life Expectancy": 9.5,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 59.7
+    },
+    "Weight (kg)": {
+      "male": 52.2,
+      "female": 40.8
+    }
+  },
+  "러셀 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 5.4,
+      "female": 4.6
+    }
+  },
+  "러시안 토이": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 2.9,
+      "female": 2.5
+    }
+  },
+  "러시안 츠베트나야 볼롱카": {
+    "Life Expectancy": 17.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 3.4,
+      "female": 2.9
+    }
+  },
+  "세인트 버나드": {
+    "Life Expectancy": 9.0,
+    "Height (cm)": {
+      "male": 68.6,
+      "female": 58.3
+    },
+    "Weight (kg)": {
+      "male": 72.6,
+      "female": 59.0
+    }
+  },
+  "살루키": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 55.1
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 20.2
+    }
+  },
+  "사모예드": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 56.4,
+      "female": 50.8
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 19.3
+    }
+  },
+  "스하펜두스": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 18.4,
+      "female": 15.6
+    }
+  },
+  "시퍼키": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 27.9
+    },
+    "Weight (kg)": {
+      "male": 5.9,
+      "female": 5.0
+    }
+  },
+  "스코티시 디어하운드": {
+    "Life Expectancy": 9.5,
+    "Height (cm)": {
+      "male": 78.7,
+      "female": 71.1
+    },
+    "Weight (kg)": {
+      "male": 44.2,
+      "female": 38.6
+    }
+  },
+  "스코티시 테리어": {
+    "Life Expectancy": 12,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 9.3,
+      "female": 8.8
+    }
+  },
+  "실리햄 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 26.7,
+      "female": 22.7
+    },
+    "Weight (kg)": {
+      "male": 10.7,
+      "female": 9.1
+    }
+  },
+  "세구지오 이탈리아노": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 54.6,
+      "female": 46.4
+    },
+    "Weight (kg)": {
+      "male": 22.9,
+      "female": 19.5
+    }
+  },
+  "셔틀랜드 시프도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 36.8,
+      "female": 31.3
+    },
+    "Weight (kg)": {
+      "male": 9.1,
+      "female": 7.7
+    }
+  },
+  "시바 이누": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 39.4,
+      "female": 36.8
+    },
+    "Weight (kg)": {
+      "male": 10.4,
+      "female": 7.7
+    }
+  },
+  "시추": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 24.9,
+      "female": 21.2
+    },
+    "Weight (kg)": {
+      "male": 5.7,
+      "female": 4.8
+    }
+  },
+  "시코쿠": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 49.5,
+      "female": 42.1
+    },
+    "Weight (kg)": {
+      "male": 20.4,
+      "female": 17.3
+    }
+  },
+  "시베리안 허스키": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 56.4,
+      "female": 53.3
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 19.3
+    }
+  },
+  "실키 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 24.1,
+      "female": 20.5
+    },
+    "Weight (kg)": {
+      "male": 4.5,
+      "female": 3.8
+    }
+  },
+  "스카이 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 24.1
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "슬루기": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 69.8,
+      "female": 64.8
+    },
+    "Weight (kg)": {
+      "male": 23.8,
+      "female": 20.2
+    }
+  },
+  "슬로바키안 와이어헤어드 포인터": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 61.5
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.2
+    }
+  },
+  "슬로벤스키 추바치": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 64.0,
+      "female": 54.4
+    },
+    "Weight (kg)": {
+      "male": 37.4,
+      "female": 31.8
+    }
+  },
+  "슬로벤스키 코포브": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 17.5,
+      "female": 14.9
+    }
+  },
+  "스몰 먼스터랜더": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 52.8,
+      "female": 44.9
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "스무스 폭스 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 39.4,
+      "female": 33.5
+    },
+    "Weight (kg)": {
+      "male": 8.2,
+      "female": 7.3
+    }
+  },
+  "소프트 코티드 휘튼 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 44.5
+    },
+    "Weight (kg)": {
+      "male": 17.0,
+      "female": 14.7
+    }
+  },
+  "스패니시 마스티프": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 80.0,
+      "female": 68.0
+    },
+    "Weight (kg)": {
+      "male": 77.1,
+      "female": 65.5
+    }
+  },
+  "스패니시 워터 도그": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 47.2,
+      "female": 42.9
+    },
+    "Weight (kg)": {
+      "male": 20.2,
+      "female": 16.1
+    }
+  },
+  "스피노네 이탈리아노": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 63.5,
+      "female": 59.7
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "스타비훈": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 22.7,
+      "female": 19.3
+    }
+  },
+  "스태퍼드셔 불테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 32.4
+    },
+    "Weight (kg)": {
+      "male": 15.0,
+      "female": 13.2
+    }
+  },
+  "스탠더드 슈나우저": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 48.3,
+      "female": 45.7
+    },
+    "Weight (kg)": {
+      "male": 19.3,
+      "female": 17.0
+    }
+  },
+  "서식스 스패니얼": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 35.6,
+      "female": 30.3
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "스웨디시 라프훈트": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 45.7,
+      "female": 38.8
+    },
+    "Weight (kg)": {
+      "male": 17.0,
+      "female": 14.4
+    }
+  },
+  "스웨디시 발훈트": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 33.3,
+      "female": 30.7
+    },
+    "Weight (kg)": {
+      "male": 12.5,
+      "female": 10.6
+    }
+  },
+  "타이완 도그": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 39.9
+    },
+    "Weight (kg)": {
+      "male": 15.0,
+      "female": 12.8
+    }
+  },
+  "테디 루즈벨트 테리어": {
+    "Life Expectancy": 15.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 23.7
+    },
+    "Weight (kg)": {
+      "male": 7.5,
+      "female": 6.4
+    }
+  },
+  "타이 방캐우": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 44.5,
+      "female": 37.8
+    },
+    "Weight (kg)": {
+      "male": null,
+      "female": null
+    }
+  },
+  "타이 리지백": {
+    "Life Expectancy": 14.5,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 47.5
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "티베탄 마스티프": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 54.4,
+      "female": 43.1
+    }
+  },
+  "티베탄 스패니얼": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 5.4,
+      "female": 4.6
+    }
+  },
+  "티베탄 테리어": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 39.4,
+      "female": 33.5
+    },
+    "Weight (kg)": {
+      "male": 10.9,
+      "female": 9.3
+    }
+  },
+  "토르냐크": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 64.8,
+      "female": 55.1
+    },
+    "Weight (kg)": {
+      "male": 39.0,
+      "female": 33.1
+    }
+  },
+  "도사견": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 57.1,
+      "female": 48.5
+    },
+    "Weight (kg)": {
+      "male": 68.0,
+      "female": 57.8
+    }
+  },
+  "토이 폭스 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 25.4,
+      "female": 21.6
+    },
+    "Weight (kg)": {
+      "male": 2.9,
+      "female": 2.5
+    }
+  },
+  "트란실바니안 하운드": {
+    "Life Expectancy": 12.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 51.9
+    },
+    "Weight (kg)": {
+      "male": 24.9,
+      "female": 21.2
+    }
+  },
+  "트리잉 테네시 브린들": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 50.8,
+      "female": 43.2
+    },
+    "Weight (kg)": {
+      "male": 18.1,
+      "female": 15.4
+    }
+  },
+  "트리잉 워커 쿤하운드": {
+    "Life Expectancy": 12.5,
+    "Height (cm)": {
+      "male": 62.2,
+      "female": 57.1
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 23.1
+    }
+  },
+  "비즐라": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 55.9
+    },
+    "Weight (kg)": {
+      "male": 26.1,
+      "female": 22.5
+    }
+  },
+  "볼피노 이탈리아노": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 28.4,
+      "female": 24.1
+    },
+    "Weight (kg)": {
+      "male": 5.9,
+      "female": 5.0
+    }
+  },
+  "바이마라너": {
+    "Life Expectancy": 11.5,
+    "Height (cm)": {
+      "male": 66.0,
+      "female": 61.0
+    },
+    "Weight (kg)": {
+      "male": 36.3,
+      "female": 29.5
+    }
+  },
+  "웰시 스프링어 스패니얼": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 47.0,
+      "female": 44.5
+    },
+    "Weight (kg)": {
+      "male": 21.5,
+      "female": 19.3
+    }
+  },
+  "웰시 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 38.1,
+      "female": 32.4
+    },
+    "Weight (kg)": {
+      "male": 9.1,
+      "female": 7.7
+    }
+  },
+  "웨스트 하일랜드 화이트 테리어": {
+    "Life Expectancy": 14.0,
+    "Height (cm)": {
+      "male": 27.9,
+      "female": 25.4
+    },
+    "Weight (kg)": {
+      "male": 7.9,
+      "female": 6.7
+    }
+  },
+  "웨터하운": {
+    "Life Expectancy": 13,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 54.6
+    },
+    "Weight (kg)": {
+      "male": 28.3,
+      "female": 24.1
+    }
+  },
+  "휘핏": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 52.1,
+      "female": 49.5
+    },
+    "Weight (kg)": {
+      "male": 14.7,
+      "female": 12.5
+    }
+  },
+  "와이어 폭스 테리어": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 39.4,
+      "female": 33.5
+    },
+    "Weight (kg)": {
+      "male": 8.2,
+      "female": 7.3
+    }
+  },
+  "와이어헤어드 포인팅 그리펀": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 58.4,
+      "female": 53.3
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 19.3
+    }
+  },
+  "와이어헤어드 비즐라": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 61.0,
+      "female": 56.4
+    },
+    "Weight (kg)": {
+      "male": 27.2,
+      "female": 22.7
+    }
+  },
+  "워킹 켈피": {
+    "Life Expectancy": 13.5,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 47.5
+    },
+    "Weight (kg)": {
+      "male": 20.0,
+      "female": 17.0
+    }
+  },
+  "숄로이츠퀸틀리": {
+    "Life Expectancy": 15.5,
+    "Height (cm)": {
+      "male": 30.5,
+      "female": 25.9
+    },
+    "Weight (kg)": {
+      "male": 5.7,
+      "female": 4.8
+    }
+  },
+  "야쿠티안 라이카": {
+    "Life Expectancy": 11.0,
+    "Height (cm)": {
+      "male": 55.9,
+      "female": 47.5
+    },
+    "Weight (kg)": {
+      "male": 21.5,
+      "female": 18.3
+    }
+  },
+  "요크셔 테리어": {
+    "Life Expectancy": 13.0,
+    "Height (cm)": {
+      "male": 19.1,
+      "female": 16.2
+    },
+    "Weight (kg)": {
+      "male": 3.2,
+      "female": 2.7
+    }
+  }
+}

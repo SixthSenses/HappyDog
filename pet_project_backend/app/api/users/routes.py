@@ -1,88 +1,199 @@
 # app/api/users/routes.py
 import logging
-from flask import Blueprint, request, jsonify, Response,current_app
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
-
-from app.api.users.schemas import UserPublicResponseSchema, FCMTokenSchema
+from app.api.users.schemas import (
+    UserPublicResponseSchema,
+    FCMTokenSchema,
+    NotificationPreferencesSchema,
+)
+# Documentation decorators removed (replaced by docstring tags)
+from app.utils.error_catalog import build_error
 
 users_bp = Blueprint('users_bp', __name__)
 
-@users_bp.route('/<string:user_id>', methods=['GET'])
+@users_bp.route('/<string:user_id>/public', methods=['GET'])
 @jwt_required(optional=True)
-def get_user_profile(user_id: str):
-    user_service = current_app.services['users']
-    """특정 사용자의 공개 프로필 정보(게시물 수 포함)를 조회합니다."""
-    try:
-        # 서비스 함수 이름을 get_user_profile로 변경
-        user_profile = user_service.get_user_profile(user_id)
-        if not user_profile:
-            return jsonify({"error_code": "USER_NOT_FOUND", "message": "사용자를 찾을 수 없습니다."}), 404
-        
-        return jsonify(UserPublicResponseSchema().dump(user_profile)), 200
-    except Exception as e:
-        logging.error(f"사용자 프로필 조회 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "PROFILE_FETCH_FAILED", "message": "프로필 조회 중 오류가 발생했습니다."}), 500
+def get_user_public_info(user_id: str):
+    """[DEPRECATED] 다른 사용자의 공개 프로필 정보를 조회합니다.
 
+    더 이상 사용되지 않는 엔드포인트입니다. 신규 클라이언트는
+    GET /api/pets/profile?view=social&user_id={user_id} 사용으로 마이그레이션 해야 합니다.
 
-@users_bp.route('/me/profile-image', methods=['PATCH'])
-@jwt_required()
-def update_my_profile_image():
-    user_service = current_app.services['users']
+    ResponseSchema: UserPublicResponseSchema
     """
-    현재 로그인된 사용자의 프로필 이미지를 업데이트합니다.
-    """
-    user_id = get_jwt_identity()
-    data = request.get_json()
-    file_path = data.get('file_path')
-
-    if not file_path:
-        return jsonify({"error_code": "INVALID_PAYLOAD", "message": "'file_path' 필드가 필요합니다."}), 400
+    # 로그에 deprecation 경고 기록
+    import warnings
+    warnings.warn("GET /api/users/{user_id}/public is deprecated. Use GET /api/pets/profile?view=social&user_id={user_id} instead.", DeprecationWarning, stacklevel=2)
+    logging.warning(f"DEPRECATED API called: GET /api/users/{user_id}/public. Client should migrate to Pet profile API.")
     
+    user_service = current_app.services['users']
     try:
-        updated_user = user_service.update_user_profile_image(user_id, file_path)
-        if not updated_user:
-             return jsonify({"error_code": "USER_NOT_FOUND", "message": "사용자를 찾을 수 없습니다."}), 404
+        user_info = user_service.get_user_public_info(user_id)
+        return jsonify(user_info), 200
+    except FileNotFoundError:
+        status, body = build_error('USER_NOT_FOUND')
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"사용자 공개 정보 조회 오류 (user_id: {user_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+@users_bp.route('/me', methods=['GET'])
+@jwt_required()
+def get_my_info():
+    """현재 로그인한 사용자의 기본 정보를 조회합니다.
+
+    ResponseSchema: UserMeResponseSchema
+    """
+    user_profile_service = current_app.services['user_profile']
+    try:
+        current_user_id = get_jwt_identity()
+        user_info = user_profile_service.get_user_profile(current_user_id)
         
-        # 전체 사용자 정보 대신 업데이트된 URL만 반환하거나, 혹은 공개 스키마를 사용할 수 있습니다.
-        return jsonify(UserPublicResponseSchema().dump(updated_user)), 200
+        if not user_info:
+            status, body = build_error('USER_NOT_FOUND')
+            return jsonify(body), status
+            
+        # Return only safe fields for my info
+        response_data = {
+            'user_id': current_user_id,
+            'nickname': user_info.get('nickname'),
+            'email': user_info.get('email'),
+            'has_pet': user_info.get('has_pet', False),
+            'pet_id': user_info.get('pet_id')
+        }
+        
+        return jsonify(response_data), 200
     except Exception as e:
-        logging.error(f"프로필 이미지 업데이트 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "프로필 이미지 업데이트 중 서버 오류가 발생했습니다."}), 500
+        logging.error(f"내 정보 조회 오류: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
 
-
-@users_bp.route('/me', methods=['DELETE'])
+@users_bp.route('/me/summary', methods=['GET'])
 @jwt_required()
-def delete_my_account():
-    user_service = current_app.services['users']
+def get_my_summary():
+    """사용자, 반려동물, 펫케어 설정의 통합 요약 정보를 조회합니다.
+
+    ResponseSchema: UserSummaryResponseSchema
     """
-    현재 로그인된 사용자 본인의 계정을 영구적으로 삭제합니다.
-    """
-    user_id = get_jwt_identity()
     try:
-        user_service.delete_user_account(user_id)
-        # 성공 시에는 본문(body) 없이 204 상태 코드만 반환하는 것이 RESTful API 표준
-        return Response(status=204)
+        current_user_id = get_jwt_identity()
+        
+        # 각 서비스에서 정보 조회
+        user_profile_service = current_app.services['user_profile']
+        pets_service = current_app.services['pets']
+        settings_service = current_app.services.get('pet_care_settings')
+        
+        # 사용자 정보
+        user_info = user_profile_service.get_user_profile(current_user_id)
+        
+        if not user_info:
+            status, body = build_error('USER_NOT_FOUND')
+            return jsonify(body), status
+        
+        # 반려동물 정보 (단일 반려동물 정책) - 서비스의 실제 메소드 명(get_first_pet_by_owner) 사용
+        # 기존 코드에서 get_user_pet 호출 -> 존재하지 않아 AttributeError 발생
+        pet_info = None
+        try:
+            pet_info = pets_service.get_first_pet_by_owner(current_user_id)
+        except AttributeError:
+            # 구버전 호환: 만약 나중에 get_user_pet_profile만 있는 경우 dict로 변환
+            if hasattr(pets_service, 'get_user_pet_profile'):
+                pet_obj = pets_service.get_user_pet_profile(current_user_id)
+                if pet_obj:
+                    pet_info = {
+                        'pet_id': getattr(pet_obj, 'pet_id', None),
+                        'name': getattr(pet_obj, 'name', None),
+                        'breed': getattr(pet_obj, 'breed', None),
+                        'profile_image_url': getattr(pet_obj, 'profile_image_url', None),
+                        'is_verified': getattr(pet_obj, 'is_verified', False)
+                    }
+        
+        # 펫케어 설정 정보
+        settings_info = None
+        if settings_service and pet_info:
+            try:
+                settings_info = settings_service.get_settings(pet_info['pet_id'])
+            except FileNotFoundError:
+                settings_info = None
+        
+        result = {
+            "user": user_info,
+            "pet": pet_info,
+            "pet_care_settings": settings_info
+        }
+        
+        return jsonify(result), 200
+        
     except Exception as e:
-        logging.error(f"회원 탈퇴 처리 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "ACCOUNT_DELETION_FAILED", "message": "회원 탈퇴 처리 중 서버 오류가 발생했습니다."}), 500
+        logging.error(f"통합 요약 정보 조회 오류: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
 
-
-@users_bp.route('/me/fcm-token', methods=['POST'])
+@users_bp.route('/me/notification-preferences', methods=['GET'])
 @jwt_required()
-def register_fcm_token():
-    user_service = current_app.services['users']
+def get_notification_preferences():
+    """현재 사용자의 알림 설정을 조회합니다.
+
+    ResponseSchema: NotificationPreferencesResponseSchema
     """
-    클라이언트의 FCM 토큰을 등록/업데이트합니다.
-    """
-    user_id = get_jwt_identity()
+    user_profile_service = current_app.services['user_profile']
     try:
-        data = FCMTokenSchema().load(request.get_json())
-        user_service.update_fcm_token(user_id, data['fcm_token'])
-        return jsonify({"message": "FCM 토큰이 성공적으로 업데이트되었습니다."}), 200
+        current_user_id = get_jwt_identity()
+        preferences = user_profile_service.get_notification_preferences(current_user_id)
+        return jsonify(NotificationPreferencesSchema().dump(preferences)), 200
+    except Exception as e:
+        logging.error(f"알림 설정 조회 오류: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+@users_bp.route('/me/notification-preferences', methods=['PUT'])
+@jwt_required()
+def update_notification_preferences():
+    """현재 사용자의 알림 설정을 수정합니다.
+
+    RequestSchema: NotificationPreferencesSchema
+    ResponseSchema: NotificationPreferencesResponseSchema
+    """
+    user_profile_service = current_app.services['user_profile']
+    try:
+        current_user_id = get_jwt_identity()
+        preferences_data = NotificationPreferencesSchema().load(request.get_json() or {})
+        
+        updated_preferences = user_profile_service.update_notification_preferences(current_user_id, preferences_data)
+        return jsonify(NotificationPreferencesSchema().dump(updated_preferences)), 200
+        
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"FCM 토큰 업데이트 중 오류 발생: {e}", exc_info=True)
-        return jsonify({"error_code": "UPDATE_FAILED", "message": "FCM 토큰 업데이트 중 서버 오류가 발생했습니다."}), 500
+        logging.error(f"알림 설정 수정 오류: {e}", exc_info=True)
+        status, body = build_error('UPDATE_FAILED')
+        return jsonify(body), status
+
+@users_bp.route('/me/fcm-token', methods=['PUT'])
+@jwt_required()
+def update_fcm_token():
+    """현재 사용자의 FCM 토큰을 업데이트합니다.
+
+    RequestSchema: FCMTokenSchema
+    ResponseSchema: FCMTokenUpdateResponseSchema
+    """
+    user_profile_service = current_app.services['user_profile']
+    try:
+        current_user_id = get_jwt_identity()
+        token_data = FCMTokenSchema().load(request.get_json() or {})
+        
+        user_profile_service.update_fcm_token(current_user_id, token_data['fcm_token'])
+        return jsonify({"message": "FCM 토큰이 업데이트되었습니다."}), 200
+        
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except Exception as e:
+        logging.error(f"FCM 토큰 업데이트 오류: {e}", exc_info=True)
+        status, body = build_error('UPDATE_FAILED')
+        return jsonify(body), status

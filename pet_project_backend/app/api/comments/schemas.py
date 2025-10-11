@@ -1,6 +1,6 @@
 # app/api/comments/schemas.py
 from marshmallow import Schema, fields, validate
-from app.api.posts.schemas import AuthorSchema # 작성자 정보는 게시글 스키마의 것을 재사용
+from app.api.posts.schemas import AuthorSchema, PetInfoSchema  # 작성자 정보와 반려동물 정보 스키마 재사용
 
 class CommentCreateSchema(Schema):
     """
@@ -15,10 +15,28 @@ class CommentResponseSchema(Schema):
     """
     comment_id = fields.Str(required=True)
     post_id = fields.Str(required=True)
-    author = fields.Nested(AuthorSchema, required=True)
+    author = fields.Nested(AuthorSchema, required=True)  # user_id, nickname만 포함
+    pet = fields.Nested(PetInfoSchema, required=True)  # pet_id, name, breed, profile_image_url 포함
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
-    created_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=True, format="iso8601")
     
     # 서비스 로직에서 채워주는 응답 전용 필드
     is_liked = fields.Bool(dump_only=True, dump_default=False)
+
+
+class CommentListResponseSchema(Schema):
+    """댓글 목록 응답.
+
+    - comments: 댓글 객체 배열
+    - next_cursor: 다음 페이지 커서 (없으면 null)
+    """
+    comments = fields.List(fields.Nested(CommentResponseSchema), required=True)
+    next_cursor = fields.Str(allow_none=True)
+
+
+class CommentLikeToggleResponseSchema(Schema):
+    """댓글 좋아요 토글 결과 응답."""
+    message = fields.Str(required=True)
+    liked = fields.Bool(required=True)
+    comment_id = fields.Str(required=True)

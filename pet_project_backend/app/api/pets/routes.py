@@ -1,168 +1,317 @@
 # app/api/pets/routes.py
-import uuid
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
-from app.api.pets.schemas import PetSchema, PetUpdateSchema, EyeAnalysisResponseSchema
-from app.models.pet import Pet, PetGender
+from .schemas import (
+    PetRegistrationSchema,
+    PetProfileResponseSchema,
+    PetUpdateSchema,
+    BiometricAnalysisRequestSchema,
+    EyeAnalysisResponseSchema,
+    EyeAnalysisHistoryQuerySchema,
+    EyeAnalysisHistoryListResponseSchema,
+    PetViewBasedResponseSchema,
+    NosePrintRegistrationResponseSchema
+)
+from .presenters import PetPresenter
+from .policy import PetAccessPolicy
+from app.utils.error_catalog import build_error
+from app.middleware.idempotency_middleware import idempotent_endpoint
 
 pets_bp = Blueprint('pets_bp', __name__)
 
 @pets_bp.route('/', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def register_pet():
-    pet_service = current_app.services['pets']
-    
+    """반려동물 등록
+
+    새로운 반려동물을 시스템에 등록합니다. 현재 사용자당 하나의 반려동물만 등록할 수 있습니다.
+
+    RequestSchema: PetRegistrationSchema
+    ResponseSchema[201]: PetProfileResponseSchema
+    """
     user_id = get_jwt_identity()
-    
-    # 서비스 로직을 호출하여 이미 반려동물이 있는지 확인
-    if pet_service.get_pet_by_user_id(user_id):
-        return jsonify({"error_code": "PET_ALREADY_EXISTS", "message": "이미 등록된 반려동물이 있습니다."}), 409
-
+    pet_service = current_app.services['pets']
     try:
-        # 스키마를 통해 요청 데이터 유효성 검사
-        pet_data = PetSchema().load(request.get_json())
+        validated_data = PetRegistrationSchema().load(request.get_json())
+        new_pet = pet_service.register_pet(user_id, validated_data)
+        # Pet 객체를 딕셔너리로 변환하여 스키마에 전달
+        pet_dict = pet_service._pet_to_dict(new_pet)
+        return jsonify(PetProfileResponseSchema().dump(pet_dict)), 201
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
-
-    try:
-        # 데이터 모델 객체 생성
-        new_pet = Pet(
-            pet_id=str(uuid.uuid4()),
-            user_id=user_id,
-            name=pet_data['name'],
-            gender=PetGender(pet_data['gender']),
-            birthdate=pet_data['birthdate'],
-            breed=pet_data['breed'],
-            fur_color=pet_data['fur_color'],
-            health_concerns=pet_data.get('health_concerns', [])
-        )
-        # 서비스 로직을 통해 반려동물 생성
-        created_pet = pet_service.create_pet(new_pet)
-        # 성공 응답 반환
-        return jsonify(PetSchema().dump(created_pet)), 201
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except ValueError as e:
+        status, body = build_error('IDEMPOTENCY_CONFLICT', message=str(e))  # 정책 위반 → 409
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"반려동물 등록 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "PET_CREATION_FAILED", "message": "반려동물 등록 중 오류가 발생했습니다."}), 500
+        logging.error(f"Pet registration API error: {e}", exc_info=True)
+        status, body = build_error('RECORD_CREATION_FAILED', message=str(e))
+        return jsonify(body), status
 
 @pets_bp.route('/<string:pet_id>', methods=['GET'])
 @jwt_required()
-def get_my_pet():
+def get_pet_profile(pet_id: str):
+    """반려동물 프로필 조회 (소유자 전용)
+
+    소유자만 접근할 수 있는 반려동물의 전체 프로필 정보를 조회합니다. 비공개 정보까지 포함됩니다.
+
+    ResponseSchema[200]: PetProfileResponseSchema
     """
-    현재 로그인된 사용자의 반려동물 정보를 조회합니다.
-    """
-    pet_service = current_app.services['pets']
     user_id = get_jwt_identity()
-    
+    pet_service = current_app.services['pets']
     try:
-        pet_info = pet_service.get_pet_by_user_id(user_id)
-        if not pet_info:
-            return jsonify({"error_code": "PET_NOT_FOUND", "message": "등록된 반려동물이 없습니다."}), 404
-        
-        return jsonify(PetSchema().dump(pet_info)), 200
+        pet = pet_service.get_pet_profile(pet_id, user_id)
+        # Pet 객체를 딕셔너리로 변환하여 스키마에 전달
+        pet_dict = pet_service._pet_to_dict(pet)
+        return jsonify(PetProfileResponseSchema().dump(pet_dict)), 200
+    except PermissionError as e:
+        # 권한 없거나 존재하지 않을 때 통합 NOT_FOUND 메시지 회피 위해 권한/존재 분리 필요시 추가
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"반려동물 정보 조회 중 오류 발생 (user_id: {user_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "PET_FETCH_FAILED", "message": "반려동물 정보를 가져오는 중 오류가 발생했습니다."}), 500
+        logging.error(f"Get pet profile API error (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED', message="프로필 조회 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 @pets_bp.route('/<string:pet_id>', methods=['PATCH'])
 @jwt_required()
-def update_pet(pet_id: str):
-    pet_service = current_app.services['pets']
-    """
-    특정 반려동물의 정보를 수정합니다.
+def update_pet_profile(pet_id: str):
+    """반려동물 프로필 수정
+
+    소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.
+
+    RequestSchema: PetUpdateSchema
+    ResponseSchema[200]: PetProfileResponseSchema
     """
     user_id = get_jwt_identity()
+    pet_service = current_app.services['pets']
     try:
-        # 1. 소유권 확인 (서비스 계층에 위임)
-        pet_info = pet_service.get_pet_by_id_and_owner(pet_id, user_id)
-        if not pet_info:
-            return jsonify({"error_code": "FORBIDDEN_OR_NOT_FOUND", "message": "수정 권한이 없거나 반려동물을 찾을 수 없습니다."}), 403
-        
-        # 2. 요청 데이터 유효성 검사
         update_data = PetUpdateSchema().load(request.get_json())
-        
-        # 3. 정보 업데이트 (서비스 계층에 위임)
-        updated_pet = pet_service.update_pet(pet_id, update_data)
-        
-        return jsonify(PetSchema().dump(updated_pet)), 200
-        
+        updated_pet = pet_service.update_pet_profile(pet_id, user_id, update_data)
+        # Pet 객체를 딕셔너리로 변환하여 스키마에 전달
+        pet_dict = pet_service._pet_to_dict(updated_pet)
+        return jsonify(PetProfileResponseSchema().dump(pet_dict)), 200
     except ValidationError as err:
-        return jsonify({"error_code": "VALIDATION_ERROR", "details": err.messages}), 400
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+    except (PermissionError, ValueError) as e:
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"반려동물 정보 수정 중 오류 발생 (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "PET_UPDATE_FAILED", "message": "정보 수정 중 오류가 발생했습니다."}), 500
+        logging.error(f"Update pet profile API error (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('UPDATE_FAILED', message="프로필 수정 중 오류가 발생했습니다.")
+        return jsonify(body), status
 
 
 @pets_bp.route('/<string:pet_id>/nose-print', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def register_nose_print(pet_id: str):
-    pet_service = current_app.services['pets']
-    """
-    특정 반려동물의 비문을 분석하고 등록/인증합니다.
+    """반려동물 비문 등록/인증
+
+    특정 반려동물의 비문(코) 이미지를 분석하여 등록/인증 처리합니다.
+
+    RequestSchema: BiometricAnalysisRequestSchema
+    ResponseSchema[200]: NosePrintRegistrationResponseSchema
     """
     user_id = get_jwt_identity()
-    data = request.get_json()
-    file_path = data.get('file_path')
-
-    if not file_path:
-        return jsonify({"error_code": "PAYLOAD_INVALID", "message": "'file_path'가 필요합니다."}), 400
-    
+    pet_service = current_app.services['pets']
+    biometric_service = current_app.services.get('pet_biometrics')
     try:
-        # 서비스 계층에 비문 분석 및 등록 로직 위임 (소유권 확인 포함)
-        result = pet_service.register_nose_print_for_pet(pet_id, user_id, file_path)
-        
-        # 서비스 계층에서 반환된 결과에 따라 응답 처리
-        if result['status'] == "SUCCESS":
-            return jsonify(result), 200
-        elif result['status'] == "ALREADY_VERIFIED":
-             return jsonify(result), 409
-        elif result['status'] == "DUPLICATE":
-             return jsonify(result), 409
-        elif result['status'] == "INVALID_IMAGE":
-             return jsonify(result), 400
-        else: # ERROR
-             return jsonify(result), 500
-
+        # 레거시 호환 처리: 이전 클라이언트에서 nose_image_url 사용 가능
+        raw = request.get_json() or {}
+        if 'file_path' not in raw:
+            legacy = raw.get('nose_image_url') or raw.get('image_url')
+            if legacy:
+                raw['file_path'] = legacy
+        data = BiometricAnalysisRequestSchema().load(raw)
+        if not biometric_service:
+            status, body = build_error('SERVICE_UNAVAILABLE')
+            return jsonify(body), status
+        pet_obj = pet_service.get_pet_profile(pet_id, user_id)
+        current_verified = getattr(pet_obj, 'is_verified', False)
+        result_obj = biometric_service.register_nose_print_for_pet(
+            pet_id=pet_id,
+            user_id=user_id,
+            file_path=data['file_path'],
+            pet_verification_status=current_verified
+        )
+        if not result_obj.success:
+            code = result_obj.error_code or 'BIO_PROCESSING_FAILED'
+            # 상세 메타데이터(예: distance, status) 전달 (디버깅/UX 개선)
+            details = {'pet_id': pet_id}
+            if result_obj.metadata:
+                details.update({k: v for k, v in result_obj.metadata.items() if k not in details})
+            status, body = build_error(code, message=result_obj.error_message, details=details)
+            return jsonify(body), status
+        result = {
+            'success': True,
+            'confidence': result_obj.confidence,
+            'features': result_obj.features,
+            'analysis_id': result_obj.analysis_id,
+            'metadata': result_obj.metadata,
+            'status': (result_obj.metadata or {}).get('status', 'SUCCESS')
+        }
+        return jsonify(result), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except PermissionError as e:
-         return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
-    except FileNotFoundError as e:
-         return jsonify({"error_code": "PET_NOT_FOUND", "message": str(e)}), 404
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"비문 등록 중 예외 발생 (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"status": "ERROR", "message": "알 수 없는 서버 오류가 발생했습니다."}), 500
-
+        logging.error(f"Nose print registration API error: {e}", exc_info=True)
+        status, body = build_error('BIO_PROCESSING_FAILED')
+        return jsonify(body), status
 
 @pets_bp.route('/<string:pet_id>/eye-analysis', methods=['POST'])
 @jwt_required()
+@idempotent_endpoint(apply_when_methods=('POST',))
 def request_eye_analysis(pet_id: str):
-    pet_service = current_app.services['pets']
-    """
-    특정 반려동물의 안구 이미지를 분석하고 결과를 저장합니다.
+    """반려동물 안구 이미지 분석
+
+    특정 반려동물의 안구 이미지를 분석합니다.
+
+    RequestSchema: BiometricAnalysisRequestSchema
+    ResponseSchema[200]: EyeAnalysisResponseSchema
     """
     user_id = get_jwt_identity()
-    data = request.get_json()
-    file_path = data.get('file_path')
-
-    if not file_path:
-        return jsonify({"error_code": "PAYLOAD_INVALID", "message": "'file_path'가 필요합니다."}), 400
-        
+    pet_service = current_app.services['pets']
+    biometric_service = current_app.services.get('pet_biometrics')
     try:
-        # 서비스 계층에 안구 분석 및 결과 저장 로직 위임 (소유권 확인 포함)
-        analysis_result = pet_service.analyze_eye_image_for_pet(user_id, pet_id, file_path)
-        
-        # 스키마를 통해 응답 포맷팅
-        response_data = EyeAnalysisResponseSchema().dump(analysis_result)
-        return jsonify(response_data), 200
-        
+        # 레거시 호환 처리: 이전 클라이언트에서 eye_image_url 사용 가능
+        raw = request.get_json() or {}
+        if 'file_path' not in raw:
+            legacy = raw.get('eye_image_url') or raw.get('image_url')
+            if legacy:
+                raw['file_path'] = legacy
+        data = BiometricAnalysisRequestSchema().load(raw)
+        if not biometric_service:
+            status, body = build_error('SERVICE_UNAVAILABLE')
+            return jsonify(body), status
+        pet_service.get_pet_profile(pet_id, user_id)
+        result_obj = biometric_service.analyze_eye_image_for_pet(user_id, pet_id, data['file_path'])
+        if not result_obj.success:
+            code = result_obj.error_code or 'BIO_PROCESSING_FAILED'
+            status, body = build_error(code, message=result_obj.error_message, details={'pet_id': pet_id})
+            return jsonify(body), status
+        features = result_obj.features or {}
+        response_dict = {
+            'analysis_id': result_obj.analysis_id,
+            'disease_name': features.get('disease_name'),
+            'probability': features.get('probability'),
+            'probability_percent': features.get('probability_percent'),
+            'image_url': features.get('image_url'),
+            'predictions': features.get('predictions'),
+            'is_normal': features.get('is_normal')
+        }
+        return jsonify(EyeAnalysisResponseSchema().dump(response_dict)), 200
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
     except PermissionError as e:
-         return jsonify({"error_code": "FORBIDDEN", "message": str(e)}), 403
-    except FileNotFoundError as e:
-         return jsonify({"error_code": "PET_NOT_FOUND", "message": str(e)}), 404
-    except RuntimeError as e: # GCS 다운로드 또는 Firestore 저장 실패 등
-        logging.error(f"안구 분석 실패 (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "ANALYSIS_FAILED", "message": str(e)}), 500
+        status, body = build_error('FORBIDDEN', message=str(e))
+        return jsonify(body), status
+    except RuntimeError as e:
+        logging.error(f"Eye analysis failed (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('BIO_PROCESSING_FAILED', message=str(e))
+        return jsonify(body), status
     except Exception as e:
-        logging.error(f"안구 분석 중 예외 발생 (pet_id: {pet_id}): {e}", exc_info=True)
-        return jsonify({"error_code": "INTERNAL_SERVER_ERROR", "message": "알 수 없는 서버 오류가 발생했습니다."}), 500
+        logging.error(f"Eye analysis API error: {e}", exc_info=True)
+        status, body = build_error('BIO_PROCESSING_FAILED')
+        return jsonify(body), status
+
+
+@pets_bp.route('/profile', methods=['GET'])
+@jwt_required(optional=True)
+def get_pet_profile_by_view():
+    """뷰 기반 반려동물 프로필 조회
+
+    용도(view)에 맞게 필터링된 반려동물 프로필을 조회합니다. 정책은 PetAccessPolicy로 관리됩니다.
+
+    ResponseSchema[200]: PetViewBasedResponseSchema
+    """
+    current_user_id = get_jwt_identity()
+    target_user_id = request.args.get('user_id', current_user_id)
+    view = request.args.get('view', 'mypage')
+
+    policy = PetAccessPolicy()
+    try:
+        policy.ensure_view_permission(current_user_id, target_user_id, view)
+    except ValueError:
+        status, body = build_error('VALIDATION_ERROR', message="view는 mypage, petcare, social 중 하나여야 합니다.")
+        return jsonify(body), status
+    except PermissionError as e:
+        code = str(e)
+        if code == 'AUTHENTICATION_REQUIRED':
+            # 카탈로그에 해당 코드가 없으므로 VALIDATION_ERROR로 매핑 + 커스텀 메시지 (optional auth 상황)
+            status, body = build_error('VALIDATION_ERROR', message="인증이 필요합니다.")
+            return jsonify(body), status
+        status, body = build_error('FORBIDDEN', message="접근이 허용되지 않습니다.")
+        return jsonify(body), status
+
+    pet_service = current_app.services['pets']
+    try:
+        pet_profile = pet_service.get_user_pet_profile(target_user_id)
+        if not pet_profile:
+            status, body = build_error('NOT_FOUND', message="등록된 반려동물이 없습니다.")
+            return jsonify(body), status
+
+        user_stats = current_app.services.get('user_stats')
+        response_data = PetPresenter.build_view_response(
+            pet_profile, view, user_stats_service=user_stats, target_user_id=target_user_id
+        )
+        # Marshmallow schema for consistency
+        return jsonify(PetViewBasedResponseSchema().dump(response_data)), 200
+    except Exception as e:
+        logging.error(f"Pet profile API error (target_user_id: {target_user_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED', message="서버 오류가 발생했습니다.")
+        return jsonify(body), status
+
+
+@pets_bp.route('/eye-analyses', methods=['GET'])
+@jwt_required()
+def list_eye_analysis_history():
+    """안구 검사 이력 조회 (본인 전용)
+
+    인증된 사용자 본인의 검사 이력을 최신순으로 반환합니다. 선택적으로 특정 `pet_id`로 필터링할 수 있습니다.
+
+    RequestSchema(query): EyeAnalysisHistoryQuerySchema
+    ResponseSchema[200]: EyeAnalysisHistoryListResponseSchema
+    """
+    user_id = get_jwt_identity()
+    try:
+        # 쿼리 파라미터 로드 및 기본값 적용
+        args = {
+            'pet_id': request.args.get('pet_id'),
+            'limit': request.args.get('limit', type=int),
+            'cursor': request.args.get('cursor')
+        }
+        query_params = EyeAnalysisHistoryQuerySchema().load({k: v for k, v in args.items() if v is not None})
+    except ValidationError as err:
+        status, body = build_error('VALIDATION_ERROR', details=err.messages)
+        return jsonify(body), status
+
+    biometric_service = current_app.services.get('pet_biometrics')
+    if not biometric_service:
+        status, body = build_error('SERVICE_UNAVAILABLE')
+        return jsonify(body), status
+
+    try:
+        items, next_cursor = biometric_service.list_eye_analysis_history(
+            user_id=user_id,
+            pet_id=query_params.get('pet_id'),
+            limit=query_params.get('limit', 20),
+            cursor=query_params.get('cursor')
+        )
+        response = {'items': items, 'next_cursor': next_cursor}
+        # Marshmallow dump 보장
+        return jsonify(EyeAnalysisHistoryListResponseSchema().dump(response)), 200
+    except Exception as e:
+        logging.error(f"List eye analysis history API error: {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
