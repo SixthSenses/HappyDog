@@ -169,4 +169,40 @@ class StorageService:
         firebase_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_path}?alt=media&token={download_token}"
         
         return firebase_url
+
+    def get_signed_url(self, file_path: str, expiration_hours: int = 1, method: str = "GET") -> str:
+        """
+        파일에 대한 Signed URL을 생성합니다.
+        OpenAI 등 외부 서비스가 Firebase Storage에 직접 접근할 수 있도록 합니다.
+        
+        다운로드 토큰 방식(`get_public_url`)과 달리, Signed URL은:
+        - Firebase Security Rules에 관계없이 임시 접근 허용
+        - OpenAI, 외부 API 서버가 직접 파일 접근 가능
+        - 만료 시간 지정 가능 (기본 1시간)
+        
+        :param file_path: Storage 파일 경로 (상대 경로)
+        :param expiration_hours: URL 만료 시간 (시간 단위, 기본 1시간)
+        :param method: HTTP 메서드 (기본 "GET")
+        :return: Signed URL
+        :raises FileNotFoundError: 파일이 존재하지 않는 경우
+        :raises RuntimeError: Storage가 초기화되지 않은 경우
+        """
+        if not self.bucket:
+            raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
+        
+        blob = self.bucket.blob(file_path)
+        
+        # 파일 존재 여부 확인
+        if not blob.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+        
+        # Signed URL 생성
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(hours=expiration_hours),
+            method=method
+        )
+        
+        logging.info(f"Signed URL 생성 완료: {file_path} (만료: {expiration_hours}시간)")
+        return signed_url
     
