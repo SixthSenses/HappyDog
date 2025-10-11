@@ -51,11 +51,12 @@ class CartoonJobIntegrationService:
         try:
             user_id = job_data['user_id']
             job_id = job_data['job_id']
+            user_text = job_data.get('user_text', '')  # 사용자가 입력한 텍스트 추출
             
-            # 만화 이미지만으로 게시물 생성 (텍스트는 빈 문자열)
+            # 사용자가 입력한 텍스트와 만화 이미지로 게시물 생성
             post_result = self.post_service.create_post(
                 user_id=user_id,
-                text="",  # 텍스트는 제외하고 이미지만
+                text=user_text,  # 사용자 입력 텍스트 포함
                 file_paths=[result_image_url]
             )
             

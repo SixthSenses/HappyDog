@@ -1,7 +1,6 @@
 # app/services/openai_service.py
 import logging
 import os
-import base64
 import uuid
 import requests
 from typing import Optional, Dict, Any
@@ -43,47 +42,51 @@ class OpenAIService:
         
         :param image_url: 사용자가 업로드한 원본 이미지 URL (Firebase Storage URL)
         :param user_text: 사용자가 입력한 텍스트
-        :param storage_service: StorageService 인스턴스 (이미지 다운로드 및 업로드용)
+        :param storage_service: StorageService 인스턴스 (Signed URL 생성 및 DALL-E 결과 저장용)
         :return: 생성된 이미지 정보를 담은 딕셔너리
         
         Note:
-            - GPT-4o는 Firebase Storage URL에 직접 접근할 수 없으므로 Base64 인코딩 사용
+            - GPT-4o는 Signed URL을 통해 Firebase Storage에 직접 접근
             - DALL-E가 반환한 임시 URL은 만료되므로 Firebase Storage에 영구 저장
         """
         if not self.client:
             raise RuntimeError("OpenAIService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
         
+        if not storage_service:
+            raise RuntimeError("StorageService가 필요합니다. storage_service 파라미터를 전달해주세요.")
+        
         try:
-            # 1단계: Firebase Storage에서 이미지 다운로드 및 Base64 인코딩
-            image_base64 = None
-            if storage_service:
-                try:
-                    logging.info(f"이미지 다운로드 시도: {image_url}")
-                    image_base64 = self._download_and_encode_image(image_url, storage_service)
-                    logging.info("이미지를 Base64로 인코딩 완료")
-                except FileNotFoundError as e:
-                    logging.error(f"이미지 파일 없음: {e}")
-                    # FileNotFoundError는 복구 불가능, 바로 실패 처리
-                    raise RuntimeError(f"원본 이미지를 찾을 수 없습니다: {str(e)}")
-                except Exception as e:
-                    logging.error(f"이미지 다운로드 실패: {e}", exc_info=True)
-                    # 다른 에러는 URL 직접 사용 시도 (하지만 실패할 가능성 높음)
-                    logging.warning("Base64 인코딩 실패, 기본 설명으로 진행합니다.")
-                    image_base64 = None
+            # 1단계: Signed URL 생성 (OpenAI가 직접 접근 가능)
+            logging.info(f"원본 이미지 URL: {image_url}")
             
-            # 2단계: GPT-4 Vision으로 이미지 분석 (재시도 포함)
+            try:
+                # URL에서 파일 경로 추출
+                file_path = self._extract_file_path_from_url(image_url)
+                logging.info(f"추출된 파일 경로: {file_path}")
+                
+                # Signed URL 생성 (2시간 유효)
+                signed_url = storage_service.get_signed_url(file_path, expiration_hours=2)
+                logging.info(f"Signed URL 생성 완료 (만료: 2시간)")
+            except FileNotFoundError as e:
+                logging.error(f"이미지 파일을 찾을 수 없습니다: {e}")
+                raise RuntimeError(f"원본 이미지를 찾을 수 없습니다: {str(e)}")
+            except Exception as e:
+                logging.error(f"Signed URL 생성 실패: {e}", exc_info=True)
+                raise RuntimeError(f"이미지 URL 생성 실패: {str(e)}")
+            
+            # 2단계: GPT-4 Vision으로 이미지 분석 (Signed URL 사용, 재시도 포함)
             image_description = None
             last_err = None
             for attempt in range(3):
                 try:
-                    if image_base64:
-                        image_description = self._analyze_image_with_gpt4_vision_base64(image_base64)
-                    else:
-                        image_description = self._analyze_image_with_gpt4_vision(image_url)
+                    logging.info(f"GPT-4o 이미지 분석 시도 {attempt+1}/3")
+                    image_description = self._analyze_image_with_gpt4_vision(signed_url)
+                    logging.info(f"GPT-4o 이미지 분석 완료: {image_description[:100]}...")
                     break
                 except Exception as e:
                     last_err = e
                     logging.warning(f"GPT-4o 분석 재시도 {attempt+1}/3 실패: {e}")
+            
             if image_description is None:
                 logging.warning("이미지 분석이 3회 모두 실패하여 기본 설명으로 진행합니다.")
                 image_description = "귀여운 반려동물이 있는 일상적인 장면"
@@ -143,15 +146,13 @@ class OpenAIService:
                 "error_type": type(e).__name__
             }
     
-    def _download_and_encode_image(self, image_url: str, storage_service) -> str:
+    def _extract_file_path_from_url(self, image_url: str) -> str:
         """
-        Firebase Storage URL에서 이미지를 다운로드하여 Base64로 인코딩합니다.
+        Firebase Storage URL 또는 GCS URL에서 파일 경로를 추출합니다.
         
         :param image_url: Firebase Storage URL 또는 GCS URL
-        :param storage_service: StorageService 인스턴스
-        :return: Base64 인코딩된 이미지 문자열 (data URL 형식)
+        :return: 파일 경로 (상대 경로)
         """
-        # URL에서 파일 경로 추출
         file_path = None
         
         if "firebasestorage.googleapis.com" in image_url:
@@ -199,28 +200,7 @@ class OpenAIService:
             raise ValueError(f"URL에서 파일 경로를 추출할 수 없습니다: {image_url}")
         
         logging.info(f"추출된 파일 경로: {file_path}")
-        
-        # Storage에서 이미지 다운로드
-        try:
-            image_bytes = storage_service.download_as_bytes(file_path)
-        except FileNotFoundError:
-            # 파일을 찾을 수 없는 경우 로깅 후 재발생
-            logging.error(f"Firebase Storage에서 파일을 찾을 수 없음: {file_path}")
-            logging.error(f"원본 URL: {image_url}")
-            raise
-        
-        # Base64 인코딩
-        base64_image = base64.b64encode(image_bytes).decode('utf-8')
-        
-        # MIME 타입 추정 (확장자 기반)
-        mime_type = "image/jpeg"  # 기본값
-        if file_path.lower().endswith('.png'):
-            mime_type = "image/png"
-        elif file_path.lower().endswith('.webp'):
-            mime_type = "image/webp"
-        
-        logging.info(f"이미지 Base64 인코딩 완료: {len(base64_image)} bytes")
-        return f"data:{mime_type};base64,{base64_image}"
+        return file_path
     
     def _save_dalle_result_to_storage(self, dalle_temp_url: str, storage_service) -> str:
         """
@@ -259,12 +239,11 @@ class OpenAIService:
     
     def _analyze_image_with_gpt4_vision(self, image_url: str) -> str:
         """
-        GPT-4o를 사용하여 이미지를 분석하고 설명을 생성합니다. (URL 방식)
+        GPT-4o를 사용하여 이미지를 분석하고 설명을 생성합니다.
         
-        Note: Firebase Storage URL의 경우 외부 접근 권한 문제로 실패할 수 있음.
-              가능하면 _analyze_image_with_gpt4_vision_base64() 사용 권장.
+        Signed URL을 사용하여 Firebase Storage 이미지에 접근합니다.
         
-        :param image_url: 분석할 이미지 URL
+        :param image_url: 분석할 이미지 Signed URL
         :return: 이미지 분석 결과 텍스트
         """
         response = self.client.chat.completions.create(
@@ -287,46 +266,6 @@ class OpenAIService:
                             "type": "image_url",
                             "image_url": {
                                 "url": image_url
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=500,
-            timeout=60,
-        )
-
-        return response.choices[0].message.content
-    
-    def _analyze_image_with_gpt4_vision_base64(self, base64_image: str) -> str:
-        """
-        GPT-4o를 사용하여 이미지를 분석하고 설명을 생성합니다. (Base64 방식)
-        
-        Firebase Storage URL에 외부 접근 권한이 없을 때 사용합니다.
-        
-        :param base64_image: Base64 인코딩된 이미지 (data URL 형식)
-        :return: 이미지 분석 결과 텍스트
-        """
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": """이 이미지에 있는 동물들과 상황을 자세히 분석해주세요. 
-                            4컷 만화로 만들기 위해 다음 정보를 포함해서 설명해주세요:
-                            1. 동물의 종류, 색깔, 특징
-                            2. 동물의 표정이나 자세
-                            3. 배경이나 주변 환경
-                            4. 전체적인 분위기나 상황
-                            5. 만화로 만들 수 있는 스토리 아이디어"""
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": base64_image  # data:image/jpeg;base64,... 형식
                             }
                         }
                     ]
