@@ -82,7 +82,8 @@ def get_pet_profile(pet_id: str):
 def update_pet_profile(pet_id: str):
     """반려동물 프로필 수정
 
-    소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.
+    소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 
+    이름, 성별, 견종, 생년월일, 털 색깔, 건강 관심사, 프로필 이미지 등 필요한 필드만 선택적으로 수정할 수 있습니다.
 
     RequestSchema: PetUpdateSchema
     ResponseSchema[200]: PetProfileResponseSchema
