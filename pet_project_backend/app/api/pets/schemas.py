@@ -23,6 +23,9 @@ class PetRegistrationSchema(Schema):
 class PetUpdateSchema(Schema):
     """PATCH /api/pets/<pet_id> 정보 수정을 위한 스키마 (부분 업데이트용)."""
     name = fields.Str(validate=validate.Length(min=1, max=20))
+    gender = fields.Str(validate=validate.OneOf([e.value for e in PetGender]))
+    breed = fields.Str(validate=[validate.Length(min=1, max=30), validate_breed_exists])
+    birthdate = fields.Date(format="%Y-%m-%d")
     fur_color = fields.Str()
     health_concerns = fields.List(fields.Str())
     profile_image_url = fields.Str(allow_none=True)  # 프로필 이미지 URL
