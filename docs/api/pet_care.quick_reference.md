@@ -1,0 +1,253 @@
+# 프론트엔드 개발자 빠른 참조: 펫케어 API
+
+## 🎯 핵심 답변
+
+### Q1. Pet 등록하면 펫케어 설정 기본값으로 생김?
+**A:** ✅ **네, 자동 생성됩니다**
+
+```json
+{
+  "target_daily_activity_sessions": 4,
+  "activity_session_minutes": 30,
+  "target_daily_activity_minutes": 120,    // 파생값 (4×30)
+  "target_daily_meal_count": 3
+}
+```
+
+### Q2. 기본값을 0으로?
+**A:** ❌ **아니요, 현재 기본값 유지**
+- 0으로 하면 사용자가 모든 값을 수동 설정해야 함
+- 기본값(120분, 3회)이 있으면 바로 사용 가능
+
+### Q3. 홈화면에서도 summary API 사용?
+**A:** ✅ **네, `/records/daily/summary` 사용 권장**
+
+---
+
+## � 기록 생성 API (중요 변경사항)
+
+### meal_count 전송 방식 (2025-10-14 업데이트)
+
+**✅ 권장: 증분값 전송** (프론트 구현이 더 간단함)
+```typescript
+// 각 식사마다 +1 전송 (백엔드가 자동으로 누적)
+const recordMeal = async () => {
+  await fetch('/api/pet-care/{pet_id}/records', {
+    method: 'POST',
+    body: JSON.stringify({
+      record_type: 'meal_count',
+      data: 1,  // ← 항상 1 (증분값)
+      timestamp: Date.now()
+    })
+  });
+};
+
+// 아침, 점심, 저녁 각각 호출
+recordMeal();  // 백엔드: 0 + 1 = 1
+recordMeal();  // 백엔드: 1 + 1 = 2
+recordMeal();  // 백엔드: 2 + 1 = 3
+```
+
+**⚠️ 레거시: 누적값 전송** (여전히 작동하지만 비권장)
+```typescript
+// 클라이언트가 직접 누적값 관리 (복잡함)
+let mealCount = 0;
+
+const recordMeal = async () => {
+  mealCount += 1;  // 클라이언트에서 카운트
+  await fetch('/api/pet-care/{pet_id}/records', {
+    method: 'POST',
+    body: JSON.stringify({
+      record_type: 'meal_count',
+      data: mealCount,  // ← 1, 2, 3... (누적값)
+      timestamp: Date.now()
+    })
+  });
+};
+```
+
+**핵심 차이**:
+- **증분값**: 클라이언트는 상태 관리 불필요, 항상 `data: 1` 전송
+- **누적값**: 클라이언트가 직접 상태 관리, 앱 재시작 시 복구 필요
+
+---
+
+## �📱 홈화면 API
+
+### 오늘의 요약 + 목표 진행률
+```http
+GET /api/pet-care/{pet_id}/records/daily/summary?date=2025-10-14
+```
+
+**응답 구조**:
+```typescript
+interface DailySummaryResponse {
+  date: string;
+  records: Record[];              // 실제 기록들
+  record_counts: {                // 타입별 개수
+    activity?: number;
+    meal_count?: number;
+  };
+  meta: {                         // 집계 요약
+    activity_minutes: number | null;  // 여러 세션 합계
+    meal_count: number | null;        // 최신 누적값
+    weight: number | null;            // 최신 측정값
+  };
+  goal_progress: {                // 목표 달성률
+    achievements: {
+      activity?: {
+        actual: number;
+        goal: number;
+        percentage: number;
+        achieved: boolean;
+      };
+      meal?: { ... };
+    };
+  };
+}
+```
+
+---
+
+## 🎨 UI 구현 예시
+
+### 1. 진행률 표시
+```typescript
+const ActivityProgress = ({ summary }) => {
+  const activity = summary.goal_progress.achievements.activity;
+  
+  if (!activity) {
+    return <EmptyState>활동 목표를 설정해주세요</EmptyState>;
+  }
+  
+  return (
+    <ProgressBar
+      current={activity.actual}
+      goal={activity.goal}
+      percentage={activity.percentage}
+    >
+      {activity.actual}분 / {activity.goal}분
+    </ProgressBar>
+  );
+};
+```
+
+### 2. 간단한 배지
+```typescript
+const { meta } = summary;
+
+<Badges>
+  {meta.activity_minutes > 0 && (
+    <Badge>🏃 {meta.activity_minutes}분</Badge>
+  )}
+  {meta.meal_count > 0 && (
+    <Badge>🍽️ {meta.meal_count}회</Badge>
+  )}
+</Badges>
+```
+
+---
+
+## ⚠️ 주의사항
+
+### meal_count는 증분값(+1) 전송 권장
+```javascript
+// ✅ 권장: 증분값 (백엔드가 자동 누적)
+POST /records
+{
+  "record_type": "meal_count",
+  "data": 1,  // 항상 1
+  "timestamp": Date.now()
+}
+
+// ⚠️ 레거시: 누적값 (클라이언트가 상태 관리)
+// 가능하지만 구현 복잡함
+```
+
+### `target_daily_activity_minutes`는 읽기 전용!
+```javascript
+// ❌ 이렇게 수정하지 마세요
+PATCH /settings
+{
+  "target_daily_activity_minutes": 180  // 무시됨!
+}
+
+// ✅ 이렇게 수정하세요
+PATCH /settings
+{
+  "target_daily_activity_sessions": 6,  // 세션 수
+  "activity_session_minutes": 30        // 1회 분
+  // → 자동 계산: 6 × 30 = 180분
+}
+```
+
+### 집계 방식 차이
+```javascript
+// Activity: 여러 세션 합계
+// 기록: 30분 + 30분 + 30분
+meta.activity_minutes = 90  // ✅ 합계
+
+// meal_count: 누적값 (최신)
+// 기록: 증분 +1 → 백엔드 누적 1 → 2 → 3
+meta.meal_count = 3         // ✅ 최신 누적값
+```
+
+---
+
+## 📊 화면별 API 선택
+
+| 화면 | API | 데이터 |
+|------|-----|--------|
+| 홈화면 | `/records/daily/summary` | 요약 + 진행률 |
+| 기록 목록 | `/records/daily` | 전체 기록 |
+| 월간 분석 | `/records/summary/range` | 기간 트렌드 + **달성 날짜** |
+| 설정 | `/settings` | 목표 설정 |
+
+---
+
+## 🆕 월간 목표 달성 추적 (2025-10-14)
+
+### 달성 횟수 + 날짜 조회
+```http
+GET /api/pet-care/{pet_id}/records/summary/range?start_date=2025-11-01&end_date=2025-11-30
+```
+
+```typescript
+{
+  meta: {
+    monthly: {
+      meal: {
+        achievement_count: 3,                           // 달성 횟수
+        achievement_dates: ["2025-11-03", "2025-11-04", "2025-11-07"]  // 달성 날짜
+      },
+      activity: {
+        achievement_count: 1,
+        achievement_dates: ["2025-11-03"]
+      }
+    }
+  }
+}
+```
+
+### 캘린더 구현 예시
+```typescript
+const { meal, activity } = response.meta.monthly;
+
+// 날짜별로 체크마크 표시
+<Calendar>
+  {dates.map(date => (
+    <Day
+      date={date}
+      mealAchieved={meal.achievement_dates.includes(date)}
+      activityAchieved={activity.achievement_dates.includes(date)}
+    />
+  ))}
+</Calendar>
+```
+
+---
+
+## 🔗 상세 문서
+
+- [펫케어 FAQ](./pet_care.frontend_faq.md) - 기본 사용법
+- [목표 달성 추적 가이드](./pet_care.goal_achievement_tracking.md) - 캘린더 구현 예시
