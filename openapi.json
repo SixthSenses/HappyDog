@@ -1782,7 +1782,7 @@
       },
       "patch": {
         "summary": "반려동물 프로필 수정",
-        "description": "소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.\n\n    RequestSchema: PetUpdateSchema\n    ResponseSchema[200]: PetProfileResponseSchema",
+        "description": "소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. \n    이름, 성별, 견종, 생년월일, 털 색깔, 건강 관심사, 프로필 이미지 등 필요한 필드만 선택적으로 수정할 수 있습니다.\n\n    RequestSchema: PetUpdateSchema\n    ResponseSchema[200]: PetProfileResponseSchema",
         "responses": {
           "200": {
             "description": "성공",
@@ -3756,6 +3756,22 @@
             "minLength": 1,
             "maxLength": 20
           },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "breed": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date"
+          },
           "fur_color": {
             "type": "string"
           },
@@ -4779,11 +4795,11 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5000/api",
+      "url": "http://localhost:5000",
       "description": "Development"
     },
     {
-      "url": "https://api.happydog.com/api",
+      "url": "https://api.happydog.com",
       "description": "Production"
     }
   ],
