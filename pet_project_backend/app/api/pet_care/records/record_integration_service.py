@@ -157,11 +157,25 @@ class PetCareRecordIntegration:
                     records_result['records_by_date'], settings
                 )
                 summary['goal_tracking'] = goal_tracking
-                # Monthly encouragement text (simple convention)
-                total_hits = sum(goal_tracking.get('days_achieved', {}).values())
+                
+                # Build monthly summary with individual goal details
+                days_achieved = goal_tracking.get('days_achieved', {})
+                achievement_dates = goal_tracking.get('achievement_dates', {})
+                
+                total_hits = sum(days_achieved.values())
+                
                 summary.setdefault('meta', {})['monthly'] = {
                     'encouragement_count': total_hits,
                     'message': MonthlyMessageBuilder.build(total_hits),
+                    # Individual goal achievements for UI (캘린더 표시용)
+                    'meal': {
+                        'achievement_count': days_achieved.get('meal', 0),
+                        'achievement_dates': achievement_dates.get('meal', [])
+                    },
+                    'activity': {
+                        'achievement_count': days_achieved.get('activity', 0),
+                        'achievement_dates': achievement_dates.get('activity', [])
+                    }
                 }
                 
             metrics.increment('range_summary_with_trends_retrieved')

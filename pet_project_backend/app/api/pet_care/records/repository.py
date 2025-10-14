@@ -101,7 +101,7 @@ class FirestorePetCareRecordRepository:
             update_fields['data'] = update_data['data']
         if 'memo' in update_data:
             update_fields['memo'] = update_data['memo']
-        update_fields['updated_at'] = DateTimeUtils.for_firestore(DateTimeUtils.now_utc())
+        update_fields['updated_at'] = DateTimeUtils.for_firestore(DateTimeUtils.now())
         doc_ref.update(update_fields)
         updated = doc_ref.get().to_dict()
         updated['log_id'] = log_id

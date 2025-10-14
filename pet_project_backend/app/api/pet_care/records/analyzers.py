@@ -1,5 +1,8 @@
 from __future__ import annotations
+import logging
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class GoalAnalyzer:
@@ -15,6 +18,11 @@ class GoalAnalyzer:
         meal_count = self._extract_last(rows, 'meal_count')
         activity_minutes = self._extract_total(rows, 'activity')
         weight = self._extract_last(rows, 'weight')
+        
+        # Debug logging
+        logger.debug(f"GoalAnalyzer.analyze_daily for {date}: meal_count={meal_count}, "
+                    f"activity_minutes={activity_minutes}, weight={weight}, "
+                    f"total_records={len(rows)}")
 
         meal_goal = settings.get('goalMealCount')
         # 활동 목표: 세션 × 분이 있으면 이를 우선 사용, 없으면 분 목표 사용
@@ -59,31 +67,81 @@ class GoalAnalyzer:
         }
 
     def analyze_range(self, grouped: Dict[str, List[Dict[str, Any]]], settings: Dict[str, Any]) -> Dict[str, Any]:
-        # Count days achieved per goal
+        """Analyze goal achievements across a date range.
+        
+        Returns:
+            dict: Contains achievement counts, dates, and rates
+                - days_achieved: {goal_type: count}
+                - achievement_dates: {goal_type: [date1, date2, ...]}
+                - achievement_rates: {goal_type: percentage}
+        """
         days = sorted(grouped.keys())
         counts = {'meal': 0, 'activity': 0, 'weight': 0}
+        achievement_dates = {'meal': [], 'activity': [], 'weight': []}
+        
         for d in days:
             rows = grouped[d]
             daily = self.analyze_daily(rows, d, settings)
             ach = daily.get('achievements', {})
+            
+            # Meal goal achieved
             if ach.get('meal', {}).get('achieved'):
                 counts['meal'] += 1
+                achievement_dates['meal'].append(d)
+            
+            # Activity goal achieved
             if ach.get('activity', {}).get('achieved'):
                 counts['activity'] += 1
+                achievement_dates['activity'].append(d)
+            
+            # Weight goal achieved
             if ach.get('weight', {}).get('at_goal'):
                 counts['weight'] += 1
+                achievement_dates['weight'].append(d)
+        
         total = len(days) or 1
         rates = {k: round(v / total * 100, 1) for k, v in counts.items()}
-        return {'days_achieved': counts, 'achievement_rates': rates}
+        
+        logger.debug(f"Range analysis: days_achieved={counts}, achievement_dates={achievement_dates}")
+        
+        return {
+            'days_achieved': counts,
+            'achievement_dates': achievement_dates,
+            'achievement_rates': rates
+        }
 
     @staticmethod
     def _extract_last(rows: List[Dict[str, Any]], rtype: str):
+        """Extract the last (most recent) value for a given record type.
+        
+        Used for cumulative counts (meal_count) and single measurements (weight, bcs).
+        """
         filtered = [r for r in rows if r.get('record_type') == rtype]
         return filtered[-1].get('data') if filtered else None
 
     @staticmethod
     def _extract_total(rows: List[Dict[str, Any]], rtype: str):
-        return sum(int(r.get('data') or 0) for r in rows if r.get('record_type') == rtype)
+        """Calculate total sum for a given record type.
+        
+        Used for activity minutes where multiple sessions should be added together.
+        Safely handles None and invalid values.
+        
+        Returns:
+            int or None: Total sum if any valid records found, None otherwise
+        """
+        total = 0
+        found = False
+        for r in rows:
+            if r.get('record_type') == rtype:
+                val = r.get('data')
+                if val is not None:
+                    try:
+                        total += int(val)
+                        found = True
+                    except (ValueError, TypeError):
+                        # Skip invalid values
+                        continue
+        return total if found else None
 
 
 class TrendAnalyzer:
