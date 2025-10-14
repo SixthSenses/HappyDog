@@ -276,3 +276,157 @@ def test_summarize_daily_meal_count_last():
 - ✅ 디버깅 로그 추가
 
 사용자는 이제 **실제 활동 시간의 정확한 합계**를 볼 수 있습니다.
+
+
+
+
+## ✅ 프론트엔드 개발자 질문 답변 완료
+
+### 📋 생성된 문서
+
+1. **상세 FAQ 문서**: pet_care.frontend_faq.md
+   - Pet 등록 시 자동 설정 생성 설명
+   - 기본값 정책 및 이유
+   - 홈화면 API 사용법
+   - UI 구현 예시
+
+2. **빠른 참조 문서**: pet_care.quick_reference.md
+   - 핵심 답변 요약
+   - 간단한 코드 예시
+   - 주의사항
+
+3. **README 업데이트**: 문서 링크 추가
+
+---
+
+### 🎯 핵심 답변 요약
+
+#### Q1: Pet 등록하면 펫케어 설정 기본값으로 생김?
+✅ **네, 트랜잭션 내에서 자동 생성됩니다**
+
+**기본값**:
+```json
+{
+  "target_daily_activity_sessions": 4,
+  "activity_session_minutes": 30,
+  "target_daily_activity_minutes": 120,    // 파생값 (4×30)
+  "daily_activity_increment": 10,
+  "target_daily_meal_count": 3,
+  "goalWeight": 5.2                        // 품종별 이상 체중
+}
+```
+
+#### Q2: 기본값을 0으로 설정해야 하나요?
+❌ **아니요, 현재 기본값(120분, 3회)을 유지하세요**
+
+**이유**:
+- 합리적인 기본값 제공 (중형견 기준)
+- 사용자가 즉시 사용 가능
+- 0이면 모든 값을 수동 설정해야 함
+- 진행률 표시 가능
+
+#### Q3: 홈화면에서도 summary API 사용?
+✅ **네, `/records/daily/summary` 사용을 권장합니다**
+
+**이유**:
+- 목표 진행률과 집계 요약을 한 번에 조회
+- 홈화면에 필요한 모든 데이터 포함
+- 추가 계산 불필요
+
+---
+
+### 📱 홈화면 구현 가이드
+
+#### 권장 API
+```http
+GET /api/pet-care/{pet_id}/records/daily/summary?date=2025-10-14
+```
+
+#### 응답 구조
+```typescript
+{
+  date: "2025-10-14",
+  records: [...],           // 실제 기록들
+  record_counts: {          // 타입별 개수
+    activity: 3,
+    meal_count: 1
+  },
+  meta: {                   // 집계 요약
+    activity_minutes: 90,   // 여러 세션 합계 ✅
+    meal_count: 3,          // 최신 누적값
+    weight: 5.2             // 최신 측정값
+  },
+  goal_progress: {          // 목표 진행률
+    achievements: {
+      activity: {
+        actual: 90,
+        goal: 120,
+        percentage: 75.0,
+        achieved: false
+      }
+    }
+  }
+}
+```
+
+#### UI 구현 예시
+```typescript
+// 진행률 표시
+const activity = summary.goal_progress.achievements.activity;
+if (!activity) {
+  return <EmptyState>목표를 설정해주세요</EmptyState>;
+}
+
+return (
+  <ProgressBar
+    current={activity.actual}    // 90분
+    goal={activity.goal}          // 120분
+    percentage={activity.percentage}  // 75.0%
+  />
+);
+```
+
+---
+
+### ⚠️ 중요 주의사항
+
+#### 1. `target_daily_activity_minutes`는 **읽기 전용**
+```javascript
+// ❌ 이렇게 수정하지 마세요 (무시됨)
+PATCH /settings
+{ "target_daily_activity_minutes": 180 }
+
+// ✅ 이렇게 수정하세요
+PATCH /settings
+{
+  "target_daily_activity_sessions": 6,
+  "activity_session_minutes": 30
+  // → 자동 계산: 6 × 30 = 180분
+}
+```
+
+#### 2. Activity는 **합계**로 집계
+```javascript
+// 기록: 30분 + 30분 + 30분
+meta.activity_minutes = 90  // ✅ 합계
+
+// 기록: 식사 1회 → 2회 → 3회  
+meta.meal_count = 3         // ✅ 최신 누적값 (합계 아님!)
+```
+
+---
+
+### 📊 화면별 API 선택 가이드
+
+| 화면 | API 엔드포인트 | 포함 데이터 |
+|------|---------------|------------|
+| **홈화면** | `/records/daily/summary` | 요약 + 진행률 + 기록 |
+| 기록 목록 | `/records/daily` | 전체 기록만 |
+| 월간 분석 | `/records/summary/range` | 기간 트렌드 + 목표 추적 |
+| 설정 화면 | `/settings` | 목표 설정 조회/수정 |
+
+---
+
+프론트엔드 개발자가 바로 사용할 수 있도록 상세한 문서와 빠른 참조 문서를 모두 작성했습니다! 🎉
+
+변경했습니다.
