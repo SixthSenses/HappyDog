@@ -24,7 +24,55 @@
 
 ---
 
-## 📱 홈화면 API
+## � 기록 생성 API (중요 변경사항)
+
+### meal_count 전송 방식 (2025-10-14 업데이트)
+
+**✅ 권장: 증분값 전송** (프론트 구현이 더 간단함)
+```typescript
+// 각 식사마다 +1 전송 (백엔드가 자동으로 누적)
+const recordMeal = async () => {
+  await fetch('/api/pet-care/{pet_id}/records', {
+    method: 'POST',
+    body: JSON.stringify({
+      record_type: 'meal_count',
+      data: 1,  // ← 항상 1 (증분값)
+      timestamp: Date.now()
+    })
+  });
+};
+
+// 아침, 점심, 저녁 각각 호출
+recordMeal();  // 백엔드: 0 + 1 = 1
+recordMeal();  // 백엔드: 1 + 1 = 2
+recordMeal();  // 백엔드: 2 + 1 = 3
+```
+
+**⚠️ 레거시: 누적값 전송** (여전히 작동하지만 비권장)
+```typescript
+// 클라이언트가 직접 누적값 관리 (복잡함)
+let mealCount = 0;
+
+const recordMeal = async () => {
+  mealCount += 1;  // 클라이언트에서 카운트
+  await fetch('/api/pet-care/{pet_id}/records', {
+    method: 'POST',
+    body: JSON.stringify({
+      record_type: 'meal_count',
+      data: mealCount,  // ← 1, 2, 3... (누적값)
+      timestamp: Date.now()
+    })
+  });
+};
+```
+
+**핵심 차이**:
+- **증분값**: 클라이언트는 상태 관리 불필요, 항상 `data: 1` 전송
+- **누적값**: 클라이언트가 직접 상태 관리, 앱 재시작 시 복구 필요
+
+---
+
+## �📱 홈화면 API
 
 ### 오늘의 요약 + 목표 진행률
 ```http
@@ -102,6 +150,20 @@ const { meta } = summary;
 
 ## ⚠️ 주의사항
 
+### meal_count는 증분값(+1) 전송 권장
+```javascript
+// ✅ 권장: 증분값 (백엔드가 자동 누적)
+POST /records
+{
+  "record_type": "meal_count",
+  "data": 1,  // 항상 1
+  "timestamp": Date.now()
+}
+
+// ⚠️ 레거시: 누적값 (클라이언트가 상태 관리)
+// 가능하지만 구현 복잡함
+```
+
 ### `target_daily_activity_minutes`는 읽기 전용!
 ```javascript
 // ❌ 이렇게 수정하지 마세요
@@ -119,12 +181,14 @@ PATCH /settings
 }
 ```
 
-### Activity는 합계로 집계됨
+### 집계 방식 차이
 ```javascript
+// Activity: 여러 세션 합계
 // 기록: 30분 + 30분 + 30분
 meta.activity_minutes = 90  // ✅ 합계
 
-// 기록: 식사 1회 → 2회 → 3회
+// meal_count: 누적값 (최신)
+// 기록: 증분 +1 → 백엔드 누적 1 → 2 → 3
 meta.meal_count = 3         // ✅ 최신 누적값
 ```
 
