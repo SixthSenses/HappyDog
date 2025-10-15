@@ -77,6 +77,20 @@ def _convert_paths_to_urls(self, file_paths: List[str]) -> List[str]:
     """
 ```
 
+#### 새로운 메서드: `_convert_profile_image_url()`
+```python
+def _convert_profile_image_url(self, profile_image_url: Optional[str]) -> Optional[str]:
+    """
+    펫 프로필 이미지 URL을 상대 경로에서 전체 URL로 변환
+    
+    특징:
+    - 이미 URL인 경우 (https:// 시작) 변환 스킵
+    - None이거나 빈 문자열이면 None 반환
+    - 변환 실패 시 경고 로그 후 원본 반환 (에러 발생 안 함)
+    - 펫 정보 스냅샷 시 일관된 URL 형식 보장
+    """
+```
+
 #### 개선된 `create_post()` 메서드
 ```python
 def create_post(self, user_id: str, text: str, file_paths: List[str]) -> Optional[Dict[str, Any]]:
@@ -87,15 +101,26 @@ def create_post(self, user_id: str, text: str, file_paths: List[str]) -> Optiona
     Note:
         - 클라이언트가 pre-signed URL로 업로드 완료한 파일 경로 필요
         - 다른 서비스(CartoonJobIntegrationService)에서 URL 전달 시에도 호환
+        - 펫 정보 스냅샷 시 profile_image_url도 전체 URL로 변환 (2025-10-15 추가)
     """
     image_urls = self._convert_paths_to_urls(file_paths)  # ← 통합 변환 로직
+    
+    # 펫 정보 조회 및 스냅샷 생성
+    profile_image_url = self._convert_profile_image_url(pet_data.get("profile_image_url"))
+    pet_info = PetInfo(..., profile_image_url=profile_image_url)  # ← URL 변환 추가
 ```
 
-#### 레거시 데이터 지원: `_ensure_full_image_urls()`
+#### 레거시 데이터 지원: `_ensure_full_image_urls()` (2025-10-15 확장)
 ```python
 def _ensure_full_image_urls(self, post_data: Dict[str, Any]) -> None:
     """
     기존 DB에 상대 경로로 저장된 데이터 변환
+    
+    변환 대상:
+    - post.image_urls: 게시글 이미지 URL 리스트
+    - post.pet.profile_image_url: 펫 프로필 이미지 URL (2025-10-15 추가)
+    
+    특징:
     - 새로운 데이터는 이미 URL로 저장됨
     - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
     """
@@ -103,8 +128,9 @@ def _ensure_full_image_urls(self, post_data: Dict[str, Any]) -> None:
 
 **SOLID 원칙 준수:**
 - **OCP**: 이미 URL인 경우를 지원하도록 확장 (기존 코드 수정 최소화)
-- **DRY**: 중복된 URL 변환 로직을 `_convert_paths_to_urls()`로 통합
+- **DRY**: 중복된 URL 변환 로직을 `_convert_paths_to_urls()`/`_convert_profile_image_url()`로 통합
 - **Fail-Fast**: 파일 존재하지 않으면 즉시 에러 발생 (잘못된 데이터 저장 방지)
+- **SRP**: 펫 프로필 URL 변환을 별도 메서드로 분리 (가독성 향상)
 
 ---
 

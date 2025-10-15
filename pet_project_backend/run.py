@@ -18,7 +18,7 @@ print(f"FLASK_ENV 변수 값: {os.getenv('FLASK_ENV')}")
 print(f"TEST_FIREBASE_CREDENTIALS_PATH 변수 값: {os.getenv('TEST_FIREBASE_CREDENTIALS_PATH')}")
 print(f"--------------------------")
 
-
+# cd pet_project_backend && python run.py 복붙용
 
 app = create_app()
 

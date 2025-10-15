@@ -21,6 +21,7 @@ nose_lib/extractors/extractor.py
 nose_lib/pipelines/__init__.py
 nose_lib/pipelines/nose_print_pipeline.py
 scripts/__init__.py
+scripts/analyze_thresholds.py
 scripts/build_faiss_index.py
 scripts/create_empty_index.py
 scripts/extract_vectors.py
