@@ -83,13 +83,16 @@ class PostService:
             if not pet_data.get("pet_id"):
                 pet_data["pet_id"] = pet_raw.id
 
+            # profile_image_url을 상대 경로에서 전체 URL로 변환
+            profile_image_url = self._convert_profile_image_url(pet_data.get("profile_image_url"))
+
             author = Author(user_id=user_id, nickname=user_data.get("nickname"))
             pet_info = PetInfo(
                 pet_id=pet_data.get("pet_id"),
                 name=pet_data.get("name"),
                 breed=pet_data.get("breed"),
                 birthdate=pet_data.get("birthdate"),
-                profile_image_url=pet_data.get("profile_image_url")
+                profile_image_url=profile_image_url
             )
             post_id = str(uuid.uuid4())
             new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
@@ -99,6 +102,41 @@ class PostService:
         except Exception as e:
             logging.error(f"게시글 생성 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
+
+    def _convert_profile_image_url(self, profile_image_url: Optional[str]) -> Optional[str]:
+        """
+        펫 프로필 이미지 URL을 상대 경로에서 전체 URL로 변환합니다.
+        
+        Note:
+            - 이미 전체 URL(https://로 시작)이면 그대로 반환
+            - 상대 경로이면 Firebase Storage URL로 변환
+            - None이거나 빈 문자열이면 None 반환
+            - 변환 실패 시 경고 로그 출력 후 원본 반환 (에러 발생 안 함)
+        
+        Args:
+            profile_image_url: 펫 프로필 이미지 경로 또는 URL
+            
+        Returns:
+            Firebase Storage URL 또는 None
+        """
+        if not profile_image_url:
+            return None
+        
+        # 이미 전체 URL인 경우
+        if profile_image_url.startswith('https://'):
+            return profile_image_url
+        
+        # StorageService가 없으면 원본 반환
+        if not self.storage_service:
+            logging.warning(f"StorageService가 없어 profile_image_url 변환 불가: {profile_image_url}")
+            return profile_image_url
+        
+        # 상대 경로를 URL로 변환
+        try:
+            return self.storage_service.get_public_url(profile_image_url)
+        except Exception as e:
+            logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_image_url} - {e}")
+            return profile_image_url
 
     def _convert_paths_to_urls(self, file_paths: List[str]) -> List[str]:
         """
@@ -147,7 +185,7 @@ class PostService:
 
     def _ensure_full_image_urls(self, post_data: Dict[str, Any]) -> None:
         """
-        image_urls가 상대 경로인 경우 전체 URL로 변환합니다.
+        image_urls와 pet.profile_image_url이 상대 경로인 경우 전체 URL로 변환합니다.
         기존 데이터 호환성을 위한 헬퍼 메서드입니다.
         
         Note:
@@ -155,28 +193,37 @@ class PostService:
             - 새로운 데이터는 create_post에서 이미 URL로 변환되어 저장됨
             - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
         """
-        if not post_data or 'image_urls' not in post_data:
+        if not post_data or not self.storage_service:
             return
         
-        image_urls = post_data['image_urls']
-        if not image_urls or not self.storage_service:
-            return
-        
-        # 상대 경로인지 확인 (https://로 시작하지 않으면 상대 경로)
-        converted_urls = []
-        for url in image_urls:
-            if url and not url.startswith('https://'):
-                try:
-                    # 상대 경로를 전체 URL로 변환
-                    full_url = self.storage_service.get_public_url(url)
-                    converted_urls.append(full_url)
-                except Exception as e:
-                    logging.warning(f"URL 변환 실패 (fallback to original): {url} - {e}")
+        # 1. image_urls 변환
+        if 'image_urls' in post_data and post_data['image_urls']:
+            image_urls = post_data['image_urls']
+            converted_urls = []
+            for url in image_urls:
+                if url and not url.startswith('https://'):
+                    try:
+                        # 상대 경로를 전체 URL로 변환
+                        full_url = self.storage_service.get_public_url(url)
+                        converted_urls.append(full_url)
+                    except Exception as e:
+                        logging.warning(f"URL 변환 실패 (fallback to original): {url} - {e}")
+                        converted_urls.append(url)
+                else:
                     converted_urls.append(url)
-            else:
-                converted_urls.append(url)
+            post_data['image_urls'] = converted_urls
         
-        post_data['image_urls'] = converted_urls
+        # 2. pet.profile_image_url 변환
+        if 'pet' in post_data and isinstance(post_data['pet'], dict):
+            pet_data = post_data['pet']
+            if 'profile_image_url' in pet_data:
+                profile_url = pet_data.get('profile_image_url')
+                if profile_url and not profile_url.startswith('https://'):
+                    try:
+                        full_url = self.storage_service.get_public_url(profile_url)
+                        pet_data['profile_image_url'] = full_url
+                    except Exception as e:
+                        logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_url} - {e}")
     
     def get_posts(self, limit: int, cursor: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """게시글 피드 목록을 페이지네이션으로 조회합니다 (좋아요 정보 제외)."""
