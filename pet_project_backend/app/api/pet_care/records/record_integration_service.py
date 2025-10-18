@@ -97,8 +97,8 @@ class PetCareRecordIntegration:
             # Get daily records
             records_result = self.query.get_daily(pet_id, date)
             
-            # Get pet settings
-            settings = self.settings.get_settings(pet_id)
+            # Get pet settings effective on the date
+            settings = self.settings.get_settings_at_date(pet_id, date)
             
             # Build summary with goal analysis
             summary = {
@@ -137,8 +137,8 @@ class PetCareRecordIntegration:
             # Get range records
             records_result = self.query.get_range_grouped(pet_id, start_date, end_date)
             
-            # Get pet settings
-            settings = self.settings.get_settings(pet_id)
+            # Get historical settings covering the date range
+            settings_map = self.settings.get_settings_for_range(pet_id, start_date, end_date)
             
             # Build enhanced summary
             summary = {
@@ -152,9 +152,9 @@ class PetCareRecordIntegration:
             summary['trends'] = self.trend_analyzer.build_trends(records_result['records_by_date'])
             
             # Add goal tracking if settings available
-            if settings:
-                goal_tracking = self.goal_analyzer.analyze_range(
-                    records_result['records_by_date'], settings
+            if settings_map:
+                goal_tracking = self.goal_analyzer.analyze_range_with_history(
+                    records_result['records_by_date'], settings_map
                 )
                 summary['goal_tracking'] = goal_tracking
                 
@@ -300,7 +300,7 @@ class PetCareRecordIntegration:
             from dateutil.relativedelta import relativedelta
             
             # 항상 오늘 기준
-            today = DateTimeUtils.now_kst()
+            today = DateTimeUtils.now()
             reference_date = today.strftime('%Y-%m-%d')
             
             # 최근 6개월 계산 (현재 월 포함)
