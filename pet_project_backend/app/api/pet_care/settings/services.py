@@ -145,21 +145,44 @@ class PetCareSettingService:
         return updated_settings
 
     def get_settings_at_date(self, pet_id: str, date: str) -> Dict[str, Any]:
-        """Return settings that were effective on the given KST date."""
+        """Return settings that were effective on the given KST date.
+        
+        If multiple settings were changed on the same date, returns the most recent one
+        based on created_at timestamp. Requires composite index on (effective_date, created_at).
+        """
         if self.settings_history_ref is None:
             return self.get_settings(pet_id)
 
         history_ref = self.settings_history_ref.document(pet_id).collection('changes')
         try:
+            # Try composite index query (effective_date DESC, created_at DESC)
+            # This ensures we get the most recent change on the same day
             query = (
-                history_ref.order_by('effective_date', direction=firestore.Query.DESCENDING)
+                history_ref
                 .where('effective_date', '<=', date)
+                .order_by('effective_date', direction=firestore.Query.DESCENDING)
+                .order_by('created_at', direction=firestore.Query.DESCENDING)
                 .limit(1)
             )
             docs = list(query.stream())
         except Exception as exc:
-            logging.error(f"Failed to fetch settings history for pet {pet_id} at {date}: {exc}", exc_info=True)
-            return self.get_settings(pet_id)
+            # Fallback: composite index may not exist yet
+            logging.warning(
+                f"Composite index query failed for pet {pet_id}, falling back to simple query. "
+                f"Consider creating index on (effective_date, created_at). Error: {exc}"
+            )
+            try:
+                # Fallback to simple query without created_at ordering
+                query = (
+                    history_ref
+                    .where('effective_date', '<=', date)
+                    .order_by('effective_date', direction=firestore.Query.DESCENDING)
+                    .limit(1)
+                )
+                docs = list(query.stream())
+            except Exception as fallback_exc:
+                logging.error(f"Failed to fetch settings history for pet {pet_id} at {date}: {fallback_exc}", exc_info=True)
+                return self.get_settings(pet_id)
 
         if not docs:
             logging.warning(f"No settings history before {date} for pet {pet_id}, using current settings")
@@ -170,7 +193,11 @@ class PetCareSettingService:
         return history_data
 
     def get_settings_for_range(self, pet_id: str, start_date: str, end_date: str) -> Dict[str, Dict[str, Any]]:
-        """Return a mapping of effective dates to settings snapshots for the range."""
+        """Return a mapping of effective dates to settings snapshots for the range.
+        
+        If multiple settings were changed on the same date, only the most recent one
+        (based on created_at) is included in the result.
+        """
         if self.settings_history_ref is None:
             current = self.get_settings(pet_id)
             return {start_date: current}
@@ -178,15 +205,31 @@ class PetCareSettingService:
         history_ref = self.settings_history_ref.document(pet_id).collection('changes')
 
         try:
+            # Try composite index query for optimal performance
             docs = list(
-                history_ref.order_by('effective_date')
+                history_ref
                 .where('effective_date', '<=', end_date)
+                .order_by('effective_date', direction=firestore.Query.ASCENDING)
+                .order_by('created_at', direction=firestore.Query.DESCENDING)
                 .stream()
             )
         except Exception as exc:
-            logging.error(f"Failed to fetch settings history range for pet {pet_id}: {exc}", exc_info=True)
-            current = self.get_settings(pet_id)
-            return {start_date: current}
+            # Fallback: composite index may not exist yet
+            logging.warning(
+                f"Composite index query failed for range query on pet {pet_id}, using fallback. "
+                f"Consider creating index on (effective_date, created_at). Error: {exc}"
+            )
+            try:
+                docs = list(
+                    history_ref
+                    .where('effective_date', '<=', end_date)
+                    .order_by('effective_date')
+                    .stream()
+                )
+            except Exception as fallback_exc:
+                logging.error(f"Failed to fetch settings history range for pet {pet_id}: {fallback_exc}", exc_info=True)
+                current = self.get_settings(pet_id)
+                return {start_date: current}
 
         if not docs:
             logging.warning(f"No settings history found for pet {pet_id} up to {end_date}, using current settings")
@@ -201,12 +244,26 @@ class PetCareSettingService:
             effective_date = history.get('effective_date')
             if not effective_date:
                 continue
+            
             self._ensure_derived_fields(history)
-            # 사본 저장하여 외부 수정으로부터 보호
             history_copy = {**history}
+            
             if effective_date <= start_date:
                 base_snapshot = history_copy
-            result[effective_date] = history_copy
+            
+            # Handle same-day multiple changes: keep only the most recent one
+            if effective_date in result:
+                # Compare created_at to determine which is more recent
+                existing_created_at = result[effective_date].get('created_at')
+                current_created_at = history_copy.get('created_at')
+                
+                # Replace if current is more recent (or if existing has no timestamp)
+                if not existing_created_at or (current_created_at and current_created_at > existing_created_at):
+                    result[effective_date] = history_copy
+                # else: keep existing (it's already more recent)
+            else:
+                # First occurrence of this date
+                result[effective_date] = history_copy
 
         if base_snapshot is None:
             base_snapshot = self.get_settings(pet_id)
