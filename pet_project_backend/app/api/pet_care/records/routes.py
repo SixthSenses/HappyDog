@@ -15,7 +15,8 @@ from app.api.pet_care.records.schemas import (
     DailySummaryWithGoalsResponseSchema,
     RangeQuerySchema,
     RangeSummaryWithTrendsResponseSchema,
-    DeleteRecordResponseSchema
+    DeleteRecordResponseSchema,
+    WeightMonthlyAnalysisResponseSchema
 )
 from app.utils.api_documentation import (
     api_doc, error_responses, request_examples, response_examples,
@@ -212,5 +213,42 @@ def get_range_summary_with_trends(pet_id: str):
         return jsonify(body), status
     except Exception as e:
         logging.error(f"기간 요약/트렌드 조회 오류 (pet_id: {pet_id}): {e}", exc_info=True)
+        status, body = build_error('FETCH_FAILED')
+        return jsonify(body), status
+
+
+@pet_care_records_bp.route('/<string:pet_id>/weight/monthly-analysis', methods=['GET'])
+@jwt_required()
+def get_weight_monthly_analysis(pet_id: str):
+    """몸무게 월간 분석 조회
+
+    6개월간의 월별 평균 몸무게와 비교 분석 텍스트를 제공합니다.
+    항상 오늘을 기준으로 최근 6개월 데이터를 반환합니다.
+
+    ResponseSchema[200]: WeightMonthlyAnalysisResponseSchema
+    """
+    integration_service = current_app.services.get('pet_care_integration')
+    try:
+        if integration_service:
+            analysis = integration_service.get_weight_monthly_analysis(pet_id)
+            return jsonify(WeightMonthlyAnalysisResponseSchema().dump(analysis)), 200
+        # 통합 서비스 없을 때는 최소 스켈레톤 반환
+        skeleton = {
+            'analysis': {
+                'title': '몸무게 데이터가 부족해요',
+                'description': '6개월 동안 매월 한 번 이상 기록하면 분석을 볼 수 있어요',
+                'current_month_avg': None,
+                'six_months_ago_avg': None,
+                'difference': None
+            },
+            'monthly_data': [],
+            'meta': {
+                'reference_date': DateTimeUtils.now_kst().strftime('%Y-%m-%d'),
+                'timezone': 'Asia/Seoul'
+            }
+        }
+        return jsonify(WeightMonthlyAnalysisResponseSchema().dump(skeleton)), 200
+    except Exception as e:
+        logging.error(f"몸무게 월간 분석 조회 오류 (pet_id: {pet_id}): {e}", exc_info=True)
         status, body = build_error('FETCH_FAILED')
         return jsonify(body), status
