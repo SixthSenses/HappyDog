@@ -2,6 +2,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+from app.utils.datetime_utils import DateTimeUtils
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,82 +35,122 @@ class GoalAnalyzer:
         tgt_weight = settings.get('goalWeight')
 
         achievements: Dict[str, Any] = {}
-        if isinstance(meal_goal, int) and meal_goal > 0 and isinstance(meal_count, int):
+        
+        # 식사 목표: 목표값이 설정되어 있으면 기록 유무와 관계없이 항상 반환
+        if isinstance(meal_goal, int) and meal_goal > 0:
+            actual_meal = meal_count if isinstance(meal_count, int) else 0
             achievements['meal'] = {
-                'actual': meal_count,
+                'actual': actual_meal,
                 'goal': meal_goal,
-                'percentage': round(meal_count / meal_goal * 100, 1),
-                'achieved': meal_count >= meal_goal,
+                'percentage': round(actual_meal / meal_goal * 100, 1),
+                'achieved': actual_meal >= meal_goal,
             }
-        if isinstance(act_goal, int) and act_goal > 0 and isinstance(activity_minutes, int):
+        
+        # 활동 목표: 목표값이 설정되어 있으면 기록 유무와 관계없이 항상 반환
+        if isinstance(act_goal, int) and act_goal > 0:
+            actual_activity = activity_minutes if isinstance(activity_minutes, int) else 0
             achievements['activity'] = {
-                'actual': activity_minutes,
+                'actual': actual_activity,
                 'goal': act_goal,
-                'percentage': round(activity_minutes / act_goal * 100, 1),
-                'achieved': activity_minutes >= act_goal,
+                'percentage': round(actual_activity / act_goal * 100, 1),
+                'achieved': actual_activity >= act_goal,
                 'detail': {
                     'sessions': sessions,
                     'minutes_per_session': per_session,
                     'derived_goal_minutes': derived_minutes or act_goal,
                 }
             }
-        if isinstance(tgt_weight, (int, float)) and isinstance(weight, (int, float)):
-            diff = weight - float(tgt_weight)
-            achievements['weight'] = {
-                'actual': weight,
-                'goal': float(tgt_weight),
-                'at_goal': abs(diff) <= 0.1,
-                'diff': round(diff, 2),
-            }
+        
+        # 체중 목표: 목표값이 설정되어 있으면 항상 반환 (UI에서 목표 표시용)
+        if isinstance(tgt_weight, (int, float)):
+            if isinstance(weight, (int, float)):
+                # 실제 측정값이 있는 경우: 차이와 달성 여부 계산
+                diff = weight - float(tgt_weight)
+                achievements['weight'] = {
+                    'actual': weight,
+                    'goal': float(tgt_weight),
+                    'at_goal': abs(diff) <= 0.1,
+                    'diff': round(diff, 2),
+                }
+            else:
+                # 측정값이 없는 경우: 목표만 반환 (actual은 null)
+                achievements['weight'] = {
+                    'actual': None,
+                    'goal': float(tgt_weight),
+                    'at_goal': None,
+                    'diff': None,
+                }
 
         return {
             'date': date,
             'achievements': achievements,
         }
 
-    def analyze_range(self, grouped: Dict[str, List[Dict[str, Any]]], settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze goal achievements across a date range.
-        
-        Returns:
-            dict: Contains achievement counts, dates, and rates
-                - days_achieved: {goal_type: count}
-                - achievement_dates: {goal_type: [date1, date2, ...]}
-                - achievement_rates: {goal_type: percentage}
-        """
+    def analyze_range_with_history(
+        self,
+        grouped: Dict[str, List[Dict[str, Any]]],
+        settings_by_effective_date: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Analyze achievements using the settings in effect for each day."""
         days = sorted(grouped.keys())
         counts = {'meal': 0, 'activity': 0, 'weight': 0}
         achievement_dates = {'meal': [], 'activity': [], 'weight': []}
-        
-        for d in days:
-            rows = grouped[d]
-            daily = self.analyze_daily(rows, d, settings)
-            ach = daily.get('achievements', {})
-            
-            # Meal goal achieved
-            if ach.get('meal', {}).get('achieved'):
+
+        if not settings_by_effective_date:
+            logger.warning("analyze_range_with_history called without settings map")
+            return {
+                'days_achieved': counts,
+                'achievement_dates': achievement_dates,
+                'achievement_rates': {k: 0.0 for k in counts},
+            }
+
+        sorted_effective_dates = sorted(settings_by_effective_date.keys())
+        active_settings: Optional[Dict[str, Any]] = None
+        idx = 0
+
+        for date_key in days:
+            while idx < len(sorted_effective_dates) and sorted_effective_dates[idx] <= date_key:
+                active_settings = settings_by_effective_date[sorted_effective_dates[idx]]
+                idx += 1
+
+            if active_settings is None:
+                active_settings = settings_by_effective_date[sorted_effective_dates[0]]
+
+            rows = grouped[date_key]
+            daily = self.analyze_daily(rows, date_key, active_settings)
+            achievements = daily.get('achievements', {})
+
+            if achievements.get('meal', {}).get('achieved'):
                 counts['meal'] += 1
-                achievement_dates['meal'].append(d)
-            
-            # Activity goal achieved
-            if ach.get('activity', {}).get('achieved'):
+                achievement_dates['meal'].append(date_key)
+
+            if achievements.get('activity', {}).get('achieved'):
                 counts['activity'] += 1
-                achievement_dates['activity'].append(d)
-            
-            # Weight goal achieved
-            if ach.get('weight', {}).get('at_goal'):
+                achievement_dates['activity'].append(date_key)
+
+            if achievements.get('weight', {}).get('at_goal'):
                 counts['weight'] += 1
-                achievement_dates['weight'].append(d)
-        
-        total = len(days) or 1
-        rates = {k: round(v / total * 100, 1) for k, v in counts.items()}
-        
-        logger.debug(f"Range analysis: days_achieved={counts}, achievement_dates={achievement_dates}")
-        
+                achievement_dates['weight'].append(date_key)
+
+        total_days = len(days) or 1
+        achievement_rates = {k: round(v / total_days * 100, 1) for k, v in counts.items()}
+
+        logger.debug(
+            "Range analysis with history computed",
+            extra={'days_achieved': counts, 'total_days': total_days},
+        )
+
         return {
             'days_achieved': counts,
             'achievement_dates': achievement_dates,
-            'achievement_rates': rates
+            'achievement_rates': achievement_rates,
         }
+
+    def analyze_range(self, grouped: Dict[str, List[Dict[str, Any]]], settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Backward-compatible wrapper for legacy single-setting analysis."""
+        base_date = min(grouped.keys()) if grouped else DateTimeUtils.today_kst_as_date_str()
+        settings_map = {base_date: settings}
+        return self.analyze_range_with_history(grouped, settings_map)
 
     @staticmethod
     def _extract_last(rows: List[Dict[str, Any]], rtype: str):
