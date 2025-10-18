@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from app.utils.datetime_utils import DateTimeUtils
 from app.utils import metrics
-from .analyzers import GoalAnalyzer, TrendAnalyzer, MonthlyMessageBuilder
+from .analyzers import GoalAnalyzer, TrendAnalyzer, MonthlyMessageBuilder, WeightMonthlyAnalyzer
 from .notifier import PetCareNotifier
 
 
@@ -260,3 +260,111 @@ class PetCareRecordIntegration:
             logging.error(f"Failed to send achievement notifications for pet {pet_id}: {e}", exc_info=True)
 
     # Direct notification helper removed; notifier handles transport.
+
+    def get_weight_monthly_analysis(self, pet_id: str) -> Dict[str, Any]:
+        """
+        몸무게 월간 분석 (6개월 데이터 + 비교 텍스트)
+        
+        중요: 항상 오늘을 기준으로 최근 6개월 데이터를 반환합니다.
+        과거 데이터를 조회하더라도 기준 시점은 오늘입니다.
+        
+        Args:
+            pet_id: 반려동물 ID
+            
+        Returns:
+            dict: {
+                'analysis': {
+                    'title': str,
+                    'description': str,
+                    'current_month_avg': float or None,
+                    'six_months_ago_avg': float or None,
+                    'difference': float or None
+                },
+                'monthly_data': [
+                    {
+                        'year_month': str,  # 'YYYY-MM'
+                        'label': str,  # '5월'
+                        'average_weight': float or None,
+                        'record_count': int
+                    },
+                    ...
+                ],
+                'meta': {
+                    'reference_date': str,  # 'YYYY-MM-DD'
+                    'timezone': str
+                }
+            }
+        """
+        try:
+            from datetime import datetime, timedelta
+            from dateutil.relativedelta import relativedelta
+            
+            # 항상 오늘 기준
+            today = DateTimeUtils.now_kst()
+            reference_date = today.strftime('%Y-%m-%d')
+            
+            # 최근 6개월 계산 (현재 월 포함)
+            # 예: 2025-10 -> [2025-05, 2025-06, 2025-07, 2025-08, 2025-09, 2025-10]
+            target_months = []
+            for i in range(5, -1, -1):
+                month_date = today - relativedelta(months=i)
+                target_months.append(month_date.strftime('%Y-%m'))
+            
+            # 데이터 조회 기간 설정 (6개월 전 1일 ~ 오늘)
+            start_date = (today - relativedelta(months=5)).replace(day=1).strftime('%Y-%m-%d')
+            end_date = reference_date
+            
+            # 기간 내 모든 몸무게 기록 조회
+            records_result = self.query.get_range_grouped(pet_id, start_date, end_date)
+            
+            # 월별 평균 계산
+            monthly_averages = WeightMonthlyAnalyzer.calculate_monthly_averages(
+                records_result['records_by_date'],
+                target_months
+            )
+            
+            # 현재 월과 6개월 전 월 평균
+            current_month = target_months[-1]  # 가장 최근 월
+            six_months_ago_month = target_months[0]  # 6개월 전 월
+            
+            current_avg = monthly_averages.get(current_month, {}).get('average_weight')
+            six_months_ago_avg = monthly_averages.get(six_months_ago_month, {}).get('average_weight')
+            
+            # 분석 텍스트 생성
+            analysis = WeightMonthlyAnalyzer.generate_analysis_text(
+                current_avg,
+                six_months_ago_avg
+            )
+            
+            # 월별 데이터 구조화
+            monthly_data = []
+            for month in target_months:
+                month_info = monthly_averages.get(month, {})
+                
+                # 월 라벨 생성 (예: '5월', '6월')
+                month_num = int(month.split('-')[1])
+                label = f"{month_num}월"
+                
+                monthly_data.append({
+                    'year_month': month,
+                    'label': label,
+                    'average_weight': month_info.get('average_weight'),
+                    'record_count': month_info.get('record_count', 0)
+                })
+            
+            result = {
+                'analysis': analysis,
+                'monthly_data': monthly_data,
+                'meta': {
+                    'reference_date': reference_date,
+                    'timezone': 'Asia/Seoul'
+                }
+            }
+            
+            metrics.increment('weight_monthly_analysis_retrieved')
+            
+            return result
+            
+        except Exception as e:
+            logging.error(f"Failed to get weight monthly analysis for pet {pet_id}: {e}", exc_info=True)
+            raise

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -181,3 +181,127 @@ class MonthlyMessageBuilder:
         if encouragement_count >= 1:
             return "좋은 시작이에요!"
         return "이번 달엔 지금부터 시작해볼까요?"
+
+
+class WeightMonthlyAnalyzer:
+    """월별 몸무게 분석을 담당하는 클래스 (6개월 평균 및 비교 텍스트 생성)"""
+
+    @staticmethod
+    def calculate_monthly_averages(
+        records_by_date: Dict[str, List[Dict[str, Any]]],
+        target_months: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        월별 평균 몸무게를 계산합니다.
+        
+        Args:
+            records_by_date: 날짜별 기록 딕셔너리 {'YYYY-MM-DD': [records]}
+            target_months: 계산할 월 리스트 ['YYYY-MM', ...]
+            
+        Returns:
+            dict: {
+                'YYYY-MM': {
+                    'average_weight': float,
+                    'record_count': int,
+                    'weights': [float, ...]  # 디버깅용
+                }
+            }
+        """
+        monthly_weights: Dict[str, List[float]] = {month: [] for month in target_months}
+        
+        for date_str, records in records_by_date.items():
+            year_month = date_str[:7]  # 'YYYY-MM-DD' -> 'YYYY-MM'
+            
+            if year_month not in monthly_weights:
+                continue
+            
+            # 해당 날짜의 몸무게 기록 추출 (마지막 값)
+            for record in records:
+                if record.get('record_type') == 'weight':
+                    weight = record.get('data')
+                    if weight is not None:
+                        try:
+                            monthly_weights[year_month].append(float(weight))
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid weight value at {date_str}: {weight}")
+        
+        # 월별 평균 계산
+        result = {}
+        for month in target_months:
+            weights = monthly_weights[month]
+            if weights:
+                result[month] = {
+                    'average_weight': sum(weights) / len(weights),
+                    'record_count': len(weights),
+                    'weights': weights  # 디버깅용
+                }
+            else:
+                result[month] = {
+                    'average_weight': None,
+                    'record_count': 0,
+                    'weights': []
+                }
+        
+        return result
+
+    @staticmethod
+    def generate_analysis_text(
+        current_avg: Optional[float],
+        six_months_ago_avg: Optional[float]
+    ) -> Dict[str, Any]:
+        """
+        현재 월과 6개월 전 월의 평균 몸무게를 비교하여 분석 텍스트를 생성합니다.
+        
+        기준:
+        - 차이 ≤ 1.5kg: "몸무게가 비슷해요"
+        - 차이 > 1.5kg: "몸무게가 늘었어요"
+        - 차이 < -1.5kg: "몸무게가 줄었어요"
+        
+        Args:
+            current_avg: 현재 월 평균 몸무게
+            six_months_ago_avg: 6개월 전 월 평균 몸무게
+            
+        Returns:
+            dict: {
+                'title': str,  # 메인 텍스트
+                'description': str,  # 상세 설명
+                'current_month_avg': float or None,
+                'six_months_ago_avg': float or None,
+                'difference': float or None
+            }
+        """
+        if current_avg is None or six_months_ago_avg is None:
+            return {
+                'title': '몸무게 데이터가 부족해요',
+                'description': '6개월 동안 매월 한 번 이상 기록하면 분석을 볼 수 있어요',
+                'current_month_avg': current_avg,
+                'six_months_ago_avg': six_months_ago_avg,
+                'difference': None
+            }
+        
+        difference = current_avg - six_months_ago_avg
+        abs_diff = abs(difference)
+        
+        # 타이틀 결정
+        if abs_diff <= 1.5:
+            title = "몸무게가 비슷해요"
+        elif difference > 1.5:
+            title = "몸무게가 늘었어요"
+        else:
+            title = "몸무게가 줄었어요"
+        
+        # 상세 설명 생성
+        if abs_diff <= 1.5:
+            description = f"6개월 전보다 {abs_diff:.1f}kg 차이나요"
+        elif difference > 0:
+            description = f"6개월 전보다 {abs_diff:.1f}kg 늘었어요"
+        else:
+            description = f"6개월 전보다 {abs_diff:.1f}kg 줄었어요"
+        
+        return {
+            'title': title,
+            'description': description,
+            'current_month_avg': round(current_avg, 2),
+            'six_months_ago_avg': round(six_months_ago_avg, 2),
+            'difference': round(difference, 2)
+        }

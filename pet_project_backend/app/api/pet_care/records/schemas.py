@@ -151,3 +151,33 @@ class RangeSummaryWithTrendsResponseSchema(Schema):
     meta = fields.Dict()
     trends = fields.Dict()
     goal_tracking = fields.Dict(allow_none=True)
+
+
+class WeightMonthlyAnalysisSchema(Schema):
+    """
+    분석 정보 스키마 (타이틀, 설명, 비교 데이터)
+    """
+    title = fields.Str(required=True)
+    description = fields.Str(required=True)
+    current_month_avg = fields.Float(allow_none=True)
+    six_months_ago_avg = fields.Float(allow_none=True)
+    difference = fields.Float(allow_none=True)
+
+
+class MonthlyWeightDataSchema(Schema):
+    """
+    월별 몸무게 데이터 스키마
+    """
+    year_month = fields.Str(required=True)  # 'YYYY-MM'
+    label = fields.Str(required=True)  # '5월'
+    average_weight = fields.Float(allow_none=True)
+    record_count = fields.Int(required=True)
+
+
+class WeightMonthlyAnalysisResponseSchema(Schema):
+    """
+    몸무게 월간 분석 응답 스키마 (6개월 데이터 + 분석 텍스트)
+    """
+    analysis = fields.Nested(WeightMonthlyAnalysisSchema, required=True)
+    monthly_data = fields.List(fields.Nested(MonthlyWeightDataSchema), required=True)
+    meta = fields.Dict(required=True)  # reference_date, timezone
