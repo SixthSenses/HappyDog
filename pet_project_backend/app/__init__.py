@@ -55,6 +55,8 @@ from app.api.pet_care.records.record_integration_service import PetCareRecordInt
 from app.api.pet_care.records.repository import FirestorePetCareRecordRepository, InMemoryPetCareRecordRepository
 from app.api.pet_care.records.query_service import PetCareRecordQueryService
 from app.api.pet_care.records.services import PetCareRecordService
+from app.api.pet_care.records.analyzers import GoalAnalyzer, TrendAnalyzer
+from app.api.pet_care.records.notifier import PetCareNotifier
 from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
 from app.middleware.rate_limit_middleware import install_rate_limit
@@ -191,13 +193,20 @@ def _init_dependent_services(app):
     app.services['pet_care_query'] = PetCareRecordQueryService(repo)
     app.services['pet_care_records'] = PetCareRecordService(repo)
     
-    # Pet Care Integration Service - depends on multiple services
+    # Pet Care Analyzers and Notifier
+    goal_analyzer = GoalAnalyzer()
+    trend_analyzer = TrendAnalyzer()
+    pet_care_notifier = PetCareNotifier(notification_service=app.services['notifications'])
+    
+    # Pet Care Integration Service - depends on multiple services with DI
     app.services['pet_care_integration'] = PetCareRecordIntegration(
         crud_service=app.services['pet_care_records'],
         query_service=app.services['pet_care_query'],
         cache_service=None,  # Cache service not implemented yet
         settings_service=app.services['pet_care_settings'],
-        notification_service=app.services['notifications']
+        goal_analyzer=goal_analyzer,
+        trend_analyzer=trend_analyzer,
+        notifier=pet_care_notifier
     )
 
     # Pets Domain - depends on storage, pet_care_settings, and ML services

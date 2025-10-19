@@ -15,6 +15,7 @@ from firebase_admin import firestore
 
 from app.models.post import Post, Author, PetInfo
 from app.utils.datetime_utils import DateTimeUtils
+from app.services.storage_interfaces import StorageUrlProvider
 
 
 class PostService:
@@ -23,7 +24,7 @@ class PostService:
     Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE)
     methods return lightweight placeholders or no-op values without touching Firestore.
     """
-    def __init__(self, db_client=None, storage_service=None):
+    def __init__(self, db_client=None, storage_service: Optional[StorageUrlProvider] = None):
         self.db = db_client
         self.storage_service = storage_service
         if self.db is None:

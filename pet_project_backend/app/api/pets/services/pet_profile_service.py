@@ -19,7 +19,7 @@ from firebase_admin.firestore import Transaction
 
 from app.models.pet import Pet, PetGender
 from app.utils.datetime_utils import DateTimeUtils
-from app.services.storage_service import StorageService
+from app.services.storage_interfaces import StorageUrlProvider
 from app.api.pet_care.settings.services import PetCareSettingService
 
 
@@ -29,7 +29,7 @@ class PetProfileService:
     DOCS_MODE: Firestore access skipped, placeholder synthetic data returned.
     """
 
-    def __init__(self, storage_service: StorageService, pet_care_setting_service: PetCareSettingService, db_client=None):
+    def __init__(self, storage_service: StorageUrlProvider, pet_care_setting_service: PetCareSettingService, db_client=None):
         self.db = db_client
         self.pets_ref = self.db.collection('pets') if self.db else None
         self.storage_service = storage_service

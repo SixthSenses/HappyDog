@@ -21,14 +21,35 @@ class PetCareRecordIntegration:
     with pet settings to offer goal tracking and intelligent recommendations.
     """
 
-    def __init__(self, crud_service, query_service, cache_service, settings_service, notification_service=None):
+    def __init__(
+        self, 
+        crud_service, 
+        query_service, 
+        cache_service, 
+        settings_service, 
+        goal_analyzer=None,
+        trend_analyzer=None,
+        notifier=None
+    ):
+        """Initialize integration service with dependency injection.
+        
+        Args:
+            crud_service: CRUD operations service
+            query_service: Query operations service
+            cache_service: Cache service
+            settings_service: Pet care settings service
+            goal_analyzer: Optional GoalAnalyzer instance (creates default if None)
+            trend_analyzer: Optional TrendAnalyzer instance (creates default if None)
+            notifier: Optional PetCareNotifier instance (creates default if None)
+        """
         self.crud = crud_service
         self.query = query_service
         self.cache = cache_service
         self.settings = settings_service
-        self.goal_analyzer = GoalAnalyzer()
-        self.trend_analyzer = TrendAnalyzer()
-        self.notifier = PetCareNotifier(notification_service)
+        # Use injected dependencies or create defaults for backward compatibility
+        self.goal_analyzer = goal_analyzer if goal_analyzer is not None else GoalAnalyzer()
+        self.trend_analyzer = trend_analyzer if trend_analyzer is not None else TrendAnalyzer()
+        self.notifier = notifier if notifier is not None else PetCareNotifier(notification_service=None)
         logging.info("PetCareRecordIntegration initialized.")
 
     def create_record_with_goals(self, pet_id: str, record_data: Dict[str, Any]) -> Dict[str, Any]:
