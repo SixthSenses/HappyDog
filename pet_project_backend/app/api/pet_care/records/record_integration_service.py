@@ -59,6 +59,9 @@ class PetCareRecordIntegration:
         """
         self.settings = settings_service
         
+        # Store query_service for legacy methods that still use it
+        self.query_service = query_service
+        
         # Legacy direct dependencies (for backward compatibility)
         self.goal_analyzer = goal_analyzer if goal_analyzer is not None else GoalAnalyzer()
         self.trend_analyzer = trend_analyzer if trend_analyzer is not None else TrendAnalyzer()
@@ -150,8 +153,8 @@ class PetCareRecordIntegration:
             dict: Range summary with trends and goal analysis
         """
         try:
-            # Get range records
-            records_result = self.query.get_range_grouped(pet_id, start_date, end_date)
+            # Get range records using query_service
+            records_result = self.query_service.get_range_grouped(pet_id, start_date, end_date)
             
             # Get historical settings covering the date range
             settings_map = self.settings.get_settings_for_range(pet_id, start_date, end_date)
@@ -264,8 +267,8 @@ class PetCareRecordIntegration:
             start_date = (today - relativedelta(months=5)).replace(day=1).strftime('%Y-%m-%d')
             end_date = reference_date
             
-            # 기간 내 모든 몸무게 기록 조회
-            records_result = self.query.get_range_grouped(pet_id, start_date, end_date)
+            # 기간 내 모든 몸무게 기록 조회 using query_service
+            records_result = self.query_service.get_range_grouped(pet_id, start_date, end_date)
             
             # 월별 평균 계산
             monthly_averages = WeightMonthlyAnalyzer.calculate_monthly_averages(
