@@ -96,8 +96,13 @@ def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
             logging.error(f"Failed to initialize OpenAI service: {e}")
             raise
 
-    # Notification service - foundational for async messaging (DI with Firestore)
-    app.services['notifications'] = notification_service_module.NotificationService(app.firestore_client)
+    # Notification service - foundational for async messaging (DI with Firestore and PushTransport)
+    from app.services.push_transport import FCMPushTransport, StubPushTransport
+    push_transport = StubPushTransport() if docs_mode else FCMPushTransport()
+    app.services['notifications'] = notification_service_module.NotificationService(
+        db_client=app.firestore_client,
+        push_transport=push_transport
+    )
     
     # Notification presentation service
     from app.api.notifications.services import NotificationPresentationService
