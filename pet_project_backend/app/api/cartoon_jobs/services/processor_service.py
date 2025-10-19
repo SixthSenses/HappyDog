@@ -1,53 +1,76 @@
 # app/api/cartoon_jobs/services/processor_service.py
+"""
+Refactored Cartoon Job Processor - Facade Pattern (Phase 2-5: SRP + OCP).
+
+Original monolithic class decomposed into 3 layers:
+- QueueManager: ThreadPool management, job submission/cancellation
+- JobHandler: Business logic for cartoon generation workflow
+- NotificationBroker: (handled via JobEvents, no separate layer needed)
+
+This file maintains backward-compatible facade for existing code.
+"""
 
 import logging
-import threading
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Dict, Any, Optional
+from typing import Optional
 from flask import Flask
 
-from app.models.cartoon_job import CartoonJobStatus
+from app.api.cartoon_jobs.services.queue_manager import CartoonQueueManager
+from app.api.cartoon_jobs.services.job_handler import CartoonJobHandler
 
 
 class CartoonJobProcessor:
     """
-    백그라운드 작업 처리를 담당하는 서비스 클래스.
-    ThreadPoolExecutor를 사용하여 만화 생성 작업을 비동기적으로 처리합니다.
+    Facade for cartoon job background processing.
+    
+    Phase 2-5 Refactoring:
+    - Delegates queue management to CartoonQueueManager (SRP)
+    - Delegates job workflow to CartoonJobHandler (SRP)
+    - Maintains backward-compatible API for existing routes
+    
+    Responsibilities (after refactoring):
+    - Coordinate between queue manager and job handler
+    - Provide unified interface for job submission/cancellation
+    - Maintain app context lifecycle
     """
     
     def __init__(self, max_workers: int = 3, executor: Optional[ThreadPoolExecutor] = None):
         """
-        백그라운드 작업 프로세서를 초기화합니다.
+        Initialize processor facade with queue manager and job handler.
         
         Args:
-            max_workers: 동시 처리 가능한 최대 작업 수
+            max_workers: Maximum concurrent workers (passed to queue manager)
+            executor: Optional ThreadPoolExecutor (None = docs mode)
         """
+        # Phase 2-5: Delegate to specialized layers
+        self.queue_manager = CartoonQueueManager(max_workers=max_workers, executor=executor)
+        self.job_handler = CartoonJobHandler()
+        
         self.max_workers = max_workers
-        # If an executor is explicitly provided use it; if None we treat as docs-mode (no background execution)
-        self.executor = executor if executor is not None else None
-        self.docs_mode = self.executor is None
-        self.app = None
-        self.active_jobs = {}  # job_id -> Future 매핑
-        self._lock = threading.Lock()
+        self.docs_mode = self.queue_manager.docs_mode
+        
         if self.docs_mode:
             logging.info("CartoonJobProcessor initialized in DOCS_MODE (background execution disabled)")
 
     def init_app(self, app: Flask):
-        """Flask 앱과 연결합니다."""
-        self.app = app
+        """Initialize Flask app context for job handler."""
+        self.job_handler.init_app(app)
         logging.info(f"CartoonJobProcessor 초기화됨 (max_workers: {self.max_workers})")
 
-    def submit_job(self, job_id: str, image_url: str, user_text: str = "") -> Future:
+    def submit_job(self, job_id: str, image_url: str, user_text: str = "") -> Optional[Future]:
         """
-        작업을 백그라운드 큐에 제출합니다.
+        Submit job to background queue (backward-compatible facade method).
+        
+        Phase 2-5: Delegates to queue_manager for thread pool submission,
+        wraps job_handler.process_job as the task callable.
         
         Args:
-            job_id: 처리할 작업 ID
-            image_url: 변환할 이미지 URL
-            user_text: 사용자 입력 텍스트
-            
+            job_id: Job identifier
+            image_url: Source image URL
+            user_text: Optional user prompt
+        
         Returns:
-            Future 객체
+            Future object or None (docs mode)
         """
         if self.docs_mode:
             logging.info("DOCS_MODE: submit_job no-op returning dummy future result")
@@ -55,196 +78,32 @@ class CartoonJobProcessor:
                 def result(self):
                     return {"success": True, "skipped": True}
             return _ImmediateFuture()
-        with self._lock:
-            if job_id in self.active_jobs:
-                logging.warning(f"이미 처리 중인 작업입니다: {job_id}")
-                return self.active_jobs[job_id]
-            
-            future = self.executor.submit(self._process_job, job_id, image_url, user_text)
-            self.active_jobs[job_id] = future
-            
-            # 완료 시 active_jobs에서 제거하는 콜백 추가
-            future.add_done_callback(lambda f: self._cleanup_job(job_id))
-            
-            logging.info(f"백그라운드 작업 제출됨: {job_id}")
-            return future
-
-    def _process_job(self, job_id: str, image_url: str, user_text: str) -> Dict[str, Any]:
-        """
-        실제 작업을 처리하는 내부 메서드.
-        Flask 앱 컨텍스트 내에서 실행됩니다.
         
-        Args:
-            job_id: 처리할 작업 ID
-            image_url: 변환할 이미지 URL
-            user_text: 사용자 입력 텍스트
-            
-        Returns:
-            처리 결과
-        """
-        if self.docs_mode:
-            return {"success": True, "skipped": True}
-        if not self.app:
-            raise RuntimeError("Flask 앱이 초기화되지 않았습니다")
-            
-        with self.app.app_context():
-            try:
-                from flask import current_app
-                
-                # 1. 작업 상태를 PROCESSING으로 업데이트
-                job_service = current_app.services['cartoon_jobs']
-                job_events = current_app.services['job_events']
-                
-                # 작업이 취소되었는지 확인
-                job_data = job_service.get_job_by_id(job_id)
-                if not job_data:
-                    logging.error(f"작업을 찾을 수 없음: {job_id}")
-                    return {"success": False, "error": "작업을 찾을 수 없습니다"}
-                
-                if job_data.get('status') in (CartoonJobStatus.CANCELING.value, CartoonJobStatus.CANCELLED.value):
-                    logging.info(f"작업이 취소 단계이므로 처리 중단: {job_id}")
-                    if job_data.get('status') == CartoonJobStatus.CANCELING.value:
-                        job_events.handle_job_cancelled(job_data)
-                    return {"success": False, "error": "작업이 취소되었습니다"}
-                
-                # 상태를 PROCESSING으로 변경
-                update_data = job_service.update_job_status(job_id, CartoonJobStatus.PROCESSING)
-                job_events.handle_job_processing(update_data)
-                
-                # 2. OpenAI 서비스로 만화 생성 (StorageService 주입)
-                openai_service = current_app.services['openai']
-                storage_service = current_app.services['storage']
-                result = openai_service.generate_cartoon(image_url, user_text, storage_service=storage_service)
-                
-                # 3. 완료 전 취소 상태 재확인 (경쟁 상태 방지)
-                job_data = job_service.get_job_by_id(job_id)
-                if not job_data:
-                    logging.error(f"작업을 찾을 수 없음(완료 전): {job_id}")
-                    return {"success": False, "error": "작업을 찾을 수 없습니다"}
-                    
-                if job_data.get('status') in (CartoonJobStatus.CANCELING.value, CartoonJobStatus.CANCELLED.value):
-                    logging.info(f"취소 단계 감지(완료 직전): {job_id}")
-                    if job_data.get('status') == CartoonJobStatus.CANCELING.value:
-                        job_events.handle_job_cancelled(job_data)
-                    return {"success": False, "error": "작업이 취소되었습니다"}
-                
-                # 4. 결과 처리
-                if result['success']:
-                    # 성공 처리
-                    result_data = {
-                        'result_image_url': result['image_url']
-                    }
-                    update_data = job_service.update_job_status(
-                        job_id, 
-                        CartoonJobStatus.COMPLETED, 
-                        result_data
-                    )
-                    job_events.handle_job_completed(update_data)
-                    
-                    logging.info(f"만화 생성 작업 완료: {job_id}")
-                    return {"success": True, "result": result}
-                else:
-                    # 실패 처리
-                    error_message = result.get('error', '알 수 없는 오류가 발생했습니다')
-                    result_data = {
-                        'error_message': error_message
-                    }
-                    update_data = job_service.update_job_status(
-                        job_id, 
-                        CartoonJobStatus.FAILED, 
-                        result_data
-                    )
-                    job_events.handle_job_failed(update_data)
-                    
-                    logging.error(f"만화 생성 작업 실패: {job_id}, 오류: {error_message}")
-                    return {"success": False, "error": error_message}
-                    
-            except Exception as e:
-                logging.error(f"만화 작업 처리 중 예외 발생 (job_id: {job_id}): {e}", exc_info=True)
-                
-                # 예외 발생 시 실패 처리
-                try:
-                    job_service = current_app.services['cartoon_jobs']
-                    job_events = current_app.services['job_events']
-                    
-                    result_data = {
-                        'error_message': f'처리 중 오류 발생: {str(e)}'
-                    }
-                    update_data = job_service.update_job_status(
-                        job_id, 
-                        CartoonJobStatus.FAILED, 
-                        result_data
-                    )
-                    job_events.handle_job_failed(update_data)
-                except:
-                    logging.error(f"실패 처리 중 추가 오류 발생: {job_id}", exc_info=True)
-                
-                return {"success": False, "error": str(e)}
-
-    def _cleanup_job(self, job_id: str):
-        """완료된 작업을 active_jobs에서 제거합니다."""
-        if self.docs_mode:
-            return
-        with self._lock:
-            self.active_jobs.pop(job_id, None)
-            logging.debug(f"Active jobs에서 제거됨: {job_id}")
+        # Phase 2-5: Delegate to queue manager, pass job_handler's process_job as callable
+        return self.queue_manager.submit_job(
+            job_id,
+            self.job_handler.process_job,  # task callable
+            job_id, image_url, user_text    # arguments to process_job
+        )
 
     def cancel_job(self, job_id: str) -> bool:
-        """
-        실행 중인 작업을 취소합니다.
-        
-        Args:
-            job_id: 취소할 작업 ID
-            
-        Returns:
-            취소 성공 여부
-        """
-        if self.docs_mode:
-            return False
-        with self._lock:
-            if job_id in self.active_jobs:
-                future = self.active_jobs[job_id]
-                if future.cancel():
-                    logging.info(f"백그라운드 작업 취소됨: {job_id}")
-                    return True
-                else:
-                    logging.warning(f"이미 실행 중인 작업은 취소할 수 없음: {job_id}")
-                    return False
-            else:
-                logging.warning(f"취소할 작업이 active_jobs에 없음: {job_id}")
-                return False
-
+        """Cancel running job (delegates to queue manager)."""
+        return self.queue_manager.cancel_job(job_id)
+    
     def get_active_count(self) -> int:
-        """현재 실행 중인 작업 수를 반환합니다."""
-        if self.docs_mode:
-            return 0
-        with self._lock:
-            return len(self.active_jobs)
-
+        """Get active job count (delegates to queue manager)."""
+        return self.queue_manager.get_active_count()
+    
     def get_queue_size(self) -> int:
-        """대기 중인 작업 수를 반환합니다."""
-        # ThreadPoolExecutor의 내부 큐 크기를 정확히 알기 어려우므로 근사치 반환
-        if self.docs_mode:
-            return 0
-        return max(0, len(self.active_jobs) - self.max_workers)
-
+        """Get queue size (delegates to queue manager)."""
+        return self.queue_manager.get_queue_size()
+    
     def shutdown(self, wait: bool = True):
-        """
-        프로세서를 종료합니다.
-        
-        Args:
-            wait: 실행 중인 작업 완료를 기다릴지 여부
-        """
-        if self.docs_mode:
-            return
-        logging.info("CartoonJobProcessor 종료 중...")
-        self.executor.shutdown(wait=wait)
-        with self._lock:
-            self.active_jobs.clear()
-        logging.info("CartoonJobProcessor 종료됨")
-
+        """Shutdown processor (delegates to queue manager)."""
+        self.queue_manager.shutdown(wait=wait)
+    
     def __del__(self):
-        """소멸자에서 리소스 정리."""
+        """Destructor: cleanup resources."""
         try:
             self.shutdown(wait=False)
         except:
