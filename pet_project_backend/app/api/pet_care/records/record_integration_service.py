@@ -1,7 +1,12 @@
-"""Pet Care Record Integration Service.
+"""Pet Care Record Integration Service (Facade).
 
-This service integrates record operations with settings and provides
-enhanced functionality including goal tracking and daily summaries.
+This service acts as a Facade coordinating specialized sub-services:
+- CrudOrchestrator: Basic CRUD with cache management
+- GoalCoordinator: Goal analysis and tracking
+- NotificationDispatcher: Achievement notifications
+- TrendAnalyzer: Trend analysis
+
+Maintains backward compatibility while delegating to focused services.
 """
 from __future__ import annotations
 
@@ -12,13 +17,16 @@ from app.utils.datetime_utils import DateTimeUtils
 from app.utils import metrics
 from .analyzers import GoalAnalyzer, TrendAnalyzer, MonthlyMessageBuilder, WeightMonthlyAnalyzer
 from .notifier import PetCareNotifier
+from .crud_orchestrator import PetCareCrudOrchestrator
+from .goal_coordinator import PetCareGoalCoordinator
+from .notification_dispatcher import PetCareNotificationDispatcher
 
 
 class PetCareRecordIntegration:
-    """Integration service that coordinates record operations with pet settings.
+    """Integration Facade coordinating specialized pet care services.
     
-    This service provides enhanced functionality by combining record data
-    with pet settings to offer goal tracking and intelligent recommendations.
+    This facade delegates to specialized services while maintaining
+    backward compatibility with existing API contracts.
     """
 
     def __init__(
@@ -29,28 +37,45 @@ class PetCareRecordIntegration:
         settings_service, 
         goal_analyzer=None,
         trend_analyzer=None,
-        notifier=None
+        notifier=None,
+        # New Phase 2 coordinators (optional for backward compatibility)
+        crud_orchestrator=None,
+        goal_coordinator=None,
+        notification_dispatcher=None
     ):
-        """Initialize integration service with dependency injection.
+        """Initialize integration facade with dependency injection.
         
         Args:
             crud_service: CRUD operations service
             query_service: Query operations service
             cache_service: Cache service
             settings_service: Pet care settings service
-            goal_analyzer: Optional GoalAnalyzer instance (creates default if None)
-            trend_analyzer: Optional TrendAnalyzer instance (creates default if None)
-            notifier: Optional PetCareNotifier instance (creates default if None)
+            goal_analyzer: Optional GoalAnalyzer instance
+            trend_analyzer: Optional TrendAnalyzer instance
+            notifier: Optional PetCareNotifier instance
+            crud_orchestrator: Optional CrudOrchestrator (Phase 2)
+            goal_coordinator: Optional GoalCoordinator (Phase 2)
+            notification_dispatcher: Optional NotificationDispatcher (Phase 2)
         """
-        self.crud = crud_service
-        self.query = query_service
-        self.cache = cache_service
         self.settings = settings_service
-        # Use injected dependencies or create defaults for backward compatibility
+        
+        # Legacy direct dependencies (for backward compatibility)
         self.goal_analyzer = goal_analyzer if goal_analyzer is not None else GoalAnalyzer()
         self.trend_analyzer = trend_analyzer if trend_analyzer is not None else TrendAnalyzer()
         self.notifier = notifier if notifier is not None else PetCareNotifier(notification_service=None)
-        logging.info("PetCareRecordIntegration initialized.")
+        
+        # Phase 2 specialized coordinators (create if not provided)
+        self.crud_orchestrator = crud_orchestrator if crud_orchestrator is not None else PetCareCrudOrchestrator(
+            crud_service, query_service, cache_service
+        )
+        self.goal_coordinator = goal_coordinator if goal_coordinator is not None else PetCareGoalCoordinator(
+            query_service, settings_service, self.goal_analyzer
+        )
+        self.notification_dispatcher = notification_dispatcher if notification_dispatcher is not None else PetCareNotificationDispatcher(
+            self.notifier
+        )
+        
+        logging.info("PetCareRecordIntegration (Facade) initialized with specialized coordinators.")
 
     def create_record_with_goals(self, pet_id: str, record_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a record and check against daily goals.
@@ -63,37 +88,19 @@ class PetCareRecordIntegration:
             dict: Created record with goal analysis
         """
         try:
-            # Create the record
-            result = self.crud.create_record(pet_id, record_data)
+            # Delegate CRUD to orchestrator (handles cache invalidation)
+            result = self.crud_orchestrator.create_record(pet_id, record_data)
             
-            # Get pet settings for goal comparison
-            settings = self.settings.get_settings(pet_id)
-            
-            # record_service 는 'searchDate' 키로 반환하므로 내부 처리용 snake_case 필드 추가
+            # Enrich with goal analysis via coordinator
             search_date = result.get('searchDate')
             if search_date:
-                record_data['search_date'] = search_date  # 후속 goal 분석 로직에서 사용
-
-            # Add goal analysis (settings 존재 + search_date 확보 시)
-            if settings and search_date:
-                goal_analysis = self.goal_analyzer.analyze_daily(
-                    self.query.get_daily(pet_id, search_date)['records'],
-                    search_date,
-                    settings,
-                )
-                result['goal_analysis'] = goal_analysis
-
-                # Send achievement notifications if goals are met
-                self._send_achievement_notifications(pet_id, goal_analysis, record_data)
-            
-            # Invalidate affected caches (optional cache service)
-            affected_dates = [record_data.get('search_date')]
-            if affected_dates and affected_dates[0] and self.cache:
-                try:
-                    self.cache.invalidate_affected_caches(pet_id, affected_dates)
-                except Exception as ce:
-                    # Cache is best-effort; do not fail record creation on cache errors
-                    logging.warning(f"Cache invalidation failed for pet {pet_id}, dates={affected_dates}: {ce}")
+                result = self.goal_coordinator.enrich_with_goal_analysis(pet_id, result, search_date)
+                
+                # Dispatch achievement notifications
+                if 'goal_analysis' in result:
+                    self.notification_dispatcher.dispatch_achievement_notifications(
+                        pet_id, result['goal_analysis'], record_data
+                    )
                 
             metrics.increment('pet_care_record_created_with_goals', 
                             record_type=record_data['record_type'])
@@ -115,24 +122,12 @@ class PetCareRecordIntegration:
             dict: Daily summary with goal progress analysis
         """
         try:
-            # Get daily records
-            records_result = self.query.get_daily(pet_id, date)
+            # Delegate to CRUD orchestrator for basic summary
+            summary = self.crud_orchestrator.get_daily_records(pet_id, date)
             
-            # Get pet settings effective on the date
-            settings = self.settings.get_settings_at_date(pet_id, date)
-            
-            # Build summary with goal analysis
-            summary = {
-                'date': date,
-                'records': records_result.get('records', []),
-                'record_counts': self._count_by_type(records_result.get('records', [])),
-                # QueryService.get_daily()는 'summary' 키를 반환하므로 이를 meta로 노출
-                'meta': records_result.get('summary', {})
-            }
-            
-            # Add goal analysis if settings available
-            if settings:
-                goal_progress = self.goal_analyzer.analyze_daily(records_result['records'], date, settings)
+            # Add goal progress via coordinator
+            goal_progress = self.goal_coordinator.get_daily_goal_progress(pet_id, date)
+            if goal_progress:
                 summary['goal_progress'] = goal_progress
                 
             metrics.increment('daily_summary_with_goals_retrieved')
@@ -211,76 +206,10 @@ class PetCareRecordIntegration:
 
     # Range analysis moved to GoalAnalyzer.
 
-    def _count_by_type(self, records: List[Dict[str, Any]]) -> Dict[str, int]:
-        """Count records by type.
-        
-        Args:
-            records: List of records
-            
-        Returns:
-            dict: Count by record type
-        """
-        counts = {}
-        for record in records:
-            record_type = record.get('record_type', 'unknown')
-            counts[record_type] = counts.get(record_type, 0) + 1
-        return counts
-
-    # Trend analysis moved to TrendAnalyzer.
-
-    def _send_achievement_notifications(self, pet_id: str, goal_analysis: Dict[str, Any], record_data: Dict[str, Any]) -> None:
-        """Send notifications when goals are achieved.
-        
-        Args:
-            pet_id: The pet's unique identifier
-            goal_analysis: Goal analysis results
-            record_data: Record data that triggered the check
-        """
-        try:
-            achievements = goal_analysis.get('achievements', {})
-            pet_name = record_data.get('pet_name', '반려동물')
-            date = goal_analysis.get('date')
-
-            meal = achievements.get('meal')
-            if meal and meal.get('achieved'):
-                self.notifier.notify_goal(pet_id, 'meal', {
-                    'message': f"{pet_name}의 오늘 식사 목표를 달성했어요! ({meal['actual']}/{meal['goal']}회)",
-                    'date': date,
-                    'goal_type': 'meal',
-                    'actual': meal['actual'],
-                    'goal': meal['goal'],
-                })
-
-            act = achievements.get('activity')
-            if act and act.get('achieved'):
-                detail = act.get('detail') or {}
-                sessions = detail.get('sessions')
-                per_session = detail.get('minutes_per_session')
-                if sessions and per_session:
-                    msg_extra = f" (세션 {sessions}회 × {per_session}분)"
-                else:
-                    msg_extra = ""
-                self.notifier.notify_goal(pet_id, 'activity', {
-                    'message': f"{pet_name}의 오늘 활동 목표를 달성했어요! ({act['actual']}/{act['goal']}분){msg_extra}",
-                    'date': date,
-                    'goal_type': 'activity',
-                    'actual': act['actual'],
-                    'goal': act['goal'],
-                })
-
-            wt = achievements.get('weight')
-            if wt and wt.get('at_goal'):
-                self.notifier.notify_goal(pet_id, 'weight', {
-                    'message': f"{pet_name}의 목표 체중을 달성했어요! (현재: {wt['actual']}kg, 목표: {wt['goal']}kg)",
-                    'date': date,
-                    'goal_type': 'weight',
-                    'actual': wt['actual'],
-                    'goal': wt['goal'],
-                })
-        except Exception as e:
-            logging.error(f"Failed to send achievement notifications for pet {pet_id}: {e}", exc_info=True)
-
-    # Direct notification helper removed; notifier handles transport.
+    # Helper methods moved to specialized coordinators:
+    # - _count_by_type: moved to CrudOrchestrator
+    # - _send_achievement_notifications: replaced by NotificationDispatcher
+    # - Trend analysis: already in TrendAnalyzer
 
     def get_weight_monthly_analysis(self, pet_id: str) -> Dict[str, Any]:
         """
