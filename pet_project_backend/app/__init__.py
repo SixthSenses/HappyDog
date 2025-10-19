@@ -191,7 +191,8 @@ def _init_dependent_services(app):
         repo = FirestorePetCareRecordRepository(app.firestore_client)
     app.services['pet_care_repo'] = repo
     app.services['pet_care_query'] = PetCareRecordQueryService(repo)
-    app.services['pet_care_records'] = PetCareRecordService(repo)
+    # Inject query_service explicitly to avoid internal instantiation
+    app.services['pet_care_records'] = PetCareRecordService(repo, query_service=app.services['pet_care_query'])
     
     # Pet Care Analyzers and Notifier
     goal_analyzer = GoalAnalyzer()

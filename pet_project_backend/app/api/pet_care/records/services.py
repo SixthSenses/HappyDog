@@ -1,14 +1,21 @@
 # app/api/pet_care/records/services.py
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .repository import PetCareRecordRepository, FirestorePetCareRecordRepository
 from .query_service import PetCareRecordQueryService
 
 class PetCareRecordService:
     """Command-oriented service handling CRUD only. Read models are in PetCareRecordQueryService."""
 
-    def __init__(self, repo: PetCareRecordRepository):
+    def __init__(self, repo: PetCareRecordRepository, query_service: Optional['PetCareRecordQueryService'] = None):
+        """Initialize service with repository and optional query service.
+        
+        Args:
+            repo: Repository for data persistence
+            query_service: Optional query service for reads (creates default if None for backward compatibility)
+        """
         self.repo = repo
+        self.query_service = query_service if query_service is not None else PetCareRecordQueryService(repo)
         logging.info("PetCareRecordService initialized with repository: %s", type(repo).__name__)
 
     def create_record(self, pet_id: str, record_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -50,10 +57,9 @@ class PetCareRecordService:
 
     def get_daily_records(self, pet_id: str, date: str) -> Dict[str, Any]:
         """Fetch all records for a date. In DOCS_MODE returns empty list & null summary fields."""
-        # Backward compatibility: delegate to query service
+        # Delegate to injected query service
         try:
-            query = PetCareRecordQueryService(self.repo)
-            result = query.get_daily(pet_id, date)
+            result = self.query_service.get_daily(pet_id, date)
             logging.info(f"일별 펫케어 기록 조회됨: pet_id={pet_id}, date={date}, count={len(result.get('records', []))}")
             return result
         except Exception as e:
@@ -89,8 +95,7 @@ class PetCareRecordService:
             search_date = DateTimeUtils.to_kst_date_str(ts_dt)
             
             # 같은 날짜의 기존 meal_count 기록 조회
-            query_service = PetCareRecordQueryService(self.repo)
-            existing_result = query_service.get_daily(pet_id, search_date, record_type='meal_count')
+            existing_result = self.query_service.get_daily(pet_id, search_date, record_type='meal_count')
             existing_records = existing_result.get('records', [])
             
             # 기존 최대값 찾기 (누적값이므로 최신 = 최대)
