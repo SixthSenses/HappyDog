@@ -45,6 +45,7 @@ from app.services.openai_service_stub import OpenAIServiceStub
 from app.api.auth import services as auth_service_module
 from app.api.users.services import UserProfileService, UserStatsService, UserService
 from app.api.posts.services import PostService, PostLikeService, PostEventService, PostStorageService
+from app.api.posts.services.post_query_service import PostQueryService
 from app.api.comments.services import CommentService, CommentMentionService, CommentEventService, CommentNotificationService
 from app.api.cartoon_jobs.services import CartoonJobService, CartoonJobProcessor, CartoonJobEventService, CartoonJobIntegrationService
 from app.api.breeds.services import BreedService
@@ -245,7 +246,16 @@ def _init_dependent_services(app):
     app.services['users'] = UserService()  # Lightweight, no dependencies
     
     # Posts Domain - depends on storage (DI with Firestore)
-    app.services['posts'] = PostService(app.firestore_client, storage_service=app.services['storage'])
+    # Phase 2: Extract query logic with explicit DI
+    post_query_service = PostQueryService(
+        db_client=app.firestore_client,
+        storage_service=app.services['storage']
+    )
+    app.services['posts'] = PostService(
+        app.firestore_client,
+        storage_service=app.services['storage'],
+        query_service=post_query_service
+    )
     app.services['post_likes'] = PostLikeService(app.firestore_client)
     app.services['post_events'] = PostEventService()
     app.services['post_storage'] = PostStorageService(app.services['storage'])

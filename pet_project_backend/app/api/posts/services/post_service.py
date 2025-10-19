@@ -23,19 +23,25 @@ class PostService:
 
     Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE)
     methods return lightweight placeholders or no-op values without touching Firestore.
+    
+    Phase 2: Delegates data queries to PostQueryService for better separation of concerns.
     """
-    def __init__(self, db_client=None, storage_service: Optional[StorageUrlProvider] = None):
+    def __init__(self, db_client=None, storage_service: Optional[StorageUrlProvider] = None, query_service=None):
         self.db = db_client
         self.storage_service = storage_service
+        
+        # Phase 2: Delegate queries to specialized service
+        if query_service is None:
+            from .post_query_service import PostQueryService
+            self.query_service = PostQueryService(db_client, storage_service)
+        else:
+            self.query_service = query_service
+        
         if self.db is None:
             self.posts_ref = None
-            self.users_ref = None
-            self.pets_ref = None
             logging.info("PostService initialized without Firestore client (dependency not provided)")
         else:
             self.posts_ref = self.db.collection('posts')
-            self.users_ref = self.db.collection('users')
-            self.pets_ref = self.db.collection('pets')
 
     def create_post(self, user_id: str, text: str, file_paths: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """새로운 게시글을 생성하고 Firestore에 저장합니다.
@@ -65,36 +71,24 @@ class PostService:
         if self.db is None:
             # Return synthetic post object (no persistence)
             post_id = str(uuid.uuid4())
-            author = Author(user_id=user_id, nickname="demo_user")
-            pet_info = PetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", birthdate=None, profile_image_url=None)
+            author = self.query_service.get_author_snapshot(user_id)
+            pet_info = self.query_service.get_pet_snapshot(user_id)
             new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             return asdict(new_post)
+        
         try:
-            user_doc = self.users_ref.document(user_id).get()
-            if not user_doc.exists:
+            # Phase 2: Delegate data retrieval to query service
+            author = self.query_service.get_author_snapshot(user_id)
+            if not author:
+                logging.warning(f"Cannot create post: author not found for user {user_id}")
                 return None
-
-            pet_doc = self.pets_ref.where('user_id', '==', user_id).limit(1).get()
-            if not pet_doc:
+            
+            pet_info = self.query_service.get_pet_snapshot(user_id)
+            if not pet_info:
+                logging.warning(f"Cannot create post: no pet found for user {user_id}")
                 return None
-
-            user_data = user_doc.to_dict()
-            pet_raw = pet_doc[0]
-            pet_data = pet_raw.to_dict()
-            if not pet_data.get("pet_id"):
-                pet_data["pet_id"] = pet_raw.id
-
-            # profile_image_url을 상대 경로에서 전체 URL로 변환
-            profile_image_url = self._convert_profile_image_url(pet_data.get("profile_image_url"))
-
-            author = Author(user_id=user_id, nickname=user_data.get("nickname"))
-            pet_info = PetInfo(
-                pet_id=pet_data.get("pet_id"),
-                name=pet_data.get("name"),
-                breed=pet_data.get("breed"),
-                birthdate=pet_data.get("birthdate"),
-                profile_image_url=profile_image_url
-            )
+            
+            # Create post with snapshots
             post_id = str(uuid.uuid4())
             new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             post_data = DateTimeUtils.for_firestore(asdict(new_post))
@@ -103,41 +97,6 @@ class PostService:
         except Exception as e:
             logging.error(f"게시글 생성 실패 (user_id: {user_id}): {e}", exc_info=True)
             raise
-
-    def _convert_profile_image_url(self, profile_image_url: Optional[str]) -> Optional[str]:
-        """
-        펫 프로필 이미지 URL을 상대 경로에서 전체 URL로 변환합니다.
-        
-        Note:
-            - 이미 전체 URL(https://로 시작)이면 그대로 반환
-            - 상대 경로이면 Firebase Storage URL로 변환
-            - None이거나 빈 문자열이면 None 반환
-            - 변환 실패 시 경고 로그 출력 후 원본 반환 (에러 발생 안 함)
-        
-        Args:
-            profile_image_url: 펫 프로필 이미지 경로 또는 URL
-            
-        Returns:
-            Firebase Storage URL 또는 None
-        """
-        if not profile_image_url:
-            return None
-        
-        # 이미 전체 URL인 경우
-        if profile_image_url.startswith('https://'):
-            return profile_image_url
-        
-        # StorageService가 없으면 원본 반환
-        if not self.storage_service:
-            logging.warning(f"StorageService가 없어 profile_image_url 변환 불가: {profile_image_url}")
-            return profile_image_url
-        
-        # 상대 경로를 URL로 변환
-        try:
-            return self.storage_service.get_public_url(profile_image_url)
-        except Exception as e:
-            logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_image_url} - {e}")
-            return profile_image_url
 
     def _convert_paths_to_urls(self, file_paths: List[str]) -> List[str]:
         """
