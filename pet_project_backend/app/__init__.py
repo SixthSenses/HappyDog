@@ -104,9 +104,13 @@ def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
         push_transport=push_transport
     )
     
-    # Notification presentation service
+    # Notification presentation service with handler factory DI
     from app.api.notifications.services import NotificationPresentationService
-    app.services['notification_presentation'] = NotificationPresentationService()
+    from app.api.notifications.handlers import NotificationHandlerFactory
+    notification_handler_factory = NotificationHandlerFactory()
+    app.services['notification_presentation'] = NotificationPresentationService(
+        handler_factory=notification_handler_factory
+    )
     
     # Utility services with no dependencies
     app.services['idempotency'] = IdempotencyService(app.firestore_client)
