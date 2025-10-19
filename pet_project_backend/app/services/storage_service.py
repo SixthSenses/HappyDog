@@ -4,6 +4,7 @@ import logging
 from datetime import timedelta
 from flask import Flask
 from firebase_admin import storage
+from app.services.upload_path_strategies import get_upload_strategy
 
 class StorageService:
     """
@@ -36,32 +37,24 @@ class StorageService:
         """
         파일 타입에 따라 적절한 경로에 업로드할 수 있는 Pre-signed URL을 생성합니다.
         클라이언트는 이 URL을 사용하여 서버를 거치지 않고 Firebase Storage에 직접 파일을 업로드(PUT)할 수 있습니다.
+        
+        Phase 2-4: Strategy Pattern for path generation (OCP compliance).
+        New upload types can be added by registering new strategies without modifying this method.
 
         :param user_id: JWT에서 추출한 현재 로그인된 사용자의 고유 ID
         :param upload_type: 업로드 목적을 나타내는 문자열 (예: "user_profile", "post_image")
         :param filename: 클라이언트가 업로드할 원본 파일명 (확장자 파악에 사용)
         :param content_type: 업로드할 파일의 MIME 타입 (예: "image/jpeg")
         :return: 업로드 URL과 서버에서 사용할 파일 경로가 담긴 딕셔너리
+        :raises ValueError: 유효하지 않은 upload_type인 경우
+        :raises RuntimeError: StorageService가 초기화되지 않은 경우
         """
         if not self.bucket:
             raise RuntimeError("StorageService가 초기화되지 않았습니다. init_app을 먼저 호출해주세요.")
 
-        # 'upload_type'에 따라 파일이 저장될 폴더 경로를 매핑합니다.
-        path_map = {
-            "pet_profile": f"pet_profiles/{user_id}",  # Pet 프로필 이미지용 (User 프로필은 Pet에서 관리)
-            "pet_nose_print": f"nose_prints_staging/{user_id}",
-            "eye_analysis": f"eye_analysis_images/{user_id}",
-            "post_image": f"posts/{user_id}",
-            "cartoon_source_image": f"cartoon_sources/{user_id}",
-        }
-
-        folder_path = path_map.get(upload_type)
-        if not folder_path:
-            raise ValueError(f"'{upload_type}'은(는) 유효한 업로드 타입이 아닙니다.")
-
-        extension = filename.split('.')[-1] if '.' in filename else ''
-        unique_filename = f"{uuid.uuid4()}.{extension}"
-        destination_blob_name = f"{folder_path}/{unique_filename}"
+        # Phase 2-4: Delegate path generation to strategy (OCP)
+        strategy = get_upload_strategy(upload_type)
+        destination_blob_name = strategy.generate_path(user_id=user_id, filename=filename)
 
         blob = self.bucket.blob(destination_blob_name)
 
