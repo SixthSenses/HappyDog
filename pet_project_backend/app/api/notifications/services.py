@@ -15,8 +15,13 @@ class NotificationPresentationService:
     알림 데이터를 클라이언트가 요구하는 형식으로 변환합니다.
     """
     
-    def __init__(self):
-        self.handler_factory = NotificationHandlerFactory()
+    def __init__(self, handler_factory=None):
+        """Initialize presentation service with optional handler factory.
+        
+        Args:
+            handler_factory: Optional NotificationHandlerFactory instance (creates default if None)
+        """
+        self.handler_factory = handler_factory if handler_factory is not None else NotificationHandlerFactory()
     
     def format_notifications(self, notifications: List[Dict[str, Any]], 
                            format_type: str = 'mobile', 

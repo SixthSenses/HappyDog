@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, Dict, Any
 from firebase_admin import firestore
-from app.services.storage_service import StorageService
+from app.services.storage_interfaces import StorageUrlProvider
 
 
 class UserProfileService:
@@ -11,7 +11,7 @@ class UserProfileService:
     프로필 이미지, 기본 사용자 정보 관리에 집중합니다.
     """
     
-    def __init__(self, storage_service: StorageService, db_client=None):
+    def __init__(self, storage_service: StorageUrlProvider, db_client=None):
         """Initialize service with optional injected Firestore client."""
         self.db = db_client
         self.users_ref = self.db.collection('users') if self.db else None
