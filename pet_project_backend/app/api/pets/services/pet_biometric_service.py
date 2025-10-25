@@ -195,7 +195,7 @@ class PetBiometricService:
                     verified_path = file_path.replace(NOSE_STAGING_PREFIX, NOSE_VERIFIED_PREFIX, 1)
                     try:
                         self.storage_service.promote_object(file_path, verified_path)
-                        public_url = self.storage_service.make_public_and_get_url(verified_path)
+                        public_url = self.storage_service.get_public_url(verified_path)
                     except Exception as e:
                         logging.error(f"Promotion failed for {file_path} -> {verified_path}: {e}")
                         raise
