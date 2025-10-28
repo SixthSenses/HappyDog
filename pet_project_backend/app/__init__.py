@@ -265,7 +265,7 @@ def _init_dependent_services(app):
     app.services['post_storage'].init_app(app)
     
     # Comments Domain - basic services first (DI with Firestore)
-    app.services['comments'] = CommentService(app.firestore_client)
+    app.services['comments'] = CommentService(app.firestore_client, app.services['storage'])
     app.services['comment_mentions'] = CommentMentionService(app.firestore_client)
     app.services['comment_events'] = CommentEventService()
     app.services['comment_notifications'] = CommentNotificationService()

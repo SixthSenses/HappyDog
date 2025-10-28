@@ -23,8 +23,9 @@ class CommentService:
     Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE),
     methods return placeholders or no-op values instead of touching Firestore.
     """
-    def __init__(self, db_client=None):
+    def __init__(self, db_client=None, storage_service=None):
         self.db = db_client
+        self.storage_service = storage_service
         if self.db is None:
             self.comments_ref = None
             self.posts_ref = None
@@ -38,6 +39,60 @@ class CommentService:
             self.users_ref = self.db.collection('users')
             self.pets_ref = self.db.collection('pets')
             self.likes_ref = self.db.collection('likes')
+
+    def _convert_profile_image_url(self, profile_image_url: Optional[str]) -> Optional[str]:
+        """
+        펫 프로필 이미지 경로를 Firebase Storage 공개 URL로 변환합니다.
+        
+        Args:
+            profile_image_url: Storage 파일 경로 또는 URL 또는 None
+            
+        Returns:
+            Firebase Storage URL 또는 None
+        """
+        if not profile_image_url:
+            return None
+        
+        # 이미 전체 URL인 경우
+        if profile_image_url.startswith('https://'):
+            return profile_image_url
+        
+        # StorageService가 없으면 원본 반환
+        if not self.storage_service:
+            logging.warning(f"StorageService가 없어 profile_image_url 변환 불가: {profile_image_url}")
+            return profile_image_url
+        
+        # 상대 경로를 URL로 변환
+        try:
+            return self.storage_service.get_public_url(profile_image_url)
+        except Exception as e:
+            logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_image_url} - {e}")
+            return profile_image_url
+
+    def _ensure_full_profile_image_url(self, comment_data: Dict[str, Any]) -> None:
+        """
+        댓글 데이터의 pet.profile_image_url이 상대 경로인 경우 전체 URL로 변환합니다.
+        기존 데이터 호환성을 위한 헬퍼 메서드입니다.
+        
+        Note:
+            - 레거시 데이터 지원: DB에 상대 경로로 저장된 기존 데이터 처리
+            - 새로운 데이터는 create_comment에서 이미 URL로 변환되어 저장됨
+            - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
+        """
+        if not comment_data or not self.storage_service:
+            return
+        
+        # pet.profile_image_url 변환
+        if 'pet' in comment_data and isinstance(comment_data['pet'], dict):
+            pet_data = comment_data['pet']
+            if 'profile_image_url' in pet_data:
+                profile_url = pet_data.get('profile_image_url')
+                if profile_url and not profile_url.startswith('https://'):
+                    try:
+                        full_url = self.storage_service.get_public_url(profile_url)
+                        pet_data['profile_image_url'] = full_url
+                    except Exception as e:
+                        logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_url} - {e}")
 
     def create_comment(self, post_id: str, author_id: str, text: str) -> Dict[str, Any]:
         """
@@ -64,7 +119,17 @@ class CommentService:
         if not pet_data.get("pet_id"):
             pet_data["pet_id"] = pet_docs[0].id
         author = CommentAuthor(user_id=author_id, nickname=author_info.get("nickname"))
-        pet = CommentPetInfo(pet_id=pet_data.get("pet_id"), name=pet_data.get("name"), breed=pet_data.get("breed"), profile_image_url=pet_data.get("profile_image_url"))
+        
+        # 펫 프로필 이미지 URL 변환 (상대 경로 → 공개 URL)
+        profile_image_url = pet_data.get("profile_image_url")
+        full_profile_image_url = self._convert_profile_image_url(profile_image_url)
+        
+        pet = CommentPetInfo(
+            pet_id=pet_data.get("pet_id"),
+            name=pet_data.get("name"),
+            breed=pet_data.get("breed"),
+            profile_image_url=full_profile_image_url
+        )
         transaction = self.db.transaction()
         @firestore.transactional
         def _update_in_transaction(transaction, post_id, author, pet, text):
@@ -97,8 +162,14 @@ class CommentService:
                 query = query.start_after(cursor_doc)
         
         docs = query.limit(limit).stream()
-        comments = [doc.to_dict() for doc in docs]
-        last_doc_id = comments[-1]['comment_id'] if comments else None
+        comments = []
+        last_doc_id = None
+        
+        for doc in docs:
+            comment_data = doc.to_dict()
+            self._ensure_full_profile_image_url(comment_data)  # 레거시 데이터 지원
+            comments.append(comment_data)
+            last_doc_id = comment_data.get('comment_id') if comment_data else None
         
         return comments, last_doc_id
 
