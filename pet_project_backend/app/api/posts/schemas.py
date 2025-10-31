@@ -16,6 +16,7 @@ class PetInfoSchema(Schema):
     breed = fields.Str(required=True)
     birthdate = fields.DateTime(required=True, format="iso8601")
     profile_image_url = fields.URL(allow_none=True)  # Pet 프로필 이미지 추가
+    is_verified = fields.Bool(required=True)  # 생체 인증 여부 (비문/안구 분석)
 
 # --- API 요청/응답 스키마 ---
 

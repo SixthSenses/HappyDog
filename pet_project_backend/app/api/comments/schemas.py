@@ -16,7 +16,7 @@ class CommentResponseSchema(Schema):
     comment_id = fields.Str(required=True)
     post_id = fields.Str(required=True)
     author = fields.Nested(AuthorSchema, required=True)  # user_id, nickname만 포함
-    pet = fields.Nested(PetInfoSchema, required=True)  # pet_id, name, breed, profile_image_url 포함
+    pet = fields.Nested(PetInfoSchema, required=True)  # pet_id, name, breed, birthdate, profile_image_url, is_verified 포함
     text = fields.Str(required=True)
     like_count = fields.Int(required=True)
     created_at = fields.DateTime(required=True, format="iso8601")

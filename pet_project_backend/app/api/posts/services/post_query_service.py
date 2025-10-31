@@ -83,7 +83,8 @@ class PostQueryService:
                 name="Demo",
                 breed="Unknown",
                 birthdate=None,
-                profile_image_url=None
+                profile_image_url=None,
+                is_verified=False
             )
         
         try:
@@ -107,7 +108,8 @@ class PostQueryService:
                 name=pet_data.get("name"),
                 breed=pet_data.get("breed"),
                 birthdate=pet_data.get("birthdate"),
-                profile_image_url=profile_image_url
+                profile_image_url=profile_image_url,
+                is_verified=pet_data.get("is_verified", False)
             )
         except Exception as e:
             logging.error(f"Failed to get pet snapshot for user {user_id}: {e}", exc_info=True)

@@ -102,7 +102,7 @@ class CommentService:
         if self.db is None:
             comment_id = str(uuid.uuid4())
             author = CommentAuthor(user_id=author_id, nickname="demo_user")
-            pet = CommentPetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", profile_image_url=None)
+            pet = CommentPetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", profile_image_url=None, is_verified=False)
             new_comment = Comment(comment_id=comment_id, post_id=post_id, author=author, pet=pet, text=text)
             metrics.increment('comments.created')
             comment_dict = asdict(new_comment)
@@ -128,7 +128,8 @@ class CommentService:
             pet_id=pet_data.get("pet_id"),
             name=pet_data.get("name"),
             breed=pet_data.get("breed"),
-            profile_image_url=full_profile_image_url
+            profile_image_url=full_profile_image_url,
+            is_verified=pet_data.get("is_verified", False)
         )
         transaction = self.db.transaction()
         @firestore.transactional
