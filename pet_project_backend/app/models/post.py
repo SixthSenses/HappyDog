@@ -19,6 +19,7 @@ class PetInfo:
     breed: str
     birthdate: datetime
     profile_image_url: Optional[str] = None  # Pet 프로필 이미지 추가
+    is_verified: bool = False  # 생체 인증 여부 (비문/안구 분석)
 
 @dataclass
 class Post:
