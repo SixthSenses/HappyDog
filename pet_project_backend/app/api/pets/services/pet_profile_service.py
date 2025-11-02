@@ -265,8 +265,16 @@ class PetProfileService:
             raise PermissionError("프로필을 수정할 권한이 없거나 반려동물을 찾을 수 없습니다.")
         if not update_data:
             raise ValueError("수정할 데이터가 제공되지 않았습니다.")
+        
+        # Firestore 저장을 위해 date 객체를 문자열로 변환
+        firestore_data = {}
+        for key, value in update_data.items():
+            if hasattr(value, 'isoformat'):  # date 또는 datetime 객체
+                firestore_data[key] = value.isoformat()
+            else:
+                firestore_data[key] = value
             
-        pet_ref.update(update_data)
+        pet_ref.update(firestore_data)
         logging.info(f"Pet profile updated for {pet_id} with fields: {list(update_data.keys())}")
         
         # Return updated Pet object
