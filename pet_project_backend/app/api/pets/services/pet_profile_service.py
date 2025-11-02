@@ -266,13 +266,8 @@ class PetProfileService:
         if not update_data:
             raise ValueError("수정할 데이터가 제공되지 않았습니다.")
         
-        # Firestore 저장을 위해 date 객체를 문자열로 변환
-        firestore_data = {}
-        for key, value in update_data.items():
-            if hasattr(value, 'isoformat'):  # date 또는 datetime 객체
-                firestore_data[key] = value.isoformat()
-            else:
-                firestore_data[key] = value
+        # Firestore 저장을 위해 date/datetime 객체를 Firestore Timestamp로 변환
+        firestore_data = DateTimeUtils.for_firestore(update_data)
             
         pet_ref.update(firestore_data)
         logging.info(f"Pet profile updated for {pet_id} with fields: {list(update_data.keys())}")

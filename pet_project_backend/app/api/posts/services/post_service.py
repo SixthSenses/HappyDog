@@ -184,6 +184,35 @@ class PostService:
                         pet_data['profile_image_url'] = full_url
                     except Exception as e:
                         logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_url} - {e}")
+
+    def _convert_string_dates_to_datetime(self, post_data: Dict[str, Any]) -> None:
+        """
+        레거시 데이터: 문자열로 저장된 datetime 필드를 datetime 객체로 변환합니다.
+        
+        Note:
+            - 과거에 .isoformat()로 저장된 데이터 처리
+            - created_at, updated_at, pet.birthdate 필드 변환
+            - 변환 실패 시 원본 유지 (로그만 남김)
+        """
+        if not post_data:
+            return
+        
+        # 1. created_at, updated_at 변환
+        for field in ['created_at', 'updated_at']:
+            if field in post_data and isinstance(post_data[field], str):
+                try:
+                    post_data[field] = DateTimeUtils.parse_iso_datetime(post_data[field])
+                except Exception as e:
+                    logging.warning(f"{field} 문자열 파싱 실패 (원본 유지): {post_data[field]} - {e}")
+        
+        # 2. pet.birthdate 변환
+        if 'pet' in post_data and isinstance(post_data['pet'], dict):
+            pet_data = post_data['pet']
+            if 'birthdate' in pet_data and isinstance(pet_data['birthdate'], str):
+                try:
+                    pet_data['birthdate'] = DateTimeUtils.parse_iso_datetime(pet_data['birthdate'])
+                except Exception as e:
+                    logging.warning(f"pet.birthdate 문자열 파싱 실패 (원본 유지): {pet_data['birthdate']} - {e}")
     
     def get_posts(self, limit: int, cursor: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """게시글 피드 목록을 페이지네이션으로 조회합니다 (좋아요 정보 제외)."""
@@ -201,6 +230,10 @@ class PostService:
         
         for doc in docs:
             post_data = doc.to_dict()
+            # Firestore Timestamp를 datetime 객체로 변환
+            post_data = DateTimeUtils.from_firestore(post_data)
+            # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+            self._convert_string_dates_to_datetime(post_data)
             self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
             posts.append(post_data)
             last_doc_id = doc.id
@@ -215,6 +248,10 @@ class PostService:
         if not doc.exists:
             return None
         post_data = doc.to_dict()
+        # Firestore Timestamp를 datetime 객체로 변환
+        post_data = DateTimeUtils.from_firestore(post_data)
+        # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+        self._convert_string_dates_to_datetime(post_data)
         self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
         return post_data
 
@@ -230,7 +267,15 @@ class PostService:
         update_data = {"text": text, "updated_at": datetime.utcnow()}
         post_ref.update(update_data)
         updated_doc = post_ref.get()
-        return updated_doc.to_dict() if updated_doc.exists else None
+        if updated_doc.exists:
+            post_data = updated_doc.to_dict()
+            # Firestore Timestamp를 datetime 객체로 변환
+            post_data = DateTimeUtils.from_firestore(post_data)
+            # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+            self._convert_string_dates_to_datetime(post_data)
+            self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
+            return post_data
+        return None
 
     def delete_post(self, post_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -262,7 +307,15 @@ class PostService:
                 if cursor_doc.exists:
                     query = query.start_after(cursor_doc)
             docs = query.limit(limit).stream()
-            posts = [doc.to_dict() for doc in docs]
+            posts = []
+            for doc in docs:
+                post_data = doc.to_dict()
+                # Firestore Timestamp를 datetime 객체로 변환
+                post_data = DateTimeUtils.from_firestore(post_data)
+                # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+                self._convert_string_dates_to_datetime(post_data)
+                self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
+                posts.append(post_data)
             last_doc_id = posts[-1]['post_id'] if posts else None
             return posts, last_doc_id
         except Exception as e:
