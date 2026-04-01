@@ -19,7 +19,7 @@ from firebase_admin.firestore import Transaction
 
 from app.models.pet import Pet, PetGender
 from app.utils.datetime_utils import DateTimeUtils
-from app.services.storage_service import StorageService
+from app.services.storage_interfaces import StorageUrlProvider
 from app.api.pet_care.settings.services import PetCareSettingService
 
 
@@ -29,15 +29,23 @@ class PetProfileService:
     DOCS_MODE: Firestore access skipped, placeholder synthetic data returned.
     """
 
-    def __init__(self, storage_service: StorageService, pet_care_setting_service: PetCareSettingService, db_client=None):
+    def __init__(self, storage_service: StorageUrlProvider, pet_care_setting_service: PetCareSettingService, db_client=None, onboarding_service=None):
         self.db = db_client
         self.pets_ref = self.db.collection('pets') if self.db else None
         self.storage_service = storage_service
         self.pet_care_setting_service = pet_care_setting_service
+        
+        # Phase 2: Delegate onboarding to specialized service
+        self.onboarding_service = onboarding_service
+        if onboarding_service is None:
+            # Backward compatibility: create onboarding service internally
+            from .pet_onboarding_service import PetOnboardingService
+            self.onboarding_service = PetOnboardingService(db_client, pet_care_setting_service)
+        
         if self.db is None:
-            logging.info("PetProfileService initialized without Firestore client (docs mode or disabled persistence)")
+            logging.info("PetProfileService initialized without Firestore client (docs mode)")
         else:
-            logging.info("PetProfileService initialized with Firestore client, storage and settings services.")
+            logging.info("PetProfileService initialized successfully")
 
     # ============= Core CRUD Operations =============
 
@@ -206,10 +214,9 @@ class PetProfileService:
         return data
 
     def register_pet(self, user_id: str, pet_data: Dict[str, Any]) -> Pet:
-        """Register new pet with atomic single-pet policy enforcement.
+        """Register new pet via onboarding service (delegated).
         
-        Uses User document-based control for better performance and consistency.
-        All operations are performed within a single Firestore transaction.
+        Phase 2: Delegates complete onboarding to specialized PetOnboardingService.
         
         Args:
             user_id: The owner's user ID
@@ -222,74 +229,8 @@ class PetProfileService:
             ValueError: If user already has a pet or user not found
             RuntimeError: If registration transaction fails
         """
-        if self.pets_ref is None or self.db is None:
-            return Pet(
-                pet_id=str(uuid.uuid4()),
-                user_id=user_id,
-                name=pet_data['name'],
-                gender=PetGender(pet_data['gender']),
-                breed=pet_data['breed'],
-                birthdate=pet_data['birthdate'],
-                fur_color=pet_data.get('fur_color'),
-                health_concerns=pet_data.get('health_concerns', [])
-            )
-        user_ref = self.db.collection('users').document(user_id)
-        pet_id = str(uuid.uuid4())
-        pet_ref = self.pets_ref.document(pet_id)
-        transaction = self.db.transaction()
-
-        @firestore.transactional
-        def _register_in_transaction(transaction: Transaction):
-            # Atomic check: verify user exists and has no pet
-            user_doc = user_ref.get(transaction=transaction)
-            if not user_doc.exists:
-                raise ValueError("사용자를 찾을 수 없습니다.")
-            
-            user_data = user_doc.to_dict() or {}
-            if user_data.get('has_pet', False):
-                raise ValueError("이미 등록된 반려동물이 있습니다.")
-            
-            # Create new pet
-            new_pet = Pet(
-                pet_id=pet_id, 
-                user_id=user_id,
-                name=pet_data['name'], 
-                gender=PetGender(pet_data['gender']),
-                breed=pet_data['breed'], 
-                birthdate=pet_data['birthdate'],
-                fur_color=pet_data.get('fur_color'),
-                health_concerns=pet_data.get('health_concerns', [])
-            )
-            
-            # Convert to Firestore format
-            pet_dict = asdict(new_pet)
-            pet_dict['gender'] = new_pet.gender.value
-            firestore_data = DateTimeUtils.for_firestore(pet_dict)
-            
-            # Atomic operations: create pet + update user
-            transaction.set(pet_ref, firestore_data)
-            transaction.update(user_ref, {
-                'has_pet': True,
-                'pet_id': pet_id
-            })
-            
-            # Create initial pet care settings
-            # 초기 펫케어 설정 생성: weight 제거로 goalWeight는 품종 이상 체중 or 기본값 처리 (서비스 내부 수정 예정)
-            self.pet_care_setting_service.create_initial_settings_transactional(
-                transaction, pet_id=pet_id, gender=new_pet.gender.value,
-                breed=new_pet.breed, current_weight=0.0
-            )
-            
-            return new_pet
-
-        try:
-            return _register_in_transaction(transaction)
-        except ValueError:
-            # Re-raise validation errors as-is
-            raise
-        except Exception as e:
-            logging.error(f"Pet registration transaction failed for user {user_id}: {e}", exc_info=True)
-            raise RuntimeError("반려동물 등록에 실패했습니다. 다시 시도해주세요.")
+        # Delegate complete onboarding to specialized service
+        return self.onboarding_service.onboard_pet(user_id, pet_data)
 
     def update_pet_profile(self, pet_id: str, user_id: str, update_data: Dict[str, Any]) -> Pet:
         """Update pet profile information partially.
@@ -324,8 +265,11 @@ class PetProfileService:
             raise PermissionError("프로필을 수정할 권한이 없거나 반려동물을 찾을 수 없습니다.")
         if not update_data:
             raise ValueError("수정할 데이터가 제공되지 않았습니다.")
+        
+        # Firestore 저장을 위해 date/datetime 객체를 Firestore Timestamp로 변환
+        firestore_data = DateTimeUtils.for_firestore(update_data)
             
-        pet_ref.update(update_data)
+        pet_ref.update(firestore_data)
         logging.info(f"Pet profile updated for {pet_id} with fields: {list(update_data.keys())}")
         
         # Return updated Pet object

@@ -3,21 +3,28 @@ import logging
 import uuid
 import re
 from dataclasses import asdict
-from firebase_admin import firestore, messaging
+from firebase_admin import firestore
 from typing import Optional, Tuple
 from app.utils.text_utils import truncate_summary
 from app.core.constants import SUMMARY_MAX_LEN
 
 from app.models.notification import Notification, NotificationType
 from app.utils import metrics
+from app.services.push_transport import PushTransport, FCMPushTransport
 
 class NotificationService:
-    """알림 비즈니스 로직. Firestore 클라이언트는 DI로 주입.
+    """알림 비즈니스 로직. Firestore 클라이언트와 PushTransport는 DI로 주입.
 
     db_client 가 None 이면(예: DOCS_MODE) 모든 메서드는 side-effect 없이 조용히 종료하거나
     기본값을 반환하며 Firestore 호출을 수행하지 않습니다.
     """
-    def __init__(self, db_client=None):
+    def __init__(self, db_client=None, push_transport: Optional[PushTransport] = None):
+        """Initialize notification service with dependency injection.
+        
+        Args:
+            db_client: Optional Firestore client for persistence
+            push_transport: Optional PushTransport implementation (defaults to FCMPushTransport)
+        """
         self.db = db_client
         if self.db is None:
             self.notifications_ref = None
@@ -26,6 +33,7 @@ class NotificationService:
         else:
             self.notifications_ref = self.db.collection('notifications')
             self.users_ref = self.db.collection('users')
+        self.push_transport = push_transport if push_transport is not None else FCMPushTransport()
         self.default_delivery = "both"  # values: "inapp", "push", "both"
 
 
@@ -109,7 +117,16 @@ class NotificationService:
         if delivery_policy in ("push", "both"):
             token = recipient_info.get('fcm_token')
             if token:
-                success, reason = self._send_push_notification_with_token(token, notification)
+                # Use injected push transport for delivery
+                title = self._build_title(notification)
+                body = self._build_body(notification)
+                data = {
+                    'notification_id': notification.notification_id,
+                    'type': notification.type.value,
+                    'target_id': notification.target_id,
+                    'deeplink': self._build_deeplink(notification)
+                }
+                success, reason = self.push_transport.send_push(token, title, body, data)
                 if success:
                     metrics.increment('notifications.push.sent', type=n_type.value)
                 else:
@@ -199,41 +216,9 @@ class NotificationService:
             pass
         return sum(1 for _ in query.stream())
 
-    def _send_push_notification_with_token(self, token: str, notification: Notification) -> Tuple[bool, Optional[str]]:
-        """FCM 푸시 전송. 성공 여부와 실패 reason 코드 반환."""
-        title = self._build_title(notification)
-        body = self._build_body(notification)
-        message = messaging.Message(
-            token=token,
-            notification=messaging.Notification(title=title, body=body),
-            data={
-                'notification_id': notification.notification_id,
-                'type': notification.type.value,
-                'target_id': notification.target_id,
-                'deeplink': self._build_deeplink(notification)
-            }
-        )
-        try:
-            response = messaging.send(message)
-            logging.debug(f"FCM message sent: {response}")
-            return True, None
-        except Exception as e:
-            reason = self._classify_push_error(e)
-            logging.warning(f"푸시 전송 실패(reason={reason}): {e}")
-            return False, reason
-
     # ---------------- 내부 유틸 ----------------
-    # _sanitize_summary 제거: truncate_summary 유틸 사용
-
-    def _classify_push_error(self, exc: Exception) -> str:
-        msg = str(exc).lower()
-        if 'unregistered' in msg or 'registration-token-not-registered' in msg:
-            return 'unregistered'
-        if 'invalidargument' in msg or 'invalid registration' in msg or 'invalid-argument' in msg:
-            return 'invalid-argument'
-        if 'mismatchsenderid' in msg:
-            return 'mismatch-sender'
-        return 'other'
+    # _send_push_notification_with_token: removed, logic moved to PushTransport
+    # _classify_push_error: removed, logic moved to FCMPushTransport
 
     def _build_title(self, n: Notification) -> str:
         """

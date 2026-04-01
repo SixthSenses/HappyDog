@@ -463,8 +463,8 @@ def build_spec(app, title: str, version: str, *, add_servers: bool = False, add_
         }
     if add_servers:
         spec['servers'] = [
-            {'url': 'http://localhost:5000/api', 'description': 'Development'},
-            {'url': 'https://api.happydog.com/api', 'description': 'Production'}
+            {'url': 'http://localhost:5000', 'description': 'Development'},
+            {'url': 'https://api.happydog.com', 'description': 'Production'}
         ]
     if add_tags and tag_map:
         spec['tags'] = [{'name': t} for t in sorted(tag_map.keys())]

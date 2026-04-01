@@ -15,6 +15,7 @@ from firebase_admin import firestore
 
 from app.models.post import Post, Author, PetInfo
 from app.utils.datetime_utils import DateTimeUtils
+from app.services.storage_interfaces import StorageUrlProvider
 
 
 class PostService:
@@ -22,19 +23,25 @@ class PostService:
 
     Firestore dependency is injected. When `db_client` is None (e.g., DOCS_MODE)
     methods return lightweight placeholders or no-op values without touching Firestore.
+    
+    Phase 2: Delegates data queries to PostQueryService for better separation of concerns.
     """
-    def __init__(self, db_client=None, storage_service=None):
+    def __init__(self, db_client=None, storage_service: Optional[StorageUrlProvider] = None, query_service=None):
         self.db = db_client
         self.storage_service = storage_service
+        
+        # Phase 2: Delegate queries to specialized service
+        if query_service is None:
+            from .post_query_service import PostQueryService
+            self.query_service = PostQueryService(db_client, storage_service)
+        else:
+            self.query_service = query_service
+        
         if self.db is None:
             self.posts_ref = None
-            self.users_ref = None
-            self.pets_ref = None
             logging.info("PostService initialized without Firestore client (dependency not provided)")
         else:
             self.posts_ref = self.db.collection('posts')
-            self.users_ref = self.db.collection('users')
-            self.pets_ref = self.db.collection('pets')
 
     def create_post(self, user_id: str, text: str, file_paths: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
         """새로운 게시글을 생성하고 Firestore에 저장합니다.
@@ -64,33 +71,24 @@ class PostService:
         if self.db is None:
             # Return synthetic post object (no persistence)
             post_id = str(uuid.uuid4())
-            author = Author(user_id=user_id, nickname="demo_user")
-            pet_info = PetInfo(pet_id="demo_pet", name="Demo", breed="Unknown", birthdate=None, profile_image_url=None)
+            author = self.query_service.get_author_snapshot(user_id)
+            pet_info = self.query_service.get_pet_snapshot(user_id)
             new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             return asdict(new_post)
+        
         try:
-            user_doc = self.users_ref.document(user_id).get()
-            if not user_doc.exists:
+            # Phase 2: Delegate data retrieval to query service
+            author = self.query_service.get_author_snapshot(user_id)
+            if not author:
+                logging.warning(f"Cannot create post: author not found for user {user_id}")
                 return None
-
-            pet_doc = self.pets_ref.where('user_id', '==', user_id).limit(1).get()
-            if not pet_doc:
+            
+            pet_info = self.query_service.get_pet_snapshot(user_id)
+            if not pet_info:
+                logging.warning(f"Cannot create post: no pet found for user {user_id}")
                 return None
-
-            user_data = user_doc.to_dict()
-            pet_raw = pet_doc[0]
-            pet_data = pet_raw.to_dict()
-            if not pet_data.get("pet_id"):
-                pet_data["pet_id"] = pet_raw.id
-
-            author = Author(user_id=user_id, nickname=user_data.get("nickname"))
-            pet_info = PetInfo(
-                pet_id=pet_data.get("pet_id"),
-                name=pet_data.get("name"),
-                breed=pet_data.get("breed"),
-                birthdate=pet_data.get("birthdate"),
-                profile_image_url=pet_data.get("profile_image_url")
-            )
+            
+            # Create post with snapshots
             post_id = str(uuid.uuid4())
             new_post = Post(post_id=post_id, author=author, pet=pet_info, image_urls=image_urls, text=text)
             post_data = DateTimeUtils.for_firestore(asdict(new_post))
@@ -147,7 +145,7 @@ class PostService:
 
     def _ensure_full_image_urls(self, post_data: Dict[str, Any]) -> None:
         """
-        image_urls가 상대 경로인 경우 전체 URL로 변환합니다.
+        image_urls와 pet.profile_image_url이 상대 경로인 경우 전체 URL로 변환합니다.
         기존 데이터 호환성을 위한 헬퍼 메서드입니다.
         
         Note:
@@ -155,28 +153,66 @@ class PostService:
             - 새로운 데이터는 create_post에서 이미 URL로 변환되어 저장됨
             - URL 변환 실패 시 원본 유지 (에러 발생 안 함)
         """
-        if not post_data or 'image_urls' not in post_data:
+        if not post_data or not self.storage_service:
             return
         
-        image_urls = post_data['image_urls']
-        if not image_urls or not self.storage_service:
-            return
-        
-        # 상대 경로인지 확인 (https://로 시작하지 않으면 상대 경로)
-        converted_urls = []
-        for url in image_urls:
-            if url and not url.startswith('https://'):
-                try:
-                    # 상대 경로를 전체 URL로 변환
-                    full_url = self.storage_service.get_public_url(url)
-                    converted_urls.append(full_url)
-                except Exception as e:
-                    logging.warning(f"URL 변환 실패 (fallback to original): {url} - {e}")
+        # 1. image_urls 변환
+        if 'image_urls' in post_data and post_data['image_urls']:
+            image_urls = post_data['image_urls']
+            converted_urls = []
+            for url in image_urls:
+                if url and not url.startswith('https://'):
+                    try:
+                        # 상대 경로를 전체 URL로 변환
+                        full_url = self.storage_service.get_public_url(url)
+                        converted_urls.append(full_url)
+                    except Exception as e:
+                        logging.warning(f"URL 변환 실패 (fallback to original): {url} - {e}")
+                        converted_urls.append(url)
+                else:
                     converted_urls.append(url)
-            else:
-                converted_urls.append(url)
+            post_data['image_urls'] = converted_urls
         
-        post_data['image_urls'] = converted_urls
+        # 2. pet.profile_image_url 변환
+        if 'pet' in post_data and isinstance(post_data['pet'], dict):
+            pet_data = post_data['pet']
+            if 'profile_image_url' in pet_data:
+                profile_url = pet_data.get('profile_image_url')
+                if profile_url and not profile_url.startswith('https://'):
+                    try:
+                        full_url = self.storage_service.get_public_url(profile_url)
+                        pet_data['profile_image_url'] = full_url
+                    except Exception as e:
+                        logging.warning(f"Profile image URL 변환 실패 (fallback to original): {profile_url} - {e}")
+
+    def _convert_string_dates_to_datetime(self, post_data: Dict[str, Any]) -> None:
+        """
+        레거시 데이터: 문자열로 저장된 datetime 필드를 datetime 객체로 변환합니다.
+        
+        Note:
+            - 과거에 .isoformat()로 저장된 데이터 처리
+            - created_at, updated_at, pet.birthdate 필드 변환
+            - 변환 실패 시 원본 유지 (로그만 남김)
+        """
+        if not post_data:
+            return
+        
+        # 1. created_at, updated_at 변환
+        for field in ['created_at', 'updated_at']:
+            if field in post_data and isinstance(post_data[field], str):
+                try:
+                    post_data[field] = DateTimeUtils.parse_iso_datetime(post_data[field])
+                except Exception as e:
+                    logging.warning(f"{field} 문자열 파싱 실패 (원본 유지): {post_data[field]} - {e}")
+        
+        # 2. pet.birthdate 변환
+        if 'pet' in post_data and isinstance(post_data['pet'], dict):
+            pet_data = post_data['pet']
+            if 'birthdate' in pet_data and isinstance(pet_data['birthdate'], str):
+                try:
+                    pet_data['birthdate'] = DateTimeUtils.parse_iso_datetime(pet_data['birthdate'])
+                except Exception as e:
+                    logging.warning(f"pet.birthdate 문자열 파싱 실패 (원본 유지): {pet_data['birthdate']} - {e}")
     
     def get_posts(self, limit: int, cursor: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
         """게시글 피드 목록을 페이지네이션으로 조회합니다 (좋아요 정보 제외)."""
@@ -194,6 +230,10 @@ class PostService:
         
         for doc in docs:
             post_data = doc.to_dict()
+            # Firestore Timestamp를 datetime 객체로 변환
+            post_data = DateTimeUtils.from_firestore(post_data)
+            # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+            self._convert_string_dates_to_datetime(post_data)
             self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
             posts.append(post_data)
             last_doc_id = doc.id
@@ -208,6 +248,10 @@ class PostService:
         if not doc.exists:
             return None
         post_data = doc.to_dict()
+        # Firestore Timestamp를 datetime 객체로 변환
+        post_data = DateTimeUtils.from_firestore(post_data)
+        # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+        self._convert_string_dates_to_datetime(post_data)
         self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
         return post_data
 
@@ -223,7 +267,15 @@ class PostService:
         update_data = {"text": text, "updated_at": datetime.utcnow()}
         post_ref.update(update_data)
         updated_doc = post_ref.get()
-        return updated_doc.to_dict() if updated_doc.exists else None
+        if updated_doc.exists:
+            post_data = updated_doc.to_dict()
+            # Firestore Timestamp를 datetime 객체로 변환
+            post_data = DateTimeUtils.from_firestore(post_data)
+            # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+            self._convert_string_dates_to_datetime(post_data)
+            self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
+            return post_data
+        return None
 
     def delete_post(self, post_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -255,7 +307,15 @@ class PostService:
                 if cursor_doc.exists:
                     query = query.start_after(cursor_doc)
             docs = query.limit(limit).stream()
-            posts = [doc.to_dict() for doc in docs]
+            posts = []
+            for doc in docs:
+                post_data = doc.to_dict()
+                # Firestore Timestamp를 datetime 객체로 변환
+                post_data = DateTimeUtils.from_firestore(post_data)
+                # 레거시 데이터: 문자열로 저장된 datetime 필드 변환
+                self._convert_string_dates_to_datetime(post_data)
+                self._ensure_full_image_urls(post_data)  # 레거시 데이터 지원
+                posts.append(post_data)
             last_doc_id = posts[-1]['post_id'] if posts else None
             return posts, last_doc_id
         except Exception as e:

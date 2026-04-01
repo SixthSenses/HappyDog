@@ -45,6 +45,7 @@ from app.services.openai_service_stub import OpenAIServiceStub
 from app.api.auth import services as auth_service_module
 from app.api.users.services import UserProfileService, UserStatsService, UserService
 from app.api.posts.services import PostService, PostLikeService, PostEventService, PostStorageService
+from app.api.posts.services.post_query_service import PostQueryService
 from app.api.comments.services import CommentService, CommentMentionService, CommentEventService, CommentNotificationService
 from app.api.cartoon_jobs.services import CartoonJobService, CartoonJobProcessor, CartoonJobEventService, CartoonJobIntegrationService
 from app.api.breeds.services import BreedService
@@ -55,6 +56,8 @@ from app.api.pet_care.records.record_integration_service import PetCareRecordInt
 from app.api.pet_care.records.repository import FirestorePetCareRecordRepository, InMemoryPetCareRecordRepository
 from app.api.pet_care.records.query_service import PetCareRecordQueryService
 from app.api.pet_care.records.services import PetCareRecordService
+from app.api.pet_care.records.analyzers import GoalAnalyzer, TrendAnalyzer
+from app.api.pet_care.records.notifier import PetCareNotifier
 from app.services.idempotency_service import IdempotencyService
 from app.middleware.request_id_middleware import install_request_id
 from app.middleware.rate_limit_middleware import install_rate_limit
@@ -94,12 +97,21 @@ def _init_core_services(app, skip_ml: bool = False, docs_mode: bool = False):
             logging.error(f"Failed to initialize OpenAI service: {e}")
             raise
 
-    # Notification service - foundational for async messaging (DI with Firestore)
-    app.services['notifications'] = notification_service_module.NotificationService(app.firestore_client)
+    # Notification service - foundational for async messaging (DI with Firestore and PushTransport)
+    from app.services.push_transport import FCMPushTransport, StubPushTransport
+    push_transport = StubPushTransport() if docs_mode else FCMPushTransport()
+    app.services['notifications'] = notification_service_module.NotificationService(
+        db_client=app.firestore_client,
+        push_transport=push_transport
+    )
     
-    # Notification presentation service
+    # Notification presentation service with handler factory DI
     from app.api.notifications.services import NotificationPresentationService
-    app.services['notification_presentation'] = NotificationPresentationService()
+    from app.api.notifications.handlers import NotificationHandlerFactory
+    notification_handler_factory = NotificationHandlerFactory()
+    app.services['notification_presentation'] = NotificationPresentationService(
+        handler_factory=notification_handler_factory
+    )
     
     # Utility services with no dependencies
     app.services['idempotency'] = IdempotencyService(app.firestore_client)
@@ -189,15 +201,23 @@ def _init_dependent_services(app):
         repo = FirestorePetCareRecordRepository(app.firestore_client)
     app.services['pet_care_repo'] = repo
     app.services['pet_care_query'] = PetCareRecordQueryService(repo)
-    app.services['pet_care_records'] = PetCareRecordService(repo)
+    # Inject query_service explicitly to avoid internal instantiation
+    app.services['pet_care_records'] = PetCareRecordService(repo, query_service=app.services['pet_care_query'])
     
-    # Pet Care Integration Service - depends on multiple services
+    # Pet Care Analyzers and Notifier
+    goal_analyzer = GoalAnalyzer()
+    trend_analyzer = TrendAnalyzer()
+    pet_care_notifier = PetCareNotifier(notification_service=app.services['notifications'])
+    
+    # Pet Care Integration Service - depends on multiple services with DI
     app.services['pet_care_integration'] = PetCareRecordIntegration(
         crud_service=app.services['pet_care_records'],
         query_service=app.services['pet_care_query'],
         cache_service=None,  # Cache service not implemented yet
         settings_service=app.services['pet_care_settings'],
-        notification_service=app.services['notifications']
+        goal_analyzer=goal_analyzer,
+        trend_analyzer=trend_analyzer,
+        notifier=pet_care_notifier
     )
 
     # Pets Domain - depends on storage, pet_care_settings, and ML services
@@ -226,7 +246,16 @@ def _init_dependent_services(app):
     app.services['users'] = UserService()  # Lightweight, no dependencies
     
     # Posts Domain - depends on storage (DI with Firestore)
-    app.services['posts'] = PostService(app.firestore_client, storage_service=app.services['storage'])
+    # Phase 2: Extract query logic with explicit DI
+    post_query_service = PostQueryService(
+        db_client=app.firestore_client,
+        storage_service=app.services['storage']
+    )
+    app.services['posts'] = PostService(
+        app.firestore_client,
+        storage_service=app.services['storage'],
+        query_service=post_query_service
+    )
     app.services['post_likes'] = PostLikeService(app.firestore_client)
     app.services['post_events'] = PostEventService()
     app.services['post_storage'] = PostStorageService(app.services['storage'])
@@ -236,7 +265,7 @@ def _init_dependent_services(app):
     app.services['post_storage'].init_app(app)
     
     # Comments Domain - basic services first (DI with Firestore)
-    app.services['comments'] = CommentService(app.firestore_client)
+    app.services['comments'] = CommentService(app.firestore_client, app.services['storage'])
     app.services['comment_mentions'] = CommentMentionService(app.firestore_client)
     app.services['comment_events'] = CommentEventService()
     app.services['comment_notifications'] = CommentNotificationService()

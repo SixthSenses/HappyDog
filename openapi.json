@@ -291,8 +291,8 @@
     },
     "/api/uploads/finalize-cartoon": {
       "post": {
-        "summary": "만화 이미지 URL 생성",
-        "description": "업로드된 만화 원본 이미지의 Firebase Storage URL을 반환합니다.\n\n    RequestSchema: FinalizeCartoonRequestSchema\n    ResponseSchema[200]: FinalizeCartoonResponseSchema",
+        "summary": "[DEPRECATED] 만화 이미지 URL 생성",
+        "description": "⚠️ 더 이상 사용되지 않는 엔드포인트입니다.\n    POST /api/cartoon-jobs 엔드포인트에서 이미지 URL을 자동으로 생성합니다.\n    \n    이전 버전 클라이언트 호환성을 위해 유지되고 있으며, 향후 제거될 예정입니다.\n\n    RequestSchema: FinalizeCartoonRequestSchema\n    ResponseSchema[200]: FinalizeCartoonResponseSchema",
         "responses": {
           "200": {
             "description": "성공",
@@ -1782,7 +1782,7 @@
       },
       "patch": {
         "summary": "반려동물 프로필 수정",
-        "description": "소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. 필요한 필드만 수정할 수 있습니다.\n\n    RequestSchema: PetUpdateSchema\n    ResponseSchema[200]: PetProfileResponseSchema",
+        "description": "소유자만 접근할 수 있는 반려동물의 프로필 정보를 부분 업데이트합니다. \n    이름, 성별, 견종, 생년월일, 털 색깔, 건강 관심사, 프로필 이미지 등 필요한 필드만 선택적으로 수정할 수 있습니다.\n\n    RequestSchema: PetUpdateSchema\n    ResponseSchema[200]: PetProfileResponseSchema",
         "responses": {
           "200": {
             "description": "성공",
@@ -2475,6 +2475,51 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/VALIDATION_ERROR"
+          },
+          "401": {
+            "$ref": "#/components/responses/UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/FORBIDDEN"
+          },
+          "404": {
+            "$ref": "#/components/responses/NOT_FOUND"
+          },
+          "500": {
+            "$ref": "#/components/responses/INTERNAL_ERROR"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Path parameter 'pet_id' (converter: string)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": [
+          "pet-care"
+        ]
+      }
+    },
+    "/api/pet-care/{pet_id}/weight/monthly-analysis": {
+      "get": {
+        "summary": "몸무게 월간 분석 조회",
+        "description": "6개월간의 월별 평균 몸무게와 비교 분석 텍스트를 제공합니다.\n    항상 오늘을 기준으로 최근 6개월 데이터를 반환합니다.\n\n    ResponseSchema[200]: WeightMonthlyAnalysisResponseSchema",
+        "responses": {
+          "200": {
+            "description": "성공"
           },
           "400": {
             "$ref": "#/components/responses/VALIDATION_ERROR"
@@ -3302,11 +3347,15 @@
             "type": "string",
             "format": "uri",
             "nullable": true
+          },
+          "is_verified": {
+            "type": "boolean"
           }
         },
         "required": [
           "birthdate",
           "breed",
+          "is_verified",
           "name",
           "pet_id"
         ],
@@ -3755,6 +3804,22 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 20
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
+          "breed": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date"
           },
           "fur_color": {
             "type": "string"
@@ -4779,11 +4844,11 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5000/api",
+      "url": "http://localhost:5000",
       "description": "Development"
     },
     {
-      "url": "https://api.happydog.com/api",
+      "url": "https://api.happydog.com",
       "description": "Production"
     }
   ],
@@ -4821,5 +4886,8 @@
     {
       "name": "users"
     }
+  ],
+  "_strict_errors": [
+    "missing ResponseSchema 'WeightMonthlyAnalysisResponseSchema' for GET /api/pet-care/<string:pet_id>/weight/monthly-analysis status 200"
   ]
 }

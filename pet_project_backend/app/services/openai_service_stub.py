@@ -12,7 +12,7 @@ class OpenAIServiceStub:
     def init_app(self, app):  # signature compatibility
         logging.info("OpenAIServiceStub: initialization skipped (DOCS_MODE)")
 
-    def generate_cartoon(self, image_url: str, user_text: str) -> Dict[str, Any]:
+    def generate_cartoon(self, image_url: str, user_text: str, storage_service=None) -> Dict[str, Any]:
         return {
             "success": True,
             "stub": True,

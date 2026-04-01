@@ -64,9 +64,12 @@ def get_upload_url():
 @uploads_bp.route('/finalize-cartoon', methods=['POST'])
 @jwt_required()
 def finalize_cartoon_upload():
-    """만화 이미지 URL 생성
+    """[DEPRECATED] 만화 이미지 URL 생성
 
-    업로드된 만화 원본 이미지의 Firebase Storage URL을 반환합니다.
+    ⚠️ 더 이상 사용되지 않는 엔드포인트입니다.
+    POST /api/cartoon-jobs 엔드포인트에서 이미지 URL을 자동으로 생성합니다.
+    
+    이전 버전 클라이언트 호환성을 위해 유지되고 있으며, 향후 제거될 예정입니다.
 
     RequestSchema: FinalizeCartoonRequestSchema
     ResponseSchema[200]: FinalizeCartoonResponseSchema

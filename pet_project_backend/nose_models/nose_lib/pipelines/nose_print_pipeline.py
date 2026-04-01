@@ -15,7 +15,7 @@ class NosePrintPipeline:
 
     def __init__(self, yolo_weights_path: str, config_path: str, extractor_weights_path: str, faiss_index_path: str):
         print("NosePrintPipeline: 초기화를 시작합니다...")
-        self.duplicate_threshold = 0.7
+        self.duplicate_threshold = 0.25
         self.outlier_threshold = 1.2
         
         # [수정됨] 나중에 인덱스 파일을 저장하기 위해 경로를 인스턴스 변수로 저장합니다.
